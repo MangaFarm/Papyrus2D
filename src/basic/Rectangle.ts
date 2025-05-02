@@ -98,12 +98,17 @@ export class Rectangle {
   /**
    * 他の矩形と交差しているか判定
    */
-  intersects(rect: Rectangle): boolean {
+  /**
+   * 他の矩形と交差しているか判定
+   * @param rect 判定対象の矩形
+   * @param epsilon 許容誤差（デフォルトは0）
+   */
+  intersects(rect: Rectangle, epsilon: number = 0): boolean {
     return !(
-      rect.x > this.x + this.width ||
-      rect.x + rect.width < this.x ||
-      rect.y > this.y + this.height ||
-      rect.y + rect.height < this.y
+      rect.x > this.x + this.width + epsilon ||
+      rect.x + rect.width < this.x - epsilon ||
+      rect.y > this.y + this.height + epsilon ||
+      rect.y + rect.height < this.y - epsilon
     );
   }
 

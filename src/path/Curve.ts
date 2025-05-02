@@ -14,6 +14,11 @@ export interface CurveLocation {
   distance?: number;  // 距離（近接判定用）
   tangent?: boolean;  // 接線共有フラグ
   onPath?: boolean;   // パス上フラグ
+  
+  // Paper.jsと同様のプロパティ（交点の相互参照用）
+  _intersection?: CurveLocation; // 対応する交点
+  _next?: CurveLocation;         // 連結リスト用
+  _previous?: CurveLocation;     // 連結リスト用
 }
 /**
  * Curveクラス: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
@@ -584,6 +589,10 @@ export class Curve {
    * 2つの曲線の交点を計算
    * paper.jsのCurve.getIntersections実装を移植
    */
+  /**
+   * 2つの曲線の交点を計算
+   * paper.jsのCurve.getIntersections実装を移植
+   */
   static getIntersections(
     curves1: Curve[],
     curves2: Curve[] | null,
@@ -601,14 +610,32 @@ export class Curve {
     const values2 = self ? values1 : new Array(length2);
     const locations: CurveLocation[] = [];
     
-    // 各曲線の値を取得
+    // 各曲線の値を取得（行列変換を適用）
     for (let i = 0; i < length1; i++) {
       values1[i] = curves1[i].getValues();
+      if (matrix1) {
+        // 行列変換を適用
+        for (let j = 0; j < 8; j += 2) {
+          const p = new Point(values1[i][j], values1[i][j + 1]);
+          const transformed = matrix1.transform(p);
+          values1[i][j] = transformed.x;
+          values1[i][j + 1] = transformed.y;
+        }
+      }
     }
     
     if (!self) {
       for (let i = 0; i < length2; i++) {
         values2[i] = _curves2[i].getValues();
+        if (matrix2) {
+          // 行列変換を適用
+          for (let j = 0; j < 8; j += 2) {
+            const p = new Point(values2[i][j], values2[i][j + 1]);
+            const transformed = matrix2.transform(p);
+            values2[i][j] = transformed.x;
+            values2[i][j + 1] = transformed.y;
+          }
+        }
       }
     }
     
@@ -617,6 +644,7 @@ export class Curve {
       values1, values2, epsilon
     );
     
+    // 各曲線の交点を計算
     for (let index1 = 0; index1 < length1; index1++) {
       const curve1 = curves1[index1];
       const v1 = values1[index1];
@@ -630,17 +658,42 @@ export class Curve {
       const collisions1 = boundsCollisions[index1];
       if (collisions1 && Array.isArray(collisions1)) {
         for (let j = 0; j < collisions1.length; j++) {
+          // 既に交点が見つかっていて、最初の交点だけを返す場合は早期リターン
           if (_returnFirst && locations.length) {
             return locations;
           }
           
           const index2 = collisions1[j];
+          // 自己交差の場合は、重複チェックを避けるために index2 > index1 の場合のみ処理
           if (!self || index2 > index1) {
             const curve2 = _curves2[index2];
             const v2 = values2[index2];
+            
+            // 曲線の交点を計算
             getCurveIntersections(
               v1, v2, curve1, curve2, locations, include
             );
+            
+            // 曲線インデックスを設定
+            for (let k = locations.length - 1; k >= 0; k--) {
+              const loc = locations[k];
+              if (loc.curve1Index === -1) {
+                loc.curve1Index = index1;
+                loc.curve2Index = index2;
+                
+                // 交点情報を更新
+                if (loc.t1 !== null && loc.t2 !== null) {
+                  // 交点の位置を正確に計算
+                  if (matrix1) {
+                    // 行列変換を適用した場合は、元の座標系に戻す
+                    const invMatrix1 = matrix1.invert();
+                    if (invMatrix1) {
+                      loc.point = invMatrix1.transform(loc.point);
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }

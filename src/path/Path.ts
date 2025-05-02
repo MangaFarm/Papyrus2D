@@ -657,17 +657,14 @@ export class Path implements PathItem {
     const matrix1 = this._matrix;
     const matrix2 = self ? matrix1 : path._matrix;
 
-    // まず両方のパスの境界ボックスが交差するか確認
-    if (self || this.getBounds().intersects(path.getBounds())) {
-      return Curve.getIntersections(
-        this.getCurves(),
-        !self ? path.getCurves() : null,
-        options?.include,
-        matrix1,
-        matrix2
-      );
-    }
-
-    return [];
+    // Paper.jsと同様に、境界ボックスのチェックを省略
+    // 境界ボックスのチェックはCurve.getIntersections内部で行われる
+    return Curve.getIntersections(
+      this.getCurves(),
+      !self ? path.getCurves() : null,
+      options?.include,
+      matrix1,
+      matrix2
+    );
   }
 }

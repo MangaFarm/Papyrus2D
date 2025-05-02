@@ -11,6 +11,10 @@ import { Point } from '../basic/Point';
  * 自己交差チェック
  * paper.jsのgetSelfIntersection実装を移植
  */
+/**
+ * 自己交差チェック
+ * paper.jsのgetSelfIntersection実装を移植
+ */
 export function getSelfIntersection(
   v1: number[],
   c1: Curve,
@@ -19,13 +23,20 @@ export function getSelfIntersection(
 ): CurveLocation[] {
   const info = Curve.classify(v1);
   if (info.type === 'loop' && info.roots) {
+    // ループ曲線の場合、自己交差点を追加
+    // Paper.jsと同様に、overlapパラメータを省略（デフォルトはfalse）
     addLocation(locations, include,
       c1, info.roots[0],
       c1, info.roots[1]);
   }
+  
   return locations;
 }
 
+/**
+ * 交点情報を追加
+ * paper.jsのaddLocation実装を移植
+ */
 /**
  * 交点情報を追加
  * paper.jsのaddLocation実装を移植
@@ -37,8 +48,9 @@ export function addLocation(
   t1: number | null,
   c2: Curve,
   t2: number | null,
-  overlap?: boolean
+  overlap: boolean = false
 ): void {
+  // Paper.jsと同様の実装
   // 端点の除外判定
   const excludeStart = !overlap && c1.segment1 === c2.segment2;
   const excludeEnd = !overlap && c1 !== c2 && c1.segment2 === c2.segment1;
@@ -49,6 +61,8 @@ export function addLocation(
   if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
     if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) && t2 <= (excludeStart ? tMax : 1)) {
       const point = t1 !== null ? c1.getPointAt(t1) : new Point(0, 0);
+      
+      // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
       const loc1: CurveLocation = {
         curve1Index: -1, // 後で設定
         curve2Index: -1, // 後で設定
@@ -58,14 +72,96 @@ export function addLocation(
         overlap
       };
       
+      const loc2: CurveLocation = {
+        curve1Index: -1, // 後で設定
+        curve2Index: -1, // 後で設定
+        t1: t2,
+        t2: t1,
+        point,
+        overlap
+      };
+      
+      // 相互参照を設定
+      loc1._intersection = loc2;
+      loc2._intersection = loc1;
+      
       // includeコールバックがなければ、または条件を満たせば追加
       if (!include || include(loc1)) {
-        locations.push(loc1);
+        // Paper.jsと同様に、includeOverlapsパラメータを省略（デフォルトはfalse）
+        insertLocation(locations, loc1);
       }
     }
   }
 }
 
+/**
+ * 重複する交点をフィルタリングしながら交点情報を挿入
+ * paper.jsのCurveLocation.insert実装を移植
+ */
+/**
+ * Paper.jsのCurveLocation.insertメソッドを移植
+ * 重複する交点をフィルタリングしながら交点情報を挿入
+ */
+function insertLocation(locations: CurveLocation[], location: CurveLocation, includeOverlaps: boolean = false): number {
+  const length = locations.length;
+  
+  // Paper.jsと同様に連結リストを構築
+  if (length > 0) {
+    let current = locations[length - 1];
+    current._next = location;
+    location._previous = current;
+  }
+  
+  // 重複する交点をフィルタリング
+  const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
+  
+  // 既存の交点と比較して、近接している場合は追加しない
+  for (let i = 0; i < length; i++) {
+    const loc = locations[i];
+    
+    // Paper.jsと同様に、tパラメータの差と点の距離の両方をチェック
+    const param1 = loc.t1;
+    const param2 = location.t1;
+    
+    // tパラメータが近い場合は重複とみなす
+    if (param1 !== null && param2 !== null &&
+        Math.abs(param1 - param2) < geomEpsilon) {
+      // 重複を許可する場合のみ追加
+      if (includeOverlaps) {
+        locations.push(location);
+        return length;
+      }
+      return i;
+    }
+    
+    // 点の距離が十分に近い場合も重複とみなす
+    if (loc.point.subtract(location.point).getLength() < geomEpsilon) {
+      // 交点が既に存在する場合は、相互参照を更新
+      if (location._intersection && loc._intersection) {
+        // 既存の交点の相互参照を新しい交点の相互参照に更新
+        loc._intersection._intersection = location._intersection;
+        location._intersection._intersection = loc._intersection;
+      }
+      
+      // 重複を許可する場合のみ追加
+      if (includeOverlaps) {
+        locations.push(location);
+        return length;
+      }
+      
+      return i;
+    }
+  }
+  
+  // 重複がない場合は追加
+  locations.push(location);
+  return length;
+}
+
+/**
+ * 曲線同士の交点計算
+ * paper.jsのgetCurveIntersections実装を移植
+ */
 /**
  * 曲線同士の交点計算
  * paper.jsのgetCurveIntersections実装を移植
@@ -127,22 +223,22 @@ export function getCurveIntersections(
           v1, v2, c1, c2, locations, include, false, 0, 0, 0, 1, 0, 1);
       }
       
-      // 端点が重なる特殊ケースの処理
+      // Paper.jsと同様に、端点が重なる特殊ケースの処理を追加
+      // 直線同士の交点が見つからなかった場合や、曲線の場合は端点のチェックを行う
       if (!straight || locations.length === before) {
-        // 端点が重なるかチェック
-        const c1p1 = new Point(v1[0], v1[1]);
-        const c1p2 = new Point(v1[6], v1[7]);
-        const c2p1 = new Point(v2[0], v2[1]);
-        const c2p2 = new Point(v2[6], v2[7]);
-        
-        if (c1p1.isClose(c2p1, epsilon))
-          addLocation(locations, include, c1, 0, c2, 0, true);
-        if (c1p1.isClose(c2p2, epsilon))
-          addLocation(locations, include, c1, 0, c2, 1, true);
-        if (c1p2.isClose(c2p1, epsilon))
-          addLocation(locations, include, c1, 1, c2, 0, true);
-        if (c1p2.isClose(c2p2, epsilon))
-          addLocation(locations, include, c1, 1, c2, 1, true);
+        // 各曲線の端点をチェック
+        for (let i = 0; i < 4; i++) {
+          const t1 = i >> 1;  // 0, 0, 1, 1
+          const t2 = i & 1;   // 0, 1, 0, 1
+          const i1 = t1 * 6;  // 0, 0, 6, 6
+          const i2 = t2 * 6;  // 0, 6, 0, 6
+          const p1 = new Point(v1[i1], v1[i1 + 1]);
+          const p2 = new Point(v2[i2], v2[i2 + 1]);
+          
+          if (p1.isClose(p2, epsilon)) {
+            addLocation(locations, include, c1, t1, c2, t2, true);
+          }
+        }
       }
     }
   }
@@ -400,6 +496,10 @@ function addCurveLineIntersections(
  * paper.jsのaddCurveIntersections実装
  * PATHITEM_INTERSECTIONS.mdに記載されている実装を使用
  */
+/**
+ * 曲線同士の交点を再帰的に計算
+ * paper.jsのaddCurveIntersections実装を移植
+ */
 function addCurveIntersections(
   v1: number[], v2: number[],
   c1: Curve, c2: Curve,
@@ -411,6 +511,7 @@ function addCurveIntersections(
   tMin: number = 0, tMax: number = 1,
   uMin: number = 0, uMax: number = 1
 ): number {
+  // Paper.jsと同じ再帰深度と呼び出し回数の制限を設定
   // 再帰が深すぎる場合や呼び出し回数が多すぎる場合は停止
   if (++calls >= 4096 || ++recursion >= 40)
     return calls;
@@ -498,7 +599,7 @@ function addCurveIntersections(
           recursion, calls, u, uMax, tMinNew, tMaxNew);
       }
     } else { // 反復
-      // uDiff === 0の場合もチェックする必要がある
+      // Paper.jsと同様に、uDiff === 0の場合もチェックする
       if (uDiff === 0 || uDiff >= fatLineEpsilon) {
         calls = addCurveIntersections(
           v2, v1Clipped, c2, c1, locations, include, !flip,

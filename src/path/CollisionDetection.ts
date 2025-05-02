@@ -8,19 +8,31 @@ export class CollisionDetection {
    * 曲線の境界ボックス同士の衝突を検出
    * paper.jsのCollisionDetection.findCurveBoundsCollisions実装を移植
    */
+  /**
+   * 曲線の境界ボックス同士の衝突を検出
+   * paper.jsのCollisionDetection.findCurveBoundsCollisions実装を移植
+   * @param curves1 曲線の配列1
+   * @param curves2 曲線の配列2（nullの場合は自己衝突チェック）
+   * @param tolerance 許容誤差
+   * @param bothAxis 両軸でチェックするかどうか
+   * @returns 衝突インデックスの配列
+   */
   static findCurveBoundsCollisions(
     curves1: number[][],
     curves2: number[][] | null,
     tolerance: number,
     bothAxis?: boolean
   ): number[][] {
-    // 🔥 paper.jsのfindCurveBoundsCollisions実装
+    // paper.jsのfindCurveBoundsCollisions実装を忠実に移植
     function getBounds(curves: number[][]): number[][] {
       const min = Math.min;
       const max = Math.max;
       const bounds = new Array(curves.length);
+      
       for (let i = 0; i < curves.length; i++) {
         const v = curves[i];
+        
+        // Paper.jsと同様に、制御点のみを使用して境界ボックスを計算
         bounds[i] = [
           min(v[0], v[2], v[4], v[6]),
           min(v[1], v[3], v[5], v[7]),
@@ -28,19 +40,27 @@ export class CollisionDetection {
           max(v[1], v[3], v[5], v[7])
         ];
       }
+      
       return bounds;
     }
 
+    // 境界ボックスを計算
     const bounds1 = getBounds(curves1);
     const bounds2 = !curves2 || curves2 === curves1
       ? bounds1
       : getBounds(curves2);
     
+    // 許容誤差を確実に適用
+    const eps = tolerance || 0;
+    
     if (bothAxis) {
+      // 水平方向と垂直方向の両方でチェック
       const hor = this.findBoundsCollisions(
-        bounds1, bounds2, tolerance || 0, false, true);
+        bounds1, bounds2, eps, false, true);
       const ver = this.findBoundsCollisions(
-        bounds1, bounds2, tolerance || 0, true, true);
+        bounds1, bounds2, eps, true, true);
+      
+      // 結果を組み合わせる
       const list: { hor: number[]; ver: number[] }[] = [];
       for (let i = 0, l = hor.length; i < l; i++) {
         list[i] = { hor: hor[i], ver: ver[i] };
@@ -48,7 +68,8 @@ export class CollisionDetection {
       return list as any; // 型キャストで対応
     }
     
-    return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
+    // 単一方向でチェック
+    return this.findBoundsCollisions(bounds1, bounds2, eps);
   }
 
   /**
