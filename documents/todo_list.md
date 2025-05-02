@@ -46,8 +46,8 @@
     - [x] point, handleIn, handleOut プロパティ
     - [x] セグメント操作メソッド（translate, rotate, scale, withSmoothHandles など）
   - [x] 3.1.2 SegmentPoint クラスの実装（SegmentPoint.ts, SegmentPoint.test.ts 完了）
-  - [ ] 3.1.3 Curve クラスの実装
-    - [ ] 曲線情報メソッド（getLength, getPointAt, getTangentAt）
+  - [x] 3.1.3 Curve クラスの実装
+    - [x] getLength, [x] getPointAt, [x] getTangentAt
     - [ ] 曲線操作メソッド（divide, split）
 - [ ] 3.2 パスクラスの実装
   - [ ] 3.2.1 PathItem 基底クラスの実装（インターフェース定義）
@@ -62,7 +62,7 @@
   - [ ] 3.3.2 パス変換メソッド
 - [ ] 3.4 パスクラスのテスト作成
   - [x] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
-  - [ ] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
+  - [x] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
   - [ ] 3.4.3 Pathのユニットテスト（Path.test.ts の実装完了）
   - [x] 3.4.4 その他のパスクラスのユニットテスト（SegmentPointのテスト完了）
 

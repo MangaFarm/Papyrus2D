@@ -2,6 +2,7 @@
  * Papyrus2D Point クラス（イミュータブル設計, TypeScript）
  * paper.js の Point 実装をベースに、イミュータブル・副作用なし・グローバル排除で再設計
  */
+import { Numerical } from '../util/Numerical';
 
 export class Point {
   readonly x: number;
@@ -73,9 +74,18 @@ export class Point {
   }
 
   /**
-   * x, yがともに0かどうか
+   * このベクトルとotherが同一直線上（外積が0）かどうか
+   * 許容誤差はNumerical.GEOMETRIC_EPSILON
    */
-  isZero(): boolean {
+  isCollinear(other: Point): boolean {
+    // this × other = 0 ならcollinear
+    return Math.abs(this.x * other.y - this.y * other.x) < Numerical.GEOMETRIC_EPSILON;
+  }
+
+  /**
+   * このベクトルがゼロベクトルかどうか
+   */
+  public isZero(): boolean {
     return this.x === 0 && this.y === 0;
   }
 }
