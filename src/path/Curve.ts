@@ -14,6 +14,8 @@ export class CurveLocation {
   // 基本情報
   curve1Index: number = -1;  // 曲線1のインデックス
   curve2Index: number = -1;  // 曲線2のインデックス
+  curve1: Curve | null;      // 曲線1オブジェクト（paper.js互換）
+  curve2: Curve | null;      // 曲線2オブジェクト（paper.js互換）
   t1: number | null;         // 曲線1上のパラメータ
   t2: number | null;         // 曲線2上のパラメータ
   point: Point;              // 交点の座標
@@ -37,6 +39,8 @@ export class CurveLocation {
     point?: Point | null,
     overlap: boolean = false
   ) {
+    this.curve1 = curve1;
+    this.curve2 = curve2;
     this.t1 = t1;
     this.t2 = t2;
     
@@ -723,6 +727,8 @@ export class Curve {
               if (loc.curve1Index === -1) {
                 loc.curve1Index = index1;
                 loc.curve2Index = index2;
+                loc.curve1 = curve1;
+                loc.curve2 = curve2;
                 
                 // 交点情報を更新
                 if (loc.t1 !== null && loc.t2 !== null) {
@@ -731,21 +737,9 @@ export class Curve {
                   loc.curve1Index = index1;
                   loc.curve2Index = index2;
                   
-                  // 交点の位置を正確に計算
-                  // paper.jsと同様に、行列変換を適用した場合は元の座標系に戻す
-                  if (matrix1) {
-                    // 行列変換を適用した場合は、元の座標系に戻す
-                    const invMatrix1 = matrix1.invert();
-                    if (invMatrix1) {
-                      loc.point = invMatrix1.transform(loc.point);
-                    }
-                  } else if (matrix2) {
-                    // matrix1がなくmatrix2がある場合も処理
-                    const invMatrix2 = matrix2.invert();
-                    if (invMatrix2) {
-                      loc.point = invMatrix2.transform(loc.point);
-                    }
-                  }
+                  // paper.jsでは交点の位置は変換された座標系で計算され、
+                  // 元の座標系に戻す処理は行われない
+                  // 交点の位置はそのまま使用する
                 }
               }
             }

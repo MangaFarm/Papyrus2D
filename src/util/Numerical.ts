@@ -52,6 +52,7 @@ function getNormalizationFactor(...args: number[]): number {
 export const Numerical = {
     EPSILON,
     MACHINE_EPSILON,
+    // paper.jsと同じ値に調整
     CURVETIME_EPSILON: 1e-8,
     GEOMETRIC_EPSILON: 1e-7,
     TRIGONOMETRIC_EPSILON: 1e-8,

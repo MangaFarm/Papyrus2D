@@ -21,13 +21,28 @@ export function getSelfIntersection(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
-  // paper.jsと完全に同じ実装
+  // paper.jsと同様の実装
   const info = Curve.classify(v1);
+  
+  // ループ型の曲線の場合
   if (info.type === 'loop' && info.roots) {
     addLocation(locations, include,
       c1, info.roots[0],
       c1, info.roots[1]);
   }
+  
+  // 追加: 自己交差の検出を強化
+  // 曲線を分割して交点を検出
+  if (info.type === 'serpentine' || info.type === 'cusp') {
+    // 曲線を複数の部分に分割
+    const parts = Curve.subdivide(v1, 0.5);
+    
+    // 分割した部分同士の交点を検出
+    getCurveIntersections(
+      parts[0], parts[1], c1, c1, locations, include
+    );
+  }
+  
   return locations;
 }
 
@@ -113,7 +128,6 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
     const loc = locations[i];
     
     // 点の距離が十分に近い場合は重複とみなす
-    // paper.jsと同様に、点の距離を計算
     if (loc.point && location.point) {
       const dist = loc.point.subtract(location.point).getLength();
       if (dist < geomEpsilon) {
@@ -135,19 +149,27 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
     }
     
     // 同じ曲線上の交点で、tパラメータが近い場合は重複とみなす
-    // paper.jsと同様に、curve1IndexとcurveIndex2の比較は行わない
-    // （これらの値はまだ設定されていない可能性があるため）
     if (loc.t1 !== null && location.t1 !== null && loc.t2 !== null && location.t2 !== null) {
-      const t1Diff = Math.abs(loc.t1 - location.t1);
-      const t2Diff = Math.abs(loc.t2 - location.t2);
+      // 曲線が同じかどうかをチェック（paper.jsと同様）
+      const sameCurves =
+        (loc.curve1 === location.curve1 && loc.curve2 === location.curve2) ||
+        (loc.curve1 === location.curve2 && loc.curve2 === location.curve1);
       
-      if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
-        // 重複を許可する場合のみ追加
-        if (includeOverlaps) {
-          locations.push(location);
-          return length;
+      if (sameCurves) {
+        const t1Diff = Math.abs(loc.t1 - location.t1);
+        const t2Diff = Math.abs(loc.t2 - location.t2);
+        
+        // より厳密な重複チェック
+        if ((t1Diff < curveEpsilon && t2Diff < curveEpsilon) ||
+            (t1Diff < curveEpsilon && Math.abs(loc.t2 - location.t1) < curveEpsilon) ||
+            (t2Diff < curveEpsilon && Math.abs(loc.t1 - location.t2) < curveEpsilon)) {
+          // 重複を許可する場合のみ追加
+          if (includeOverlaps) {
+            locations.push(location);
+            return length;
+          }
+          return i;
         }
-        return i;
       }
     }
   }
@@ -572,6 +594,7 @@ function addCurveIntersections(
   // paper.jsと同様に、CURVETIME_EPSILONより小さいイプシロンを使用して、
   // fat-lineクリッピングコードで曲線時間パラメータを比較
   // 数値計算の安定性を確保するために重要
+  // paper.jsと同じ値に調整
   const fatLineEpsilon = 1e-9;
   
   // PをQ（第2曲線）のfat-lineでクリッピング
