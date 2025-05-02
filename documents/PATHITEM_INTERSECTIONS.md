@@ -1,10 +1,6 @@
 # PathItem.getIntersections Function Call Hierarchy
 
-This document provides a comprehensive overview of all functions called by `PathItem.getIntersections` in Paper.js. This is intended as a reference for implementing similar functionality in Papyrus2D.
-
 ## 1. Main Function: PathItem.getIntersections
-
-**Location**: `/src/path/PathItem.js` (lines 321-339)
 
 ```javascript
 getIntersections: function(path, include, _matrix, _returnFirst) {
@@ -28,16 +24,7 @@ getIntersections: function(path, include, _matrix, _returnFirst) {
 }
 ```
 
-### 1.1 Dependencies
-
-- `PathItem.getBounds`: Gets the bounding rectangle of the path
-- `Rectangle.intersects`: Checks if two rectangles intersect
-- `PathItem.getCurves`: Gets all curves in the path
-- `Curve.getIntersections`: Main function for finding intersections between curves
-
 ## 2. Curve.getIntersections
-
-**Location**: `/src/path/Curve.js` (lines 2106-2154)
 
 ```javascript
 function getIntersections(curves1, curves2, include, matrix1, matrix2, _returnFirst) {
@@ -90,16 +77,7 @@ function getIntersections(curves1, curves2, include, matrix1, matrix2, _returnFi
 }
 ```
 
-### 2.1 Dependencies
-
-- `Curve.getValues`: Gets the values of a curve
-- `CollisionDetection.findCurveBoundsCollisions`: Finds potential collisions between curve bounds
-- `getSelfIntersection`: Checks for self-intersections within a curve
-- `getCurveIntersections`: Finds intersections between two curves
-
 ## 3. CollisionDetection.findCurveBoundsCollisions
-
-**Location**: `/src/util/CollisionDetection.js` (lines 74-107)
 
 ```javascript
 findCurveBoundsCollisions: function(curves1, curves2, tolerance, bothAxis) {
@@ -138,13 +116,7 @@ findCurveBoundsCollisions: function(curves1, curves2, tolerance, bothAxis) {
 }
 ```
 
-### 3.1 Dependencies
-
-- `CollisionDetection.findBoundsCollisions`: Finds collisions between bounds using sweep and prune algorithm
-
 ## 4. CollisionDetection.findBoundsCollisions
-
-**Location**: `/src/util/CollisionDetection.js` (lines 143-268)
 
 ```javascript
 findBoundsCollisions: function(boundsA, boundsB, tolerance,
@@ -277,8 +249,6 @@ findBoundsCollisions: function(boundsA, boundsB, tolerance,
 
 ## 5. getSelfIntersection
 
-**Location**: `/src/path/Curve.js` (lines 2095-2104)
-
 ```javascript
 function getSelfIntersection(v1, c1, locations, include) {
     var info = Curve.classify(v1);
@@ -292,14 +262,7 @@ function getSelfIntersection(v1, c1, locations, include) {
 }
 ```
 
-### 5.1 Dependencies
-
-- `Curve.classify`: Classifies the type of curve (line, quadratic, serpentine, cusp, loop, arch)
-- `addLocation`: Adds an intersection location to the result array
-
 ## 6. Curve.classify
-
-**Location**: `/src/path/Curve.js` (lines 173-175)
 
 ```javascript
 classify: function() {
@@ -307,9 +270,7 @@ classify: function() {
 }
 ```
 
-### 6.1 Static Implementation
-
-**Location**: `/src/path/Curve.js` (lines 1525-1597)
+### Static Implementation
 
 ```javascript
 classify: function(v) {
@@ -387,22 +348,7 @@ classify: function(v) {
 }
 ```
 
-### 6.2 Mathematical Background
-
-The classification algorithm is based on the paper "Resolution Independent Curve Rendering using Programmable Graphics Hardware" by Loop and Blinn (2005). It classifies cubic Bézier curves into six types:
-
-1. **Line**: A straight line (d1 = d2 = d3 = 0)
-2. **Quadratic**: A quadratic curve (d1 = d2 = 0, d3 ≠ 0)
-3. **Serpentine**: A curve with one inflection point (d > 0)
-4. **Cusp**: A curve with a cusp point (d = 0)
-5. **Loop**: A curve that forms a loop (d < 0)
-6. **Arch**: A serpentine, cusp, or loop with roots outside [0,1]
-
-The algorithm calculates the discriminant of the curve's implicit form and uses it to determine the curve type. This classification is crucial for detecting self-intersections, as only loop curves can self-intersect.
-
 ## 7. getCurveIntersections
-
-**Location**: `/src/path/Curve.js` (lines 2028-2093)
 
 ```javascript
 function getCurveIntersections(v1, v2, c1, c2, locations, include) {
@@ -469,35 +415,7 @@ function getCurveIntersections(v1, v2, c1, c2, locations, include) {
 }
 ```
 
-### 7.1 Algorithm Explanation
-
-The `getCurveIntersections` function is a key part of the intersection detection process. It works as follows:
-
-1. **Bounding Box Check**: First, it performs a quick check to see if the bounding boxes of the two curves overlap. This is an optimization to avoid unnecessary calculations for curves that cannot possibly intersect.
-
-2. **Overlap Detection**: It checks if the curves overlap (share parts of the same path) using the `getOverlaps` function. If overlaps are found, they are added to the locations array.
-
-3. **Curve Type Analysis**: If there are no overlaps, it determines if either or both curves are straight lines using `Curve.isStraight`. This allows it to choose the most efficient intersection algorithm:
-   - If both curves are straight lines: Use `addLineIntersection` (fastest)
-   - If one curve is straight: Use `addCurveLineIntersections` (medium complexity)
-   - If neither curve is straight: Use `addCurveIntersections` (most complex)
-
-4. **Endpoint Handling**: Finally, it checks for special cases where the endpoints of the curves coincide, which might not be detected by the regular intersection algorithms.
-
-This function demonstrates the hierarchical approach to intersection detection, starting with simple checks and progressively using more complex algorithms only when necessary.
-```
-
-### 7.1 Dependencies
-
-- `getOverlaps`: Detects overlaps between curves
-- `Curve.isStraight`: Checks if a curve is a straight line
-- `addLineIntersection`: Adds intersections between two straight lines
-- `addCurveLineIntersections`: Adds intersections between a curve and a line
-- `addCurveIntersections`: Adds intersections between two curves
-
 ## 8. getOverlaps
-
-**Location**: `/src/path/Curve.js` (lines 2160-2251)
 
 ```javascript
 function getOverlaps(v1, v2) {
@@ -594,16 +512,7 @@ function getOverlaps(v1, v2) {
 }
 ```
 
-### 8.1 Dependencies
-
-- `Line.getDistance`: Calculates the distance from a point to a line
-- `Curve.isStraight`: Checks if a curve is a straight line
-- `Curve.getTimeOf`: Gets the curve-time parameter for a point on the curve
-- `Curve.getPart`: Gets a sub-curve from a curve
-
 ## 9. addLocation
-
-**Location**: `/src/path/Curve.js` (lines 1734-1767)
 
 ```javascript
 function addLocation(locations, include, c1, t1, c2, t2, overlap) {
@@ -642,15 +551,7 @@ function addLocation(locations, include, c1, t1, c2, t2, overlap) {
 }
 ```
 
-### 9.1 Dependencies
-
-- `Curve.getPrevious`: Gets the previous curve in the path
-- `Curve.getNext`: Gets the next curve in the path
-- `CurveLocation`: Class representing a location on a curve
-
 ## 10. addCurveIntersections
-
-**Location**: `/src/path/Curve.js` (lines 1769-1866)
 
 ```javascript
 function addCurveIntersections(v1, v2, c1, c2, locations, include, flip,
@@ -753,52 +654,7 @@ function addCurveIntersections(v1, v2, c1, c2, locations, include, flip,
 }
 ```
 
-### 10.1 Fat-Line Clipping Algorithm
-
-The `addCurveIntersections` function implements the "Fat-Line" algorithm for finding intersections between two Bézier curves. This algorithm was introduced by T.W. Sederberg and T. Nishita in their paper "Curve intersection using Bézier clipping" (1990).
-
-The algorithm works as follows:
-
-1. **Fat-Line Construction**: 
-   - Create a "fat line" for curve Q (v2) by calculating the signed distances of its control points from the line connecting its endpoints
-   - The fat line consists of the baseline and two offset lines that completely enclose curve P (v1)
-
-2. **Convex Hull Calculation**:
-   - Calculate the signed distances of curve P's control points from the baseline of curve Q
-   - Construct a convex hull of these distances to represent the possible range of distances
-
-3. **Clipping**:
-   - Clip the convex hull against the minimum and maximum offsets of the fat line
-   - If the clipping results in null, there are no intersections
-   - Otherwise, the clipping gives parameter ranges where intersections might occur
-
-4. **Recursive Subdivision**:
-   - If the parameter ranges are still too large (precision not sufficient), subdivide the curves:
-     - If one curve's parameter range is larger than the other's, subdivide that curve
-     - Otherwise, alternate between curves to avoid infinite recursion
-   - Apply the algorithm recursively to the subdivided curves
-
-5. **Termination**:
-   - When the parameter ranges are small enough, an intersection is found
-   - Add the intersection location to the result array
-
-The algorithm uses several numerical thresholds to control precision and prevent infinite recursion:
-- `fatLineEpsilon` (1e-9): Threshold for determining when parameter ranges are small enough
-- Recursion limit (40): Maximum recursion depth to prevent stack overflow
-- Call limit (4096): Maximum number of function calls to prevent excessive computation
-
-### 10.2 Dependencies
-
-- `Line.getSignedDistance`: Calculates the signed distance from a point to a line
-- `getConvexHull`: Constructs a convex hull for the distance curve
-- `clipConvexHull`: Clips a convex hull against minimum and maximum distances
-- `Curve.getPart`: Gets a sub-curve from a curve
-- `Curve.subdivide`: Subdivides a curve at a given parameter
-- `addLocation`: Adds an intersection location to the result array
-
 ## 11. getConvexHull
-
-**Location**: `/src/path/Curve.js` (lines 1882-1919)
 
 ```javascript
 function getConvexHull(dq0, dq1, dq2, dq3) {
@@ -841,29 +697,7 @@ function getConvexHull(dq0, dq1, dq2, dq3) {
 }
 ```
 
-### 11.1 Mathematical Background
-
-The `getConvexHull` function constructs a convex hull for a distance curve in the fat-line algorithm. In the context of curve intersection detection, this function works with the signed distances of control points from a baseline.
-
-The function takes four distance values (dq0, dq1, dq2, dq3) corresponding to the distances of the four control points of a cubic Bézier curve from a baseline. It then:
-
-1. **Creates Points**: Converts the distances into 2D points where:
-   - x-coordinate represents the parameter value (0, 1/3, 2/3, 1)
-   - y-coordinate represents the distance from the baseline
-
-2. **Calculates Relative Positions**: Determines if the middle control points (p1, p2) are on the same or opposite sides of the line connecting the endpoints (p0, p3).
-
-3. **Constructs Hull Geometry**: Based on the relative positions:
-   - If p1 and p2 are on opposite sides: Creates a quadrilateral hull with two parts
-   - If p1 and p2 are on the same side: Creates either a triangle (if one point is "inside") or a quadrilateral
-
-4. **Orientation Handling**: Ensures the hull has the correct orientation by reversing it if necessary based on the sign of the distances.
-
-This function is crucial for the fat-line clipping algorithm as it creates a geometric representation of the possible range of distances between two curves, which is then used to determine potential intersection regions.
-
 ## 12. clipConvexHull
-
-**Location**: `/src/path/Curve.js` (lines 1924-1937)
 
 ```javascript
 function clipConvexHull(hullTop, hullBottom, dMin, dMax) {
@@ -880,26 +714,7 @@ function clipConvexHull(hullTop, hullBottom, dMin, dMax) {
 }
 ```
 
-### 12.1 Implementation Details
-
-The `clipConvexHull` function clips a convex hull against minimum and maximum distances to find potential intersection parameter ranges. This is a key part of the fat-line algorithm for curve intersection detection.
-
-The function takes:
-- `hullTop`: The top part of the convex hull
-- `hullBottom`: The bottom part of the convex hull
-- `dMin`: The minimum distance (lower bound of the fat-line)
-- `dMax`: The maximum distance (upper bound of the fat-line)
-
-It determines if and how the hull needs to be clipped:
-1. If the left edge of the hull is below dMin, it clips the hull against dMin
-2. If the left edge of the hull is above dMax, it clips the hull against dMax
-3. If the left edge is between dMin and dMax, no clipping is needed
-
-The function returns a parameter value representing where the hull intersects the clipping line, or 0 if no clipping is needed. This parameter is used to narrow down the range where curve intersections might occur.
-
 ## 13. Curve.isStraight
-
-**Location**: `/src/path/Curve.js` (lines 960-986)
 
 ```javascript
 isStraight: function(p1, h1, h2, p2) {
@@ -931,28 +746,7 @@ isStraight: function(p1, h1, h2, p2) {
 }
 ```
 
-### 13.1 Algorithm Explanation
-
-The `Curve.isStraight` function determines if a cubic Bézier curve is actually a straight line. This is important for optimizing intersection detection, as line-line intersections are much simpler to calculate than curve-curve intersections.
-
-A curve is considered straight if:
-
-1. **Both handles are zero**: If both control handles (h1 and h2) are zero-length, the curve is a straight line between its endpoints.
-
-2. **Handles are collinear with the line**: If both handles lie on the same line as the endpoints, the curve might be straight. Additional checks are needed:
-   - The handles must be close enough to the line (within GEOMETRIC_EPSILON)
-   - The handles must be within the proper parameter range when projected onto the line
-
-The function uses vector operations to efficiently determine collinearity and projection:
-- `v.isCollinear(h)`: Checks if vectors are collinear
-- `l.getDistance()`: Calculates the distance from a point to a line
-- `v.dot(h) / div`: Projects a handle onto the line to determine its parameter value
-
-This function is used in `getCurveIntersections` to choose the most efficient intersection algorithm based on whether one or both curves are straight lines.
-
 ## 14. Line.getSignedDistance
-
-**Location**: `/src/path/Line.js` (lines 84-91)
 
 ```javascript
 getSignedDistance: function(px, py, vx, vy, x, y) {
@@ -963,33 +757,7 @@ getSignedDistance: function(px, py, vx, vy, x, y) {
 }
 ```
 
-### 14.1 Mathematical Background
-
-The `Line.getSignedDistance` function calculates the signed distance from a point to a line. This is a fundamental operation in the fat-line algorithm for curve intersection detection.
-
-The function takes:
-- `px, py`: Coordinates of a point on the line
-- `vx, vy`: Components of the line's direction vector
-- `x, y`: Coordinates of the point to calculate distance from
-
-The signed distance is calculated using the formula:
-```
-d = ((y - py) * vx - (x - px) * vy) / |v|
-```
-
-Where:
-- `|v|` is the length of the direction vector
-- The sign of the distance indicates which side of the line the point is on
-
-This function handles special cases efficiently:
-- If the line is vertical (vx = 0), it returns the horizontal distance
-- If the line is horizontal (vy = 0), it returns the vertical distance
-
-The signed distance is crucial for the fat-line algorithm as it determines whether points lie inside or outside the "fat line" region, which helps narrow down potential intersection areas.
-
 ## 15. clipConvexHullPart
-
-**Location**: `/src/path/Curve.js` (lines 1942-2023)
 
 ```javascript
 function clipConvexHullPart(hullPart, hullOther, dValue, dMin) {
@@ -1043,62 +811,7 @@ function clipConvexHullPart(hullPart, hullOther, dValue, dMin) {
 }
 ```
 
-### 15.1 Algorithm Explanation
-
-The `clipConvexHullPart` function is a key component of the fat-line algorithm, used to find where a convex hull intersects a horizontal line at a given distance value. This helps narrow down the parameter range where curve intersections might occur.
-
-The algorithm works as follows:
-
-1. **Edge Traversal**: It walks through the edges of the first hull part (hullPart) to find an edge that intersects the horizontal line at dValue.
-
-2. **Intersection Calculation**: When an intersecting edge is found, it calculates the x-coordinate of the intersection point using linear interpolation:
-   ```
-   pxIntersect = px0 + (px1 - px0) * (dValue - py0) / (py1 - py0)
-   ```
-
-3. **Second Hull Check**: It then repeats the process for the second hull part (hullOther) to find where it intersects the same horizontal line.
-
-4. **Result Determination**: 
-   - If both hull parts intersect the line, it returns the smaller x-coordinate (parameter value)
-   - If only the first hull part intersects, it returns that intersection's x-coordinate
-   - If no intersection is found, it returns null
-
-This function is essential for the clipping process that narrows down the parameter ranges where curve intersections might occur, making the intersection detection algorithm more efficient by focusing computation on promising regions.
-
-## 16. Summary of Intersection Detection Algorithm
-
-The PathItem.getIntersections method and its supporting functions implement a sophisticated hierarchical approach to curve intersection detection:
-
-1. **Bounding Box Optimization**: Initial quick checks using axis-aligned bounding boxes to eliminate curves that cannot possibly intersect.
-
-2. **Curve Type Analysis**: Classification of curves as straight lines or true curves to choose the most efficient intersection algorithm.
-
-3. **Fat-Line Algorithm**: For curve-curve intersections, the algorithm uses Sederberg and Nishita's fat-line approach:
-   - Create a "fat line" enclosing one curve
-   - Calculate distances of the other curve's control points from this line
-   - Construct a convex hull of these distances
-   - Clip the hull against the fat line's boundaries
-   - Use the clipping results to narrow down parameter ranges
-
-4. **Recursive Subdivision**: When parameter ranges are still too large, the algorithm subdivides curves and applies itself recursively to the subdivided parts.
-
-5. **Numerical Precision Handling**: The algorithm uses various epsilon constants to handle numerical precision issues:
-   - EPSILON: General numerical precision threshold
-   - GEOMETRIC_EPSILON: Threshold for geometric comparisons
-   - CURVETIME_EPSILON: Threshold for curve parameter comparisons
-   - fatLineEpsilon: Specialized threshold for fat-line clipping
-
-6. **Special Case Handling**: The algorithm includes special handling for edge cases:
-   - Overlapping curves
-   - Coincident endpoints
-   - Collinear segments
-   - Near-zero distances
-
-This sophisticated approach allows Paper.js to efficiently and accurately detect intersections between complex curves, which is essential for boolean operations and other geometric calculations.
-
 ## 11. addCurveLineIntersections
-
-**Location**: `/src/path/Curve.js` (lines 1991-2015)
 
 ```javascript
 function addCurveLineIntersections(v1, v2, c1, c2, locations, include, flip) {
@@ -1128,14 +841,7 @@ function addCurveLineIntersections(v1, v2, c1, c2, locations, include, flip) {
 }
 ```
 
-### 11.1 Dependencies
-
-- `Point`: Class representing a point in 2D space
-- `Curve.solveCubic`: Solves a cubic equation
-
 ## 12. addLineIntersection
-
-**Location**: `/src/path/Curve.js` (lines 2017-2026)
 
 ```javascript
 function addLineIntersection(v1, v2, c1, c2, locations, include, flip) {
@@ -1152,27 +858,9 @@ function addLineIntersection(v1, v2, c1, c2, locations, include, flip) {
 }
 ```
 
-### 12.1 Dependencies
-
-- `Line.intersect`: Finds the intersection point between two lines
-
 ## 13. Numerical Utilities
 
-**Location**: `/src/util/Numerical.js`
-
-Several numerical constants and utility functions are used throughout the intersection code:
-
-- `Numerical.EPSILON`: Small value used for floating-point comparisons
-- `Numerical.GEOMETRIC_EPSILON`: Epsilon value for geometric comparisons
-- `Numerical.CURVETIME_EPSILON`: Epsilon value for curve-time parameters
-- `Numerical.solveQuadratic`: Solves a quadratic equation
-- `Numerical.solveCubic`: Solves a cubic equation
-
 ## 14. CurveLocation
-
-**Location**: `/src/path/CurveLocation.js`
-
-Class representing a location on a curve, used to store intersection points:
 
 ```javascript
 var CurveLocation = Base.extend(/** @lends CurveLocation# */{
@@ -1200,14 +888,3 @@ var CurveLocation = Base.extend(/** @lends CurveLocation# */{
     // ... [methods omitted for brevity] ...
 });
 ```
-
-## Summary
-
-The `PathItem.getIntersections` method relies on a complex hierarchy of functions to efficiently find intersections between paths. The main algorithm uses:
-
-1. **Bounding Box Optimization**: Initial quick check using bounding boxes to avoid unnecessary curve intersection tests
-2. **Sweep and Prune Algorithm**: Efficient collision detection between curve bounds
-3. **Recursive Subdivision**: For complex curve-curve intersections
-4. **Special Case Handling**: For straight lines, overlaps, and self-intersections
-
-This implementation provides a robust and efficient way to find all intersections between complex paths, handling various edge cases and numerical stability issues.
