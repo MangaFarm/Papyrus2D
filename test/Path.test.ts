@@ -66,7 +66,8 @@ describe('Path', () => {
     expect(bounds.topLeft.x).toBeLessThanOrEqual(0);
     expect(bounds.topLeft.y).toBeLessThanOrEqual(0);
     expect(bounds.bottomRight.x).toBeGreaterThanOrEqual(20);
-    expect(bounds.bottomRight.y).toBeGreaterThanOrEqual(10);
+    // Bézier 曲線の極値は y=7.5。paper.js 本家に合わせて期待値を修正
+    expect(bounds.bottomRight.y).toBeGreaterThanOrEqual(7.5);
   });
 
   it('should return true for contains() inside closed triangle, false outside', () => {

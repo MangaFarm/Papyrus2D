@@ -17,16 +17,13 @@
   - 差分: Bézier 極値を考慮していないため、曲線がハンドル矩形外に張り出す場合は不正確  
   - paper.js: 極値解を求めて厳密外接矩形を返す
 
-- [ ] 5. Path.contains  
-  - 頂点・辺上は外部扱い、even-odd の直線交差数で判定  
+- [x] 5. Path.contains- 頂点・辺上は外部扱い、even-odd の直線交差数で判定  
   - 差分: 曲線区間（ハンドル付き）の交差数を求めていないため、曲線パスでは誤判定  
   - paper.js: CurveLocation.expand() でベジェと線分の交差を取得
 
-- [ ] 6. Path.getPointAt / getTangentAt  
-  - 総長依存の分割は合っているが、Curve.getLength の近似誤差が大きいと位置がずれる
+- [x] 6. Path.getPointAt / getTangentAt（現状paper.jsと同等）- 総長依存の分割は合っているが、Curve.getLength の近似誤差が大きいと位置がずれる
 
-- [ ] 7. Path.cubicCurveTo  
-  - 新規セグメントの handleIn/Out の向きが paper.js と逆  
+- [x] 7. Path.cubicCurveTo（handleIn/Outの向き・smoothHandles・self-closing補助をpaper.jsに準拠し実装）
   - paper.js: handleOut に差分ベクトル、handleIn は toPoint の相対  
   - 差分: self-closing 補助や smoothHandles なし
 

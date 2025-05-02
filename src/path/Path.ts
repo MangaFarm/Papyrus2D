@@ -8,6 +8,7 @@ import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Curve } from './Curve';
 import { Segment } from './Segment';
+import { Numerical } from '../util/Numerical';
 import { PathItem } from './PathItem';
 
 export class Path implements PathItem {
@@ -63,18 +64,20 @@ export class Path implements PathItem {
 
         // 端点をAABBに含める
         add(
-          dim === 'x' ? v0 : p0.x,
-          dim === 'y' ? v0 : p0.y
+          p0.x,
+          p0.y
         );
         add(
-          dim === 'x' ? v3 : p1.x,
-          dim === 'y' ? v3 : p1.y
+          p1.x,
+          p1.y
         );
 
-        // 極値（1次導関数=0のt）を求める
-        // 3*( -v0 + 3*v1 - 3*v2 + v3 )*t^2 + 6*(v0 - 2*v1 + v2)*t + 3*(v1 - v0) = 0
-        const a = -v0 + 3 * v1 - 3 * v2 + v3;
-        const b = 2 * (v0 - 2 * v1 + v2);
+        // 極値（1次導関数=0のt）を求める（paper.jsと同じ式）
+        // a = 3*(v1-v2) - v0 + v3
+        // b = 2*(v0+v2) - 4*v1
+        // c = v1 - v0
+        const a = 3 * (v1 - v2) - v0 + v3;
+        const b = 2 * (v0 + v2) - 4 * v1;
         const c = v1 - v0;
 
         // 2次方程式 at^2 + bt + c = 0
@@ -86,26 +89,17 @@ export class Path implements PathItem {
               if (t > 0 && t < 1) {
                 // 三次ベジェ補間
                 const mt = 1 - t;
-                const bez =
-                  mt * mt * mt * v0 +
-                  3 * mt * mt * t * v1 +
-                  3 * mt * t * t * v2 +
-                  t * t * t * v3;
-                // もう一方の座標値
-                const other =
-                  dim === 'x'
-                    ? mt * mt * mt * p0.y +
-                      3 * mt * mt * t * h0.y +
-                      3 * mt * t * t * h1.y +
-                      t * t * t * p1.y
-                    : mt * mt * mt * p0.x +
-                      3 * mt * mt * t * h0.x +
-                      3 * mt * t * t * h1.x +
-                      t * t * t * p1.x;
-                add(
-                  dim === 'x' ? bez : other,
-                  dim === 'y' ? bez : other
-                );
+                const x =
+                  mt * mt * mt * p0.x +
+                  3 * mt * mt * t * h0.x +
+                  3 * mt * t * t * h1.x +
+                  t * t * t * p1.x;
+                const y =
+                  mt * mt * mt * p0.y +
+                  3 * mt * mt * t * h0.y +
+                  3 * mt * t * t * h1.y +
+                  t * t * t * p1.y;
+                add(x, y);
               }
             }
           }
@@ -206,14 +200,31 @@ export class Path implements PathItem {
     }
     // winding number アルゴリズム（even-odd ルール）
     let crossings = 0;
+    // 曲線区間も含めてBézier曲線と水平方向の直線の交点を厳密に求める
     for (const curve of curves) {
-      const p1 = curve.segment1.point;
-      const p2 = curve.segment2.point;
-      if (
-        ((p1.y > point.y) !== (p2.y > point.y)) &&
-        (point.x < ((p2.x - p1.x) * (point.y - p1.y)) / (p2.y - p1.y + 1e-12) + p1.x)
-      ) {
-        crossings++;
+      const p0 = curve.segment1.point;
+      const p1 = p0.add(curve.segment1.handleOut);
+      const p2 = curve.segment2.point.add(curve.segment2.handleIn);
+      const p3 = curve.segment2.point;
+      // y成分がpoint.yと等しくなるtを全て求める
+      const roots: number[] = [];
+      const a = -p0.y + 3 * p1.y - 3 * p2.y + p3.y;
+      const b = 3 * p0.y - 6 * p1.y + 3 * p2.y;
+      const c = -3 * p0.y + 3 * p1.y;
+      const d = p0.y - point.y;
+      // solveCubic(a, b, c, d, roots, 0, 1)
+      // 0 < t < 1 の範囲で交点を全て求める
+      Numerical.solveCubic(a, b, c, d, roots, 0, 1);
+      for (const t of roots) {
+        if (t < 0 || t > 1) continue;
+        // tでのx座標
+        const mt = 1 - t;
+        const x =
+          mt * mt * mt * p0.x +
+          3 * mt * mt * t * p1.x +
+          3 * mt * t * t * p2.x +
+          t * t * t * p3.x;
+        if (x > point.x) crossings++;
       }
     }
     return (crossings % 2) === 1;
@@ -266,20 +277,44 @@ export class Path implements PathItem {
   }
 
   cubicCurveTo(handle1: Point, handle2: Point, to: Point): Path {
-    // 最後のセグメントの handleOut, 新規セグメントの handleIn/point を設定
+    // paper.jsと同様、handleOut/handleInを相対値で設定
     if (this.segments.length === 0) {
       // 始点がない場合は to のみ追加
       return this.add(new Segment(to));
     }
     const newSegments = this.segments.slice();
-    // 最後のセグメントの handleOut を設定
-    const last = newSegments[newSegments.length - 1].withHandleOut(handle1);
+    const lastSeg = newSegments[newSegments.length - 1];
+    // handleOut: handle1 - last.point
+    const relHandleOut = handle1.subtract(lastSeg.point);
+    const last = lastSeg.withHandleOut(relHandleOut);
     newSegments[newSegments.length - 1] = last;
-    // 新しいセグメントを追加
-    newSegments.push(new Segment(to, handle2, new Point(0, 0)));
+    // handleIn: handle2 - to
+    const relHandleIn = handle2.subtract(to);
+    newSegments.push(new Segment(to, relHandleIn, new Point(0, 0)));
     return new Path(newSegments, this.closed);
   }
 
+/**
+   * 全セグメントのハンドルを自動補正（paper.jsのsmooth相当, Catmull-Rom的）
+   */
+  smooth(): Path {
+    if (this.segments.length < 3) return this;
+    const newSegments = this.segments.slice();
+    for (let i = 1; i < this.segments.length - 1; i++) {
+      const prev = this.segments[i - 1].point;
+      const curr = this.segments[i].point;
+      const next = this.segments[i + 1].point;
+      // ハンドルは前後点の差分を1/6ずつ
+      const handleIn = prev.subtract(next).multiply(-1 / 6);
+      const handleOut = next.subtract(prev).multiply(1 / 6);
+      newSegments[i] = new Segment(
+        newSegments[i].point,
+        handleIn,
+        handleOut
+      );
+    }
+    return new Path(newSegments, this.closed);
+  }
   close(): Path {
     return new Path(this.segments, true);
   }
