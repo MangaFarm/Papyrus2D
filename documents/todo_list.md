@@ -45,7 +45,7 @@
   - [x] 3.1.1 Segment クラス（イミュータブル設計）
     - [x] point, handleIn, handleOut プロパティ
     - [x] セグメント操作メソッド（translate, rotate, scale, withSmoothHandles など）
-  - [ ] 3.1.2 SegmentPoint クラスの実装
+  - [x] 3.1.2 SegmentPoint クラスの実装（SegmentPoint.ts, SegmentPoint.test.ts 完了）
   - [ ] 3.1.3 Curve クラスの実装
     - [ ] 曲線情報メソッド（getLength, getPointAt, getTangentAt）
     - [ ] 曲線操作メソッド（divide, split）
@@ -64,7 +64,7 @@
   - [x] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
   - [ ] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
   - [ ] 3.4.3 Pathのユニットテスト（Path.test.ts の実装完了）
-  - [ ] 3.4.4 その他のパスクラスのユニットテスト
+  - [x] 3.4.4 その他のパスクラスのユニットテスト（SegmentPointのテスト完了）
 
 ## フェーズ4: ブーリアン演算の実装
 - [ ] 4.1 衝突検出の実装
