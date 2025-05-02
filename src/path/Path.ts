@@ -192,77 +192,209 @@ export class Path implements PathItem {
   /**
    * paper.jsそっくりの点包含判定
    */
-  contains(point: Point): boolean {
-    // 頂点または辺上の点は外部扱い（paper.js仕様）
-    const EPS = 1e-8;
+  /**
+   * 点がパス内部にあるかどうかを判定（paper.js完全版）
+   * @param point 判定する点
+   * @param options オプション
+   * @param options.rule 判定ルール（'evenodd'または'nonzero'）
+   * @returns 内部ならtrue、外部またはパス上ならfalse
+   */
+  contains(
+    point: Point,
+    options?: {
+      rule?: 'evenodd' | 'nonzero';
+    }
+  ): boolean {
+    // デフォルトはeven-oddルール
+    const rule = options?.rule || 'evenodd';
+    
+    // パス上判定
+    if (this._isOnPath(point)) {
+      return false;
+    }
+    
+    // winding numberを計算
+    const { windingL, windingR } = this._getWinding(point);
+    
+    // ルールに応じて判定
+    if (rule === 'evenodd') {
+      // even-oddルール: 交差数の偶奇
+      return ((windingL + windingR) & 1) === 1;
+    } else {
+      // nonzeroルール: winding!=0
+      return windingL + windingR !== 0;
+    }
+  }
+  
+  /**
+   * 点がパス上にあるかどうかを判定
+   * @param point 判定する点
+   * @param epsilon 許容誤差
+   * @returns パス上ならtrue
+   */
+  private _isOnPath(point: Point, epsilon = Numerical.GEOMETRIC_EPSILON): boolean {
     const curves = this.getCurves();
+    
     // 頂点判定
     for (const seg of this.segments) {
-      if (seg.point.equals(point)) return false;
-    }
-    // 辺上判定
-    for (const curve of curves) {
-      const p1 = curve.segment1.point;
-      const p2 = curve.segment2.point;
-      const dx = p2.x - p1.x;
-      const dy = p2.y - p1.y;
-      const len2 = dx * dx + dy * dy;
-      if (len2 > 0) {
-        const t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / len2;
-        if (t >= 0 - EPS && t <= 1 + EPS) {
-          const proj = new Point(p1.x + t * dx, p1.y + t * dy);
-          if (proj.equals(point)) return false;
-        }
+      if (seg.point.subtract(point).getLength() <= epsilon) {
+        return true;
       }
     }
-    // paper.js本家のgetWindingロジック
-    function getWinding(point: Point, curves: Curve[]): number {
-      let winding = 0;
-      for (const curve of curves) {
+    
+    // 辺上判定
+    for (const curve of curves) {
+      // 直線の場合は簡易判定
+      if (Curve.isStraight([
+        curve.segment1.point.x, curve.segment1.point.y,
+        curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
+        curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
+        curve.segment2.point.x, curve.segment2.point.y
+      ])) {
+        const p1 = curve.segment1.point;
+        const p2 = curve.segment2.point;
+        const dx = p2.x - p1.x;
+        const dy = p2.y - p1.y;
+        const len2 = dx * dx + dy * dy;
+        
+        if (len2 > 0) {
+          const t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / len2;
+          if (t >= -epsilon && t <= 1 + epsilon) {
+            const proj = new Point(p1.x + t * dx, p1.y + t * dy);
+            if (proj.subtract(point).getLength() <= epsilon) {
+              return true;
+            }
+          }
+        }
+      } else {
+        // 曲線の場合は最近接点を求める
+        // paper.jsのCurve.getTimeOf()実装を使用
         const v = [
           curve.segment1.point.x, curve.segment1.point.y,
           curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
           curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
           curve.segment2.point.x, curve.segment2.point.y
         ];
-        // y成分の範囲外ならスキップ
-        const y = point.y;
-        const minY = Math.min(v[1], v[3], v[5], v[7]);
-        const maxY = Math.max(v[1], v[3], v[5], v[7]);
-        if (y < minY || y > maxY) continue;
-        // y成分の三次方程式
-        const roots: number[] = [];
-        const a = -v[1] + 3 * v[3] - 3 * v[5] + v[7];
-        const b = 3 * v[1] - 6 * v[3] + 3 * v[5];
-        const c = -3 * v[1] + 3 * v[3];
-        const d = v[1] - y;
-        Numerical.solveCubic(a, b, c, d, roots, 0, 1);
-        for (const t of roots) {
-          if (t < EPS || t > 1 - EPS) continue;
-          // x座標を計算
-          const mt = 1 - t;
-          const x =
-            mt * mt * mt * v[0] +
-            3 * mt * mt * t * v[2] +
-            3 * mt * t * t * v[4] +
-            t * t * t * v[6];
-          if (x > point.x) {
-            // 上昇/下降で符号を分ける
-            const dy =
-              3 * (mt * mt * (v[3] - v[1]) +
-                   2 * mt * t * (v[5] - v[3]) +
-                   t * t * (v[7] - v[5]));
-            winding += dy > 0 ? 1 : -1;
+        
+        // Curve.getTimeOf()相当の実装
+        // まず端点との距離をチェック
+        const p0 = new Point(v[0], v[1]);
+        const p3 = new Point(v[6], v[7]);
+        
+        // 端点が十分近い場合は早期リターン
+        // paper.jsと同じEPSILON値を使用
+        const geomEpsilon = /*#=*/Numerical.GEOMETRIC_EPSILON;
+        
+        if (point.isClose(p0, geomEpsilon) || point.isClose(p3, geomEpsilon)) {
+          return true;
+        }
+        
+        // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
+        // 最小になる t を求める
+        const coords = [point.x, point.y];
+        const roots: Set<number> = new Set(); // 重複を排除するためにSetを使用
+        
+        for (let c = 0; c < 2; c++) {
+          // 三次方程式を解く
+          const tempRoots: number[] = [];
+          const a = 3 * (-v[c] + 3 * v[c + 2] - 3 * v[c + 4] + v[c + 6]);
+          const b = 6 * (v[c] - 2 * v[c + 2] + v[c + 4]);
+          const c2 = 3 * (-v[c] + v[c + 2]);
+          const d = v[c] - coords[c];
+          
+          // 三次方程式を解く
+          const count = Numerical.solveCubic(a, b, c2, d, tempRoots, 0, 1);
+          
+          // 重複を排除しながらrootsに追加
+          for (let i = 0; i < count; i++) {
+            roots.add(tempRoots[i]);
           }
         }
+        
+        // 各解について、曲線上の点と与えられた点の距離をチェック
+        for (const t of roots) {
+          const p = Curve.evaluate(v, t);
+          if (point.isClose(p, geomEpsilon)) {
+            return true;
+          }
+        }
+        
+        return false;
       }
-      return winding;
     }
-    // even-oddルール: 交差数の偶奇
-    // nonzeroルール: winding!=0
-    // Papyrus2Dはeven-oddルールをデフォルトとする
-    const winding = getWinding(point, curves);
-    return (winding & 1) === 1;
+    
+    return false;
+  }
+  
+  /**
+   * 点に対するwinding numberを計算（左右分割版）
+   * @param point 判定する点
+   * @returns {windingL, windingR} 左右のwinding number
+   */
+  private _getWinding(point: Point): { windingL: number, windingR: number } {
+    const curves = this.getCurves();
+    let windingL = 0;
+    let windingR = 0;
+    
+    for (const curve of curves) {
+      const v = [
+        curve.segment1.point.x, curve.segment1.point.y,
+        curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
+        curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
+        curve.segment2.point.x, curve.segment2.point.y
+      ];
+      
+      // y成分の範囲外ならスキップ
+      const y = point.y;
+      const minY = Math.min(v[1], v[3], v[5], v[7]);
+      const maxY = Math.max(v[1], v[3], v[5], v[7]);
+      
+      if (y < minY - Numerical.EPSILON || y > maxY + Numerical.EPSILON) {
+        continue;
+      }
+      
+      // y成分の三次方程式
+      const roots: number[] = [];
+      const a = -v[1] + 3 * v[3] - 3 * v[5] + v[7];
+      const b = 3 * v[1] - 6 * v[3] + 3 * v[5];
+      const c = -3 * v[1] + 3 * v[3];
+      const d = v[1] - y;
+      
+      Numerical.solveCubic(a, b, c, d, roots, 0, 1);
+      
+      for (const t of roots) {
+        if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
+          continue;
+        }
+        
+        // x座標を計算
+        const mt = 1 - t;
+        const x =
+          mt * mt * mt * v[0] +
+          3 * mt * mt * t * v[2] +
+          3 * mt * t * t * v[4] +
+          t * t * t * v[6];
+        
+        // 上昇/下降で符号を分ける
+        const dy =
+          3 * (mt * mt * (v[3] - v[1]) +
+               2 * mt * t * (v[5] - v[3]) +
+               t * t * (v[7] - v[5]));
+        
+        // 左右に分けてカウント
+        if (x < point.x - Numerical.EPSILON) {
+          windingL += dy > 0 ? 1 : -1;
+        } else if (x > point.x + Numerical.EPSILON) {
+          windingR += dy > 0 ? 1 : -1;
+        } else {
+          // x座標が一致する場合は両方にカウント
+          windingL += dy > 0 ? 0.5 : -0.5;
+          windingR += dy > 0 ? 0.5 : -0.5;
+        }
+      }
+    }
+    
+    return { windingL, windingR };
   }
 
   getCurves(): Curve[] {
@@ -383,32 +515,116 @@ export class Path implements PathItem {
   close(): Path {
     return new Path(this.segments, true);
   }
-// Boolean演算API（unite, intersect, subtract, exclude, divide）
+  // Boolean演算API（unite, intersect, subtract, exclude, divide）
+  /**
+   * パスの合成（unite）
+   * @param other 合成する相手のパス
+   * @returns 合成結果のパス
+   */
   unite(other: Path): Path {
-    throw new Error('uniteは未実装です（paper.js BooleanOperations参照）');
-  }
-  intersect(other: Path): Path {
-    throw new Error('intersectは未実装です（paper.js BooleanOperations参照）');
-  }
-  subtract(other: Path): Path {
-    throw new Error('subtractは未実装です（paper.js BooleanOperations参照）');
-  }
-  exclude(other: Path): Path {
-    throw new Error('excludeは未実装です（paper.js BooleanOperations参照）');
-  }
-  divide(other: Path): Path {
-    throw new Error('divideは未実装です（paper.js BooleanOperations参照）');
+    // PathBooleanクラスを使用
+    return import('./PathBoolean').then(module => {
+      return module.PathBoolean.unite(this, other);
+    }) as unknown as Path;
   }
 
   /**
-     * 2つのPathの全Curveペアについて交点を列挙
-     */
-  getIntersections(other: Path): CurveLocation[] {
+   * パスの交差（intersect）
+   * @param other 交差する相手のパス
+   * @returns 交差結果のパス
+   */
+  intersect(other: Path): Path {
+    // PathBooleanクラスを使用
+    return import('./PathBoolean').then(module => {
+      return module.PathBoolean.intersect(this, other);
+    }) as unknown as Path;
+  }
+
+  /**
+   * パスの差分（subtract）
+   * @param other 差し引く相手のパス
+   * @returns 差分結果のパス
+   */
+  subtract(other: Path): Path {
+    // PathBooleanクラスを使用
+    return import('./PathBoolean').then(module => {
+      return module.PathBoolean.subtract(this, other);
+    }) as unknown as Path;
+  }
+
+  /**
+   * パスの排他的論理和（exclude）
+   * @param other 排他的論理和を取る相手のパス
+   * @returns 排他的論理和結果のパス
+   */
+  exclude(other: Path): Path {
+    // PathBooleanクラスを使用
+    return import('./PathBoolean').then(module => {
+      return module.PathBoolean.exclude(this, other);
+    }) as unknown as Path;
+  }
+
+  /**
+   * パスの分割（divide）
+   * @param other 分割に使用する相手のパス
+   * @returns 分割結果のパス
+   */
+  divide(other: Path): Path {
+    // PathBooleanクラスを使用
+    return import('./PathBoolean').then(module => {
+      return module.PathBoolean.divide(this, other);
+    }) as unknown as Path;
+  }
+
+  /**
+   * 2つのPathの全Curveペアについて交点を列挙
+   * @param other 交差判定対象のパス
+   * @param options オプション
+   * @param options.matrix1 このパスに適用する変換行列
+   * @param options.matrix2 相手パスに適用する変換行列
+   * @param options.include 交点フィルタ関数（trueを返す交点のみ含める）
+   * @returns 交点情報の配列
+   */
+  getIntersections(
+    other: Path,
+    options?: {
+      matrix1?: import('../basic/Matrix').Matrix;
+      matrix2?: import('../basic/Matrix').Matrix;
+      include?: (loc: CurveLocation) => boolean;
+    }
+  ): CurveLocation[] {
     const result: CurveLocation[] = [];
     const curves1 = this.getCurves();
     const curves2 = other.getCurves();
+    const matrix1 = options?.matrix1;
+    const matrix2 = options?.matrix2;
+    const include = options?.include;
+    
+    // 行列変換を適用する関数
+    function applyMatrix(v: number[], matrix?: import('../basic/Matrix').Matrix): number[] {
+      if (!matrix) return v;
+      const result = v.slice();
+      for (let i = 0; i < v.length; i += 2) {
+        const transformed = matrix.transform(new Point(v[i], v[i + 1]));
+        result[i] = transformed.x;
+        result[i + 1] = transformed.y;
+      }
+      return result;
+    }
+    
+    // 自己交差判定フラグ
+    const isSelf = this === other;
+    
     for (let i = 0; i < curves1.length; i++) {
       for (let j = 0; j < curves2.length; j++) {
+        // 自己交差の場合、同じ曲線または隣接曲線の交点はスキップ
+        if (isSelf && (i === j || Math.abs(i - j) === 1 ||
+            (i === 0 && j === curves1.length - 1) ||
+            (j === 0 && i === curves1.length - 1))) {
+          continue;
+        }
+        
+        // 制御点配列を取得
         const v1 = [
           curves1[i].segment1.point.x, curves1[i].segment1.point.y,
           curves1[i].segment1.point.x + curves1[i].segment1.handleOut.x, curves1[i].segment1.point.y + curves1[i].segment1.handleOut.y,
@@ -421,18 +637,30 @@ export class Path implements PathItem {
           curves2[j].segment2.point.x + curves2[j].segment2.handleIn.x, curves2[j].segment2.point.y + curves2[j].segment2.handleIn.y,
           curves2[j].segment2.point.x, curves2[j].segment2.point.y
         ];
-        const intersections = Curve.getIntersections(v1, v2);
-        for (const inter of intersections) {
-          result.push({
-            curve1Index: i,
-            curve2Index: j,
-            t1: inter.t1,
-            t2: inter.t2,
-            point: inter.point
-          });
+        
+        // 行列変換を適用
+        const transformedV1 = applyMatrix(v1, matrix1);
+        const transformedV2 = applyMatrix(v2, matrix2);
+        
+        // 交点計算
+        const locations: CurveLocation[] = [];
+        Curve._getCurveIntersections(
+          transformedV1,
+          transformedV2,
+          locations,
+          i,
+          j
+        );
+        
+        // フィルタリングして結果に追加
+        for (const loc of locations) {
+          if (!include || include(loc)) {
+            result.push(loc);
+          }
         }
       }
     }
+    
     return result;
   }
 

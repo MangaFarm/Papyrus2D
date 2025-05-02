@@ -1,12 +1,19 @@
 /**
- * CurveLocation: 2つの曲線の交点情報
+ * CurveLocation: 曲線上の位置情報（交点、端点など）
  */
 export interface CurveLocation {
+  // 基本情報
   curve1Index: number;
   curve2Index: number;
   t1: number;
   t2: number;
   point: import('../basic/Point').Point;
+  
+  // 追加情報（重複判定・端点マージ用）
+  overlap?: boolean;  // 重複フラグ
+  distance?: number;  // 距離（近接判定用）
+  tangent?: boolean;  // 接線共有フラグ
+  onPath?: boolean;   // パス上フラグ
 }
 /**
  * Curveクラス: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
@@ -144,7 +151,7 @@ export class Curve {
    * 三次ベジェ曲線のt位置の点を返す
    * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
    */
-  private static evaluate(v: number[], t: number): Point {
+  static evaluate(v: number[], t: number): Point {
     if (t < 0 || t > 1) throw new Error('t must be in [0,1]');
     const mt = 1 - t;
     const mt2 = mt * mt;
@@ -235,23 +242,168 @@ export class Curve {
       }
       return vv;
     }
-/**
-   * 2つの三次ベジェ曲線の交点を列挙（AABB分割による粗実装, paper.js参考）
+  /**
+   * 動的再帰深度の計算
+   * paper.jsのgetDepthを参考に実装
+   */
+  private static getDepth(v: number[]): number {
+    // 曲線の複雑さに基づいて再帰深度を決定
+    // 曲線が複雑なほど深い再帰が必要
+    
+    // 曲線の長さを計算
+    const p1 = new Point(v[0], v[1]);
+    const p2 = new Point(v[6], v[7]);
+    const lineLength = p2.subtract(p1).getLength();
+    
+    // 制御点の曲線からの距離を計算
+    const c1 = new Point(v[2], v[3]);
+    const c2 = new Point(v[4], v[5]);
+    
+    // 制御点から直線への距離を計算
+    const d1 = this.getDistanceFromLine(p1, p2, c1);
+    const d2 = this.getDistanceFromLine(p1, p2, c2);
+    
+    // 最大距離
+    const maxDist = Math.max(d1, d2);
+    
+    // 曲線の複雑さに基づいて再帰深度を決定
+    // 複雑な曲線ほど深い再帰が必要
+    if (maxDist < Numerical.EPSILON) {
+      return 1; // ほぼ直線
+    } else {
+      // 曲率に基づいて再帰深度を計算
+      // 曲率が大きいほど深い再帰が必要
+      const ratio = maxDist / lineLength;
+      return Math.min(32, Math.max(1, Math.ceil(Math.log(ratio) / Math.log(0.5)) + 1));
+    }
+  }
+  
+  /**
+   * 点から直線への距離を計算
+   */
+  private static getDistanceFromLine(p1: Point, p2: Point, point: Point): number {
+    const line = p2.subtract(p1);
+    const lineLength = line.getLength();
+    
+    if (lineLength < Numerical.EPSILON) {
+      return point.subtract(p1).getLength();
+    }
+    
+    // 直線上の最近接点を計算
+    const t = point.subtract(p1).multiply(line).getLength() / (lineLength * lineLength);
+    const projection = p1.add(line.multiply(t));
+    
+    // 点から直線への距離
+    return point.subtract(projection).getLength();
+  }
+
+  /**
+   * 2つの三次ベジェ曲線の交点を列挙（paper.js完全版）
    * @param v1 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
    * @param v2 制御点配列
+   * @param locations 交点を格納する配列
    * @param t1s t1開始
    * @param t1e t1終了
    * @param t2s t2開始
    * @param t2e t2終了
    * @param depth 再帰深さ
+   * @param maxDepth 最大再帰深さ
    */
-  static getIntersections(
+  /**
+   * 2つの三次ベジェ曲線の交点を列挙（paper.js完全版）
+   * @param v1 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param v2 制御点配列
+   * @param locations 交点を格納する配列
+   * @param curve1Index 曲線1のインデックス
+   * @param curve2Index 曲線2のインデックス
+   * @param t1s t1開始
+   * @param t1e t1終了
+   * @param t2s t2開始
+   * @param t2e t2終了
+   * @param depth 再帰深さ
+   * @param maxDepth 最大再帰深さ
+   */
+  static _getCurveIntersections(
     v1: number[],
     v2: number[],
+    locations: CurveLocation[],
+    curve1Index: number,
+    curve2Index: number,
     t1s = 0, t1e = 1,
     t2s = 0, t2e = 1,
-    depth = 0
-  ): { t1: number; t2: number; point: import('../basic/Point').Point }[] {
+    depth = 0,
+    maxDepth?: number
+  ): void {
+    // 動的再帰深度の計算
+    if (maxDepth === undefined) {
+      maxDepth = Math.max(
+        Curve.getDepth(v1),
+        Curve.getDepth(v2)
+      );
+    }
+    
+    // 再帰深さ制限
+    if (depth > maxDepth) {
+      return;
+    }
+
+    // Fat-lineクリッピングによる早期リターン
+    const p1 = new Point(v1[0], v1[1]);
+    const p2 = new Point(v2[0], v2[1]);
+    const bounds1 = Curve._getFatLineBounds(v1, p2);
+    const bounds2 = Curve._getFatLineBounds(v2, p1);
+    
+    // 境界が交差しない場合は早期リターン
+    if (bounds1.min > 0 || bounds1.max < 0 || bounds2.min > 0 || bounds2.max < 0) {
+      return;
+    }
+
+    // Reduced bounds line-clipping
+    // paper.jsのaddCurveIntersectionsの実装を参考に
+    const v1x = v1[6] - v1[0];
+    const v1y = v1[7] - v1[1];
+    const v2x = v2[6] - v2[0];
+    const v2y = v2[7] - v2[1];
+    
+    // 線分の長さが十分あるか確認
+    if (Math.abs(v1x) > Numerical.EPSILON || Math.abs(v1y) > Numerical.EPSILON) {
+      // v1の線分に対するv2の端点の位置
+      const t1 = ((v2[0] - v1[0]) * v1x + (v2[1] - v1[1]) * v1y) / (v1x * v1x + v1y * v1y);
+      const t2 = ((v2[6] - v1[0]) * v1x + (v2[7] - v1[1]) * v1y) / (v1x * v1x + v1y * v1y);
+      
+      // v2の端点がv1の線分の外側にある場合、交点はない可能性が高い
+      if ((t1 < 0 && t2 < 0) || (t1 > 1 && t2 > 1)) {
+        // 追加のチェック: 曲線の制御点も考慮
+        const t3 = ((v2[2] - v1[0]) * v1x + (v2[3] - v1[1]) * v1y) / (v1x * v1x + v1y * v1y);
+        const t4 = ((v2[4] - v1[0]) * v1x + (v2[5] - v1[1]) * v1y) / (v1x * v1x + v1y * v1y);
+        
+        // 全ての制御点が線分の外側にある場合、交点はない
+        if ((t1 < 0 && t2 < 0 && t3 < 0 && t4 < 0) ||
+            (t1 > 1 && t2 > 1 && t3 > 1 && t4 > 1)) {
+          return;
+        }
+      }
+    }
+    
+    if (Math.abs(v2x) > Numerical.EPSILON || Math.abs(v2y) > Numerical.EPSILON) {
+      // v2の線分に対するv1の端点の位置
+      const t1 = ((v1[0] - v2[0]) * v2x + (v1[1] - v2[1]) * v2y) / (v2x * v2x + v2y * v2y);
+      const t2 = ((v1[6] - v2[0]) * v2x + (v1[7] - v2[1]) * v2y) / (v2x * v2x + v2y * v2y);
+      
+      // v1の端点がv2の線分の外側にある場合、交点はない可能性が高い
+      if ((t1 < 0 && t2 < 0) || (t1 > 1 && t2 > 1)) {
+        // 追加のチェック: 曲線の制御点も考慮
+        const t3 = ((v1[2] - v2[0]) * v2x + (v1[3] - v2[1]) * v2y) / (v2x * v2x + v2y * v2y);
+        const t4 = ((v1[4] - v2[0]) * v2x + (v1[5] - v2[1]) * v2y) / (v2x * v2x + v2y * v2y);
+        
+        // 全ての制御点が線分の外側にある場合、交点はない
+        if ((t1 < 0 && t2 < 0 && t3 < 0 && t4 < 0) ||
+            (t1 > 1 && t2 > 1 && t3 > 1 && t4 > 1)) {
+          return;
+        }
+      }
+    }
+
     // AABBで早期リターン
     function getAABB(v: number[]) {
       const xs = [v[0], v[2], v[4], v[6]];
@@ -262,21 +414,27 @@ export class Curve {
       };
     }
     const a1 = getAABB(v1), a2 = getAABB(v2);
+    // paper.jsと同じEPSILON値を使用
+    const GEOMETRIC_EPSILON = /*#=*/Numerical.GEOMETRIC_EPSILON;
     if (
-      a1.maxX < a2.minX || a1.minX > a2.maxX ||
-      a1.maxY < a2.minY || a1.minY > a2.maxY
-    ) return [];
+      a1.maxX < a2.minX - GEOMETRIC_EPSILON ||
+      a1.minX > a2.maxX + GEOMETRIC_EPSILON ||
+      a1.maxY < a2.minY - GEOMETRIC_EPSILON ||
+      a1.minY > a2.maxY + GEOMETRIC_EPSILON
+    ) {
+      return;
+    }
 
     // 直線同士なら厳密計算
     function isLine(v: number[]) {
-      return v[0] === v[2] && v[1] === v[3] && v[4] === v[6] && v[5] === v[7];
+      return Curve.isStraight(v);
     }
     if (isLine(v1) && isLine(v2)) {
       // v1: (x1,y1)-(x2,y2), v2: (x3,y3)-(x4,y4)
       const x1 = v1[0], y1 = v1[1], x2 = v1[6], y2 = v1[7];
       const x3 = v2[0], y3 = v2[1], x4 = v2[6], y4 = v2[7];
       const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
-      if (Math.abs(denom) < 1e-12) return []; // 平行
+      if (Math.abs(denom) < Numerical.EPSILON) return; // 平行
       const px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / denom;
       const py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / denom;
       // パラメータ計算
@@ -284,44 +442,149 @@ export class Curve {
                  ((x2 - x1) ** 2 + (y2 - y1) ** 2);
       const t2 = ((px - x3) * (x4 - x3) + (py - y3) * (y4 - y3)) /
                  ((x4 - x3) ** 2 + (y4 - y3) ** 2);
-      if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
-        return [{ t1: t1s + (t1e - t1s) * t1, t2: t2s + (t2e - t2s) * t2, point: new Point(px, py) }];
+      // paper.jsと同じEPSILON値を使用
+      const CURVETIME_EPSILON = /*#=*/Numerical.CURVETIME_EPSILON;
+      if (t1 >= -CURVETIME_EPSILON && t1 <= 1 + CURVETIME_EPSILON &&
+          t2 >= -CURVETIME_EPSILON && t2 <= 1 + CURVETIME_EPSILON) {
+        const loc: CurveLocation = {
+          curve1Index,
+          curve2Index,
+          t1: t1s + (t1e - t1s) * t1,
+          t2: t2s + (t2e - t2s) * t2,
+          point: new Point(px, py)
+        };
+        Curve._addUniqueLocation(locations, loc);
       }
-      return [];
+      return;
     }
 
+    // recursion / calls ガード (paper.js同様)
+    if (++depth >= 40) {
+      return;
+    }
+    
+    // recursion / calls ガード (paper.js同様)
+    if (depth > 40) {
+      return;
+    }
+    
     // 十分小さければ交点近似
-    const EPS = 1e-4;
-    if (
-      Math.max(a1.maxX - a1.minX, a1.maxY - a1.minY) < EPS &&
-      Math.max(a2.maxX - a2.minX, a2.maxY - a2.minY) < EPS
-    ) {
+    // paper.jsと同じ精度値を使用
+    const PRECISION = /*#=*/Numerical.GEOMETRIC_EPSILON;
+    const size1 = Math.max(a1.maxX - a1.minX, a1.maxY - a1.minY);
+    const size2 = Math.max(a2.maxX - a2.minX, a2.maxY - a2.minY);
+    
+    if (size1 < PRECISION && size2 < PRECISION) {
       // 交点近似
       const t1 = (t1s + t1e) / 2;
       const t2 = (t2s + t2e) / 2;
       const p = Curve.evaluate(v1, t1);
-      return [{ t1, t2, point: p }];
+      const loc: CurveLocation = {
+        curve1Index,
+        curve2Index,
+        t1,
+        t2,
+        point: p
+      };
+      Curve._addUniqueLocation(locations, loc);
+      return;
     }
+
+    // 品質判定: 曲線が十分平坦かどうか
+    function isFlatEnough(v: number[]): boolean {
+      // paper.jsのisFlatEnough実装を参考に
+      // 曲線の制御点が直線からどれだけ離れているかを計算
+      
+      // 端点
+      const p1 = new Point(v[0], v[1]);
+      const p2 = new Point(v[6], v[7]);
+      
+      // 制御点
+      const c1 = new Point(v[2], v[3]);
+      const c2 = new Point(v[4], v[5]);
+      
+      // 端点を結ぶ直線
+      const line = p2.subtract(p1);
+      const lineLength = line.getLength();
+      
+      if (lineLength < Numerical.EPSILON) {
+        // 端点が一致する場合は、制御点から端点への距離を使用
+        return Math.max(
+          c1.subtract(p1).getLength(),
+          c2.subtract(p1).getLength()
+        ) < PRECISION;
+      }
+      
+      // 制御点から直線への距離を計算
+      const normalized = line.normalize();
+      
+      // c1から直線への距離
+      const d1 = Math.abs(
+        normalized.y * (c1.x - p1.x) - normalized.x * (c1.y - p1.y)
+      );
+      
+      // c2から直線への距離
+      const d2 = Math.abs(
+        normalized.y * (c2.x - p1.x) - normalized.x * (c2.y - p1.y)
+      );
+      
+      // 曲率半径も考慮
+      const d = Math.max(d1, d2);
+      const r = lineLength * 0.5;
+      
+      return d < PRECISION && d * d < PRECISION * r;
+    }
+
     // 再帰分割
-    if (depth > 18) return [];
-    // 長い方を分割
-    const d1 = Math.max(a1.maxX - a1.minX, a1.maxY - a1.minY);
-    const d2 = Math.max(a2.maxX - a2.minX, a2.maxY - a2.minY);
-    if (d1 > d2) {
+    const flat1 = isFlatEnough(v1);
+    const flat2 = isFlatEnough(v2);
+    
+    // 両方平坦なら線分同士の交差判定
+    if (flat1 && flat2) {
+      // 線分同士の交差判定（上記のisLine判定で処理済み）
+      return;
+    }
+    
+    // 長い方または曲率の大きい方を分割
+    const d1 = size1;
+    const d2 = size2;
+    
+    if (!flat1 && (flat2 || d1 > d2)) {
+      // v1を分割
       const [left, right] = Curve.subdivide(v1, 0.5);
       const mid = (t1s + t1e) / 2;
-      return [
-        ...Curve.getIntersections(left, v2, t1s, mid, t2s, t2e, depth + 1),
-        ...Curve.getIntersections(right, v2, mid, t1e, t2s, t2e, depth + 1)
-      ];
+      Curve._getCurveIntersections(left, v2, locations, curve1Index, curve2Index,
+                                  t1s, mid, t2s, t2e, depth + 1, maxDepth);
+      Curve._getCurveIntersections(right, v2, locations, curve1Index, curve2Index,
+                                  mid, t1e, t2s, t2e, depth + 1, maxDepth);
     } else {
+      // v2を分割
       const [left, right] = Curve.subdivide(v2, 0.5);
       const mid = (t2s + t2e) / 2;
-      return [
-        ...Curve.getIntersections(v1, left, t1s, t1e, t2s, mid, depth + 1),
-        ...Curve.getIntersections(v1, right, t1s, t1e, mid, t2e, depth + 1)
-      ];
+      Curve._getCurveIntersections(v1, left, locations, curve1Index, curve2Index,
+                                  t1s, t1e, t2s, mid, depth + 1, maxDepth);
+      Curve._getCurveIntersections(v1, right, locations, curve1Index, curve2Index,
+                                  t1s, t1e, mid, t2e, depth + 1, maxDepth);
     }
+  }
+
+  /**
+   * 2つの三次ベジェ曲線の交点を列挙（公開API）
+   * @param v1 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param v2 制御点配列
+   * @param curve1Index 曲線1のインデックス
+   * @param curve2Index 曲線2のインデックス
+   * @returns 交点情報の配列
+   */
+  static getIntersections(
+    v1: number[],
+    v2: number[],
+    curve1Index = 0,
+    curve2Index = 0
+  ): CurveLocation[] {
+    const locations: CurveLocation[] = [];
+    Curve._getCurveIntersections(v1, v2, locations, curve1Index, curve2Index);
+    return locations;
   }
   
     /**
@@ -365,4 +628,196 @@ export class Curve {
         [x9, y9, x8, y8, x6, y6, x3, y3]
       ];
     }
+  /**
+   * モノトーン分割: 曲線をx方向またはy方向に単調な部分曲線に分割
+   * paper.jsのCurve.getMonoCurves()を移植
+   * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param dir 方向（falseならx方向、trueならy方向）
+   * @returns 分割された制御点配列の配列
+   */
+  static getMonoCurves(v: number[], dir = false): number[][] {
+    const x = dir ? 1 : 0;
+    const y = dir ? 0 : 1;
+    const curves: number[][] = [];
+    let roots: number[] = [];
+    let minT = 0;
+
+    function add(t: number) {
+      const curve = Curve.getPart(v, minT, t);
+      if (dir) {
+        // y方向の場合はx,yを入れ替える
+        for (let i = 0; i < 8; i += 2) {
+          const tmp = curve[i];
+          curve[i] = curve[i + 1];
+          curve[i + 1] = tmp;
+        }
+      }
+      curves.push(curve);
+      minT = t;
+    }
+
+    // 導関数の根を求める（単調性が変わる点）
+    // 三次ベジェの導関数は二次ベジェ
+    const a1 = 3 * (v[x + 2] - v[x]);
+    const a2 = 3 * (v[x + 4] - v[x + 2]) - a1;
+    const a3 = v[x + 6] - v[x] - a1 - a2;
+
+    // 二次導関数の根を求める（変曲点）
+    // 三次ベジェの二次導関数は一次式
+    const inflections = Numerical.solveQuadratic(3 * a3, 2 * a2, a1, roots);
+    
+    // 単調性が変わる点で分割
+    for (let i = 0; i < inflections; i++) {
+      const t = roots[i];
+      if (t > minT && t < 1) {
+        add(t);
+      }
+    }
+    
+    // 最後の部分を追加
+    add(1);
+    
+    return curves;
+  }
+  /**
+   * Fat-line 上下限計算: 曲線の上下限境界を計算
+   * paper.jsのCurve._getFatLineBounds相当
+   * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param point 基準点
+   * @param dir 方向（falseならx方向、trueならy方向）
+   * @returns {min, max} 上下限値
+   */
+  static _getFatLineBounds(v: number[], point: Point, dir = false): { min: number, max: number } {
+    const p0 = new Point(v[0], v[1]);
+    const p1 = new Point(v[6], v[7]);
+    const d = dir ? 1 : 0; // 方向インデックス（0=x, 1=y）
+    const cd = dir ? 0 : 1; // 直交方向インデックス（0=x, 1=y）
+    
+    // 基準点から線分への距離を計算
+    const fromPoint = point[dir ? 'y' : 'x'];
+    const px = fromPoint - p0[dir ? 'y' : 'x'];
+    const py = p1[dir ? 'y' : 'x'] - p0[dir ? 'y' : 'x'];
+    
+    // 線分の長さが0の場合は特別処理
+    if (Math.abs(py) < Numerical.EPSILON) {
+      return { min: px, max: px };
+    }
+    
+    // 制御点から線分への距離を計算
+    const vx = p0[dir ? 'x' : 'y'];
+    const vy = p1[dir ? 'x' : 'y'];
+    const c1 = new Point(v[2], v[3]);
+    const c2 = new Point(v[4], v[5]);
+    
+    // 3次ベジェ曲線の制御点から線分への距離
+    const f1 = (c1[dir ? 'y' : 'x'] - p0[dir ? 'y' : 'x']) / py;
+    const f2 = (c2[dir ? 'y' : 'x'] - p0[dir ? 'y' : 'x']) / py;
+    
+    // 制御点の直交方向の距離
+    const d1 = c1[dir ? 'x' : 'y'] - (vx + f1 * (vy - vx));
+    const d2 = c2[dir ? 'x' : 'y'] - (vx + f2 * (vy - vx));
+    
+    // 上下限を計算
+    const min = Math.min(0, 3 * d1, 3 * d2, d1 + d2);
+    const max = Math.max(0, 3 * d1, 3 * d2, d1 + d2);
+    
+    return { min, max };
+  }
+
+  /**
+   * 交点重複/端点マージ: 交点の重複を検出し、端点の場合は特別な処理を行う
+   * paper.jsのaddLocation内の重複判定ロジックを移植
+   * @param locations 既存の交点リスト
+   * @param newLoc 新しい交点
+   * @param tEpsilon t値の許容誤差
+   * @param pEpsilon 位置の許容誤差
+   * @returns 追加された場合はtrue、重複の場合はfalse
+   */
+  static _addUniqueLocation(
+    locations: CurveLocation[],
+    newLoc: CurveLocation,
+    tEpsilon = Numerical.CURVETIME_EPSILON,
+    pEpsilon = Numerical.GEOMETRIC_EPSILON
+  ): boolean {
+    // 端点判定（t=0またはt=1）
+    const isStart1 = Math.abs(newLoc.t1) < tEpsilon;
+    const isEnd1 = Math.abs(newLoc.t1 - 1) < tEpsilon;
+    const isStart2 = Math.abs(newLoc.t2) < tEpsilon;
+    const isEnd2 = Math.abs(newLoc.t2 - 1) < tEpsilon;
+    const isEndpoint = (isStart1 || isEnd1) && (isStart2 || isEnd2);
+
+    // 既存の交点と比較して重複チェック
+    for (const loc of locations) {
+      // 同じ曲線ペアの交点か確認（順序を考慮）
+      const sameCurves =
+        (loc.curve1Index === newLoc.curve1Index && loc.curve2Index === newLoc.curve2Index);
+      
+      // 曲線ペアの順序が逆の場合も確認
+      const reversedCurves =
+        (loc.curve1Index === newLoc.curve2Index && loc.curve2Index === newLoc.curve1Index);
+      
+      if (!sameCurves && !reversedCurves) continue;
+
+      // t値の比較（曲線ペアの順序に応じて）
+      let t1Near: boolean, t2Near: boolean;
+      
+      if (sameCurves) {
+        // 同じ順序の場合は直接比較
+        t1Near = Math.abs(loc.t1 - newLoc.t1) < tEpsilon;
+        t2Near = Math.abs(loc.t2 - newLoc.t2) < tEpsilon;
+      } else {
+        // 順序が逆の場合はt1とt2を入れ替えて比較
+        t1Near = Math.abs(loc.t1 - newLoc.t2) < tEpsilon;
+        t2Near = Math.abs(loc.t2 - newLoc.t1) < tEpsilon;
+      }
+      
+      const tNear = t1Near && t2Near;
+      
+      // 位置が近いか確認
+      const pNear = loc.point.subtract(newLoc.point).getLength() < pEpsilon;
+      
+      // 重複判定
+      if (tNear || pNear) {
+        // 端点の場合は特別処理
+        if (isEndpoint) {
+          // 端点情報を更新
+          loc.onPath = true;
+          
+          // 端点の場合はt値を正確な値（0または1）に修正
+          if (sameCurves) {
+            // 同じ順序の場合は直接修正
+            if (isStart1) loc.t1 = 0;
+            if (isEnd1) loc.t1 = 1;
+            if (isStart2) loc.t2 = 0;
+            if (isEnd2) loc.t2 = 1;
+          } else {
+            // 順序が逆の場合はt1とt2を入れ替えて考慮
+            if (isStart1) loc.t2 = 0;
+            if (isEnd1) loc.t2 = 1;
+            if (isStart2) loc.t1 = 0;
+            if (isEnd2) loc.t1 = 1;
+          }
+        }
+        
+        // 重複として処理（追加しない）
+        if (loc.overlap === undefined) {
+          loc.overlap = true;
+        }
+        return false;
+      }
+    }
+    
+    // 端点の場合はt値を正確な値に修正
+    if (isEndpoint) {
+      if (isStart1) newLoc.t1 = 0;
+      if (isEnd1) newLoc.t1 = 1;
+      if (isStart2) newLoc.t2 = 0;
+      if (isEnd2) newLoc.t2 = 1;
+      newLoc.onPath = true;
+    }
+    
+    // 重複がなければリストに追加
+    locations.push(newLoc);
+    return true;
+  }
 }

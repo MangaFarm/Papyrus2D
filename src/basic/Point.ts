@@ -102,4 +102,12 @@ export class Point {
   public isZero(): boolean {
     return this.x === 0 && this.y === 0;
   }
+  
+  /**
+   * 指定された点との距離が epsilon 以下かどうかを判定
+   * paper.jsのisClose実装を移植
+   */
+  isClose(point: Point, epsilon: number): boolean {
+    return this.subtract(point).getLength() <= epsilon;
+  }
 }
