@@ -22,7 +22,7 @@ export function getSelfIntersection(
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
   const info = Curve.classify(v1);
-  if (info.type === 'loop' && info.roots && info.roots.length >= 2) {
+  if (info.type === 'loop' && info.roots) {
     // ループ曲線の場合、自己交差点を追加
     // Paper.jsと同様に、overlapパラメータを省略（デフォルトはfalse）
     addLocation(locations, include,
@@ -52,14 +52,15 @@ export function addLocation(
 ): void {
   // Paper.jsと同様の実装
   // 端点の除外判定
-  const excludeStart = !overlap && c1.segment1 === c2.segment2;
-  const excludeEnd = !overlap && c1 !== c2 && c1.segment2 === c2.segment1;
+  const excludeStart = !overlap && c1.getPrevious() === c2;
+  const excludeEnd = !overlap && c1 !== c2 && c1.getNext() === c2;
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
   
   // 範囲チェック
   if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
     if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) && t2 <= (excludeStart ? tMax : 1)) {
+      // 交点の座標を計算
       const point = t1 !== null ? c1.getPointAt(t1) : new Point(0, 0);
       
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定

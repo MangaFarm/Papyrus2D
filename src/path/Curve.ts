@@ -43,6 +43,22 @@ export class Curve {
   }
 
   /**
+   * 前のカーブを取得（paper.js互換）
+   * 現在は常にnullを返す
+   */
+  getPrevious(): Curve | null {
+    return null;
+  }
+
+  /**
+   * 次のカーブを取得（paper.js互換）
+   * 現在は常にnullを返す
+   */
+  getNext(): Curve | null {
+    return null;
+  }
+
+  /**
    * 曲線長を返す
    */
   /**
@@ -656,7 +672,7 @@ export class Curve {
       
       // 潜在的に交差する曲線とのチェック
       const collisions1 = boundsCollisions[index1];
-      if (collisions1 && Array.isArray(collisions1)) {
+      if (collisions1) {
         for (let j = 0; j < collisions1.length; j++) {
           // 既に交点が見つかっていて、最初の交点だけを返す場合は早期リターン
           if (_returnFirst && locations.length) {
@@ -684,7 +700,7 @@ export class Curve {
                 // 交点情報を更新
                 if (loc.t1 !== null && loc.t2 !== null) {
                   // 交点の位置を正確に計算
-                  if (matrix1 && !self) {
+                  if (matrix1) {
                     // 行列変換を適用した場合は、元の座標系に戻す
                     const invMatrix1 = matrix1.invert();
                     if (invMatrix1) {

@@ -653,7 +653,7 @@ export class Path implements PathItem {
     options?: { include?: (loc: CurveLocation) => boolean }
   ): CurveLocation[] {
     // paper.jsのPathItem.getIntersectionsを移植
-    const self = this === path; // 自己交差判定
+    const self = this === path || !path; // 自己交差判定
     const matrix1 = this._matrix;
     const matrix2 = self ? matrix1 : path._matrix;
 
