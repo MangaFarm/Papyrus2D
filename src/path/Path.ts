@@ -15,7 +15,7 @@ import { PathItem } from './PathItem';
 export class Path implements PathItem {
   readonly segments: Segment[];
   readonly closed: boolean;
-  
+
   // PathItemインターフェースの実装
   _matrix?: Matrix;
   _matrixDirty: boolean = false;
@@ -56,7 +56,10 @@ export class Path implements PathItem {
     if (this.segments.length === 0) {
       return new Rectangle(new Point(0, 0), new Point(0, 0));
     }
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
 
     const add = (x: number, y: number) => {
       minX = Math.min(minX, x - padding);
@@ -84,14 +87,8 @@ export class Path implements PathItem {
         const v3 = p1[dim];
 
         // 端点をAABBに含める
-        add(
-          p0.x,
-          p0.y
-        );
-        add(
-          p1.x,
-          p1.y
-        );
+        add(p0.x, p0.y);
+        add(p1.x, p1.y);
 
         // 極値（1次導関数=0のt）を求める（paper.jsと同じ式）
         // a = 3*(v1-v2) - v0 + v3
@@ -130,10 +127,7 @@ export class Path implements PathItem {
           if (t > 0 && t < 1) {
             const mt = 1 - t;
             const bez =
-              mt * mt * mt * v0 +
-              3 * mt * mt * t * v1 +
-              3 * mt * t * t * v2 +
-              t * t * t * v3;
+              mt * mt * mt * v0 + 3 * mt * mt * t * v1 + 3 * mt * t * t * v2 + t * t * t * v3;
             const other =
               dim === 'x'
                 ? mt * mt * mt * p0.y +
@@ -144,10 +138,7 @@ export class Path implements PathItem {
                   3 * mt * mt * t * h0.x +
                   3 * mt * t * t * h1.x +
                   t * t * t * p1.x;
-            add(
-              dim === 'x' ? bez : other,
-              dim === 'y' ? bez : other
-            );
+            add(dim === 'x' ? bez : other, dim === 'y' ? bez : other);
           }
         }
       }
@@ -212,22 +203,26 @@ export class Path implements PathItem {
   ): boolean {
     // デフォルトはeven-oddルール
     const rule = options?.rule || 'evenodd';
-    
+
     // パス上判定
     if (this._isOnPath(point)) {
       return false;
     }
-    
+
     // 境界チェック（高速化のため）
     const bounds = this.getBounds();
-    if (point.x < bounds.topLeft.x || point.x > bounds.bottomRight.x ||
-        point.y < bounds.topLeft.y || point.y > bounds.bottomRight.y) {
+    if (
+      point.x < bounds.topLeft.x ||
+      point.x > bounds.bottomRight.x ||
+      point.y < bounds.topLeft.y ||
+      point.y > bounds.bottomRight.y
+    ) {
       return false;
     }
-    
+
     // winding numberを計算
     const { windingL, windingR } = this._getWinding(point);
-    
+
     // ルールに応じて判定
     if (rule === 'evenodd') {
       // even-oddルール: 交差数の偶奇
@@ -237,7 +232,7 @@ export class Path implements PathItem {
       return windingL !== 0 || windingR !== 0;
     }
   }
-  
+
   /**
    * 点がパス上にあるかどうかを判定
    * @param point 判定する点
@@ -246,29 +241,35 @@ export class Path implements PathItem {
    */
   private _isOnPath(point: Point, epsilon = Numerical.GEOMETRIC_EPSILON): boolean {
     const curves = this.getCurves();
-    
+
     // 頂点判定
     for (const seg of this.segments) {
       if (seg.point.subtract(point).getLength() <= epsilon) {
         return true;
       }
     }
-    
+
     // 辺上判定
     for (const curve of curves) {
       // 直線の場合は簡易判定
-      if (Curve.isStraight([
-        curve.segment1.point.x, curve.segment1.point.y,
-        curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
-        curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
-        curve.segment2.point.x, curve.segment2.point.y
-      ])) {
+      if (
+        Curve.isStraight([
+          curve.segment1.point.x,
+          curve.segment1.point.y,
+          curve.segment1.point.x + curve.segment1.handleOut.x,
+          curve.segment1.point.y + curve.segment1.handleOut.y,
+          curve.segment2.point.x + curve.segment2.handleIn.x,
+          curve.segment2.point.y + curve.segment2.handleIn.y,
+          curve.segment2.point.x,
+          curve.segment2.point.y,
+        ])
+      ) {
         const p1 = curve.segment1.point;
         const p2 = curve.segment2.point;
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const len2 = dx * dx + dy * dy;
-        
+
         if (len2 > 0) {
           const t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / len2;
           if (t >= -epsilon && t <= 1 + epsilon) {
@@ -282,30 +283,34 @@ export class Path implements PathItem {
         // 曲線の場合は最近接点を求める
         // paper.jsのCurve.getTimeOf()実装を使用
         const v = [
-          curve.segment1.point.x, curve.segment1.point.y,
-          curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
-          curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
-          curve.segment2.point.x, curve.segment2.point.y
+          curve.segment1.point.x,
+          curve.segment1.point.y,
+          curve.segment1.point.x + curve.segment1.handleOut.x,
+          curve.segment1.point.y + curve.segment1.handleOut.y,
+          curve.segment2.point.x + curve.segment2.handleIn.x,
+          curve.segment2.point.y + curve.segment2.handleIn.y,
+          curve.segment2.point.x,
+          curve.segment2.point.y,
         ];
-        
+
         // Curve.getTimeOf()相当の実装
         // まず端点との距離をチェック
         const p0 = new Point(v[0], v[1]);
         const p3 = new Point(v[6], v[7]);
-        
+
         // 端点が十分近い場合は早期リターン
         // paper.jsと同じEPSILON値を使用
-        const geomEpsilon = /*#=*/Numerical.GEOMETRIC_EPSILON;
-        
+        const geomEpsilon = /*#=*/ Numerical.GEOMETRIC_EPSILON;
+
         if (point.isClose(p0, geomEpsilon) || point.isClose(p3, geomEpsilon)) {
           return true;
         }
-        
+
         // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
         // 最小になる t を求める
         const coords = [point.x, point.y];
         const roots: Set<number> = new Set(); // 重複を排除するためにSetを使用
-        
+
         for (let c = 0; c < 2; c++) {
           // 三次方程式を解く
           const tempRoots: number[] = [];
@@ -313,16 +318,16 @@ export class Path implements PathItem {
           const b = 6 * (v[c] - 2 * v[c + 2] + v[c + 4]);
           const c2 = 3 * (-v[c] + v[c + 2]);
           const d = v[c] - coords[c];
-          
+
           // 三次方程式を解く
           const count = Numerical.solveCubic(a, b, c2, d, tempRoots, 0, 1);
-          
+
           // 重複を排除しながらrootsに追加
           for (let i = 0; i < count; i++) {
             roots.add(tempRoots[i]);
           }
         }
-        
+
         // 各解について、曲線上の点と与えられた点の距離をチェック
         for (const t of roots) {
           const p = Curve.evaluate(v, t);
@@ -330,69 +335,68 @@ export class Path implements PathItem {
             return true;
           }
         }
-        
+
         return false;
       }
     }
-    
+
     return false;
   }
-  
+
   /**
    * 点に対するwinding numberを計算（左右分割版）
    * @param point 判定する点
    * @returns {windingL, windingR} 左右のwinding number
    */
-  private _getWinding(point: Point): { windingL: number, windingR: number } {
+  private _getWinding(point: Point): { windingL: number; windingR: number } {
     const curves = this.getCurves();
     let windingL = 0;
     let windingR = 0;
-    
+
     for (const curve of curves) {
       const v = [
-        curve.segment1.point.x, curve.segment1.point.y,
-        curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
-        curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
-        curve.segment2.point.x, curve.segment2.point.y
+        curve.segment1.point.x,
+        curve.segment1.point.y,
+        curve.segment1.point.x + curve.segment1.handleOut.x,
+        curve.segment1.point.y + curve.segment1.handleOut.y,
+        curve.segment2.point.x + curve.segment2.handleIn.x,
+        curve.segment2.point.y + curve.segment2.handleIn.y,
+        curve.segment2.point.x,
+        curve.segment2.point.y,
       ];
-      
+
       // y成分の範囲外ならスキップ
       const y = point.y;
       const minY = Math.min(v[1], v[3], v[5], v[7]);
       const maxY = Math.max(v[1], v[3], v[5], v[7]);
-      
+
       if (y < minY - Numerical.EPSILON || y > maxY + Numerical.EPSILON) {
         continue;
       }
-      
+
       // y成分の三次方程式
       const roots: number[] = [];
       const a = -v[1] + 3 * v[3] - 3 * v[5] + v[7];
       const b = 3 * v[1] - 6 * v[3] + 3 * v[5];
       const c = -3 * v[1] + 3 * v[3];
       const d = v[1] - y;
-      
+
       Numerical.solveCubic(a, b, c, d, roots, 0, 1);
-      
+
       for (const t of roots) {
         if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
           continue;
         }
-        
+
         // x座標を計算
         const mt = 1 - t;
         const x =
-          mt * mt * mt * v[0] +
-          3 * mt * mt * t * v[2] +
-          3 * mt * t * t * v[4] +
-          t * t * t * v[6];
-        
+          mt * mt * mt * v[0] + 3 * mt * mt * t * v[2] + 3 * mt * t * t * v[4] + t * t * t * v[6];
+
         // 上昇/下降で符号を分ける
         const dy =
-          3 * (mt * mt * (v[3] - v[1]) +
-               2 * mt * t * (v[5] - v[3]) +
-               t * t * (v[7] - v[5]));
-        
+          3 * (mt * mt * (v[3] - v[1]) + 2 * mt * t * (v[5] - v[3]) + t * t * (v[7] - v[5]));
+
         // 左右に分けてカウント
         if (x < point.x - Numerical.EPSILON) {
           windingL += dy > 0 ? 1 : -1;
@@ -405,7 +409,7 @@ export class Path implements PathItem {
         }
       }
     }
-    
+
     return { windingL, windingR };
   }
 
@@ -418,7 +422,7 @@ export class Path implements PathItem {
     this._matrixDirty = true;
     return this;
   }
-  
+
   /**
    * 平行移動
    * @param dx x方向の移動量
@@ -432,7 +436,7 @@ export class Path implements PathItem {
     this._matrixDirty = true;
     return this;
   }
-  
+
   /**
    * 回転
    * @param angle 回転角度（度）
@@ -446,7 +450,7 @@ export class Path implements PathItem {
     this._matrixDirty = true;
     return this;
   }
-  
+
   /**
    * スケーリング
    * @param sx x方向のスケール
@@ -461,7 +465,7 @@ export class Path implements PathItem {
     this._matrixDirty = true;
     return this;
   }
-  
+
   getCurves(): Curve[] {
     // セグメント配列から Curve 配列を生成
     const curves: Curve[] = [];
@@ -556,7 +560,7 @@ export class Path implements PathItem {
     return new Path(newSegments, closed);
   }
 
-/**
+  /**
    * 全セグメントのハンドルを自動補正（paper.jsのsmooth相当, Catmull-Rom的）
    */
   smooth(): Path {
@@ -569,11 +573,7 @@ export class Path implements PathItem {
       // ハンドルは前後点の差分を1/6ずつ
       const handleIn = prev.subtract(next).multiply(-1 / 6);
       const handleOut = next.subtract(prev).multiply(1 / 6);
-      newSegments[i] = new Segment(
-        newSegments[i].point,
-        handleIn,
-        handleOut
-      );
+      newSegments[i] = new Segment(newSegments[i].point, handleIn, handleOut);
     }
     return new Path(newSegments, this.closed);
   }
@@ -588,7 +588,7 @@ export class Path implements PathItem {
    */
   unite(other: Path): Path {
     // PathBooleanクラスを使用
-    return import('./PathBoolean').then(module => {
+    return import('./PathBoolean').then((module) => {
       return module.PathBoolean.unite(this, other);
     }) as unknown as Path;
   }
@@ -600,7 +600,7 @@ export class Path implements PathItem {
    */
   intersect(other: Path): Path {
     // PathBooleanクラスを使用
-    return import('./PathBoolean').then(module => {
+    return import('./PathBoolean').then((module) => {
       return module.PathBoolean.intersect(this, other);
     }) as unknown as Path;
   }
@@ -612,7 +612,7 @@ export class Path implements PathItem {
    */
   subtract(other: Path): Path {
     // PathBooleanクラスを使用
-    return import('./PathBoolean').then(module => {
+    return import('./PathBoolean').then((module) => {
       return module.PathBoolean.subtract(this, other);
     }) as unknown as Path;
   }
@@ -624,7 +624,7 @@ export class Path implements PathItem {
    */
   exclude(other: Path): Path {
     // PathBooleanクラスを使用
-    return import('./PathBoolean').then(module => {
+    return import('./PathBoolean').then((module) => {
       return module.PathBoolean.exclude(this, other);
     }) as unknown as Path;
   }
@@ -636,10 +636,38 @@ export class Path implements PathItem {
    */
   divide(other: Path): Path {
     // PathBooleanクラスを使用
-    return import('./PathBoolean').then(module => {
+    return import('./PathBoolean').then((module) => {
       return module.PathBoolean.divide(this, other);
     }) as unknown as Path;
   }
 
+  /**
+   * 他のパスとの交点を取得
+   * @param path 交点を求める相手のパス
+   * @param options オプション
+   * @param options.include 交点をフィルタリングするコールバック関数
+   * @returns 交点情報の配列
+   */
+  getIntersections(
+    path: Path,
+    options?: { include?: (loc: CurveLocation) => boolean }
+  ): CurveLocation[] {
+    // paper.jsのPathItem.getIntersectionsを移植
+    const self = this === path; // 自己交差判定
+    const matrix1 = this._matrix;
+    const matrix2 = self ? matrix1 : path._matrix;
 
+    // まず両方のパスの境界ボックスが交差するか確認
+    if (self || this.getBounds().intersects(path.getBounds())) {
+      return Curve.getIntersections(
+        this.getCurves(),
+        !self ? path.getCurves() : null,
+        options?.include,
+        matrix1,
+        matrix2
+      );
+    }
+
+    return [];
+  }
 }

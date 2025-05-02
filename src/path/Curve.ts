@@ -23,7 +23,10 @@ export interface CurveLocation {
 
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
+import { Matrix } from '../basic/Matrix';
 import { Numerical } from '../util/Numerical';
+import { CollisionDetection } from './CollisionDetection';
+import { getSelfIntersection, getCurveIntersections } from './CurveIntersections';
 
 export class Curve {
   readonly segment1: Segment;
@@ -460,7 +463,7 @@ export class Curve {
      * t: 分割位置 (0-1)
      * 戻り値: [左側の制御点配列, 右側の制御点配列]
      */
-    private static subdivide(v: number[], t: number): [number[], number[]] {
+    static subdivide(v: number[], t: number): [number[], number[]] {
       const x0 = v[0], y0 = v[1];
       const x1 = v[2], y1 = v[3];
       const x2 = v[4], y2 = v[5];
@@ -577,4 +580,152 @@ export class Curve {
     return { min, max };
   }
 
+  /**
+   * 2つの曲線の交点を計算
+   * paper.jsのCurve.getIntersections実装を移植
+   */
+  static getIntersections(
+    curves1: Curve[],
+    curves2: Curve[] | null,
+    include?: (loc: CurveLocation) => boolean,
+    matrix1?: Matrix | null,
+    matrix2?: Matrix | null,
+    _returnFirst?: boolean
+  ): CurveLocation[] {
+    const epsilon = Numerical.GEOMETRIC_EPSILON;
+    const self = !curves2;
+    const _curves2 = self ? curves1 : curves2!;
+    const length1 = curves1.length;
+    const length2 = _curves2.length;
+    const values1: number[][] = new Array(length1);
+    const values2 = self ? values1 : new Array(length2);
+    const locations: CurveLocation[] = [];
+    
+    // 各曲線の値を取得
+    for (let i = 0; i < length1; i++) {
+      values1[i] = curves1[i].getValues();
+    }
+    
+    if (!self) {
+      for (let i = 0; i < length2; i++) {
+        values2[i] = _curves2[i].getValues();
+      }
+    }
+    
+    // CollisionDetection.findCurveBoundsCollisionsを呼び出す
+    const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
+      values1, values2, epsilon
+    );
+    
+    for (let index1 = 0; index1 < length1; index1++) {
+      const curve1 = curves1[index1];
+      const v1 = values1[index1];
+      
+      if (self) {
+        // 自己交差チェック
+        getSelfIntersection(v1, curve1, locations, include);
+      }
+      
+      // 潜在的に交差する曲線とのチェック
+      const collisions1 = boundsCollisions[index1];
+      if (collisions1 && Array.isArray(collisions1)) {
+        for (let j = 0; j < collisions1.length; j++) {
+          if (_returnFirst && locations.length) {
+            return locations;
+          }
+          
+          const index2 = collisions1[j];
+          if (!self || index2 > index1) {
+            const curve2 = _curves2[index2];
+            const v2 = values2[index2];
+            getCurveIntersections(
+              v1, v2, curve1, curve2, locations, include
+            );
+          }
+        }
+      }
+    }
+    
+    return locations;
+  }
+
+  /**
+   * 曲線の分類（直線、二次曲線、蛇行曲線、尖点、ループ、アーチ）
+   * paper.jsのCurve.classify実装を移植
+   */
+  static classify(v: number[]): { type: string; roots?: number[] } {
+    // paper.jsのCurve.classify実装を移植
+    // 参考: Loop and Blinn, 2005, Resolution Independent Curve Rendering
+    // using Programmable Graphics Hardware, GPU Gems 3 chapter 25
+    //
+    // 可能な分類:
+    //   'line'       (d1 == d2 == d3 == 0)
+    //   'quadratic'  (d1 == d2 == 0)
+    //   'serpentine' (d > 0)
+    //   'cusp'       (d == 0)
+    //   'loop'       (d < 0)
+    //   'arch'       (serpentine, cusp or loop with roots outside 0..1)
+    
+    const x0 = v[0], y0 = v[1],
+          x1 = v[2], y1 = v[3],
+          x2 = v[4], y2 = v[5],
+          x3 = v[6], y3 = v[7];
+    
+    // I(s, t)の係数を計算（変曲点）
+    const a1 = x0 * (y3 - y2) + y0 * (x2 - x3) + x3 * y2 - y3 * x2;
+    const a2 = x1 * (y0 - y3) + y1 * (x3 - x0) + x0 * y3 - y0 * x3;
+    const a3 = x2 * (y1 - y0) + y2 * (x0 - x1) + x1 * y0 - y1 * x0;
+    let d3 = 3 * a3;
+    let d2 = d3 - a2;
+    let d1 = d2 - a2 + a1;
+    
+    // ベクトル(d1, d2, d3)を正規化して誤差を一定に保つ
+    const l = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
+    const s = l !== 0 ? 1 / l : 0;
+    const isZero = Numerical.isZero;
+    
+    d1 *= s;
+    d2 *= s;
+    d3 *= s;
+    
+    // 分類関数
+    function type(type: string, t1?: number, t2?: number): { type: string; roots?: number[] } {
+      const hasRoots = t1 !== undefined;
+      let t1Ok = hasRoots && t1 > 0 && t1 < 1;
+      let t2Ok = hasRoots && t2! > 0 && t2! < 1;
+      
+      // 0..1の範囲内に解がない場合はarchに格下げ
+      // loopは2つの解が必要
+      if (hasRoots && (!(t1Ok || t2Ok) || type === 'loop' && !(t1Ok && t2Ok))) {
+        type = 'arch';
+        t1Ok = t2Ok = false;
+      }
+      
+      return {
+        type: type,
+        roots: t1Ok || t2Ok
+          ? t1Ok && t2Ok
+            ? t1! < t2! ? [t1!, t2!] : [t2!, t1!] // 2つの解
+            : [t1Ok ? t1! : t2!] // 1つの解
+          : undefined
+      };
+    }
+    
+    if (isZero(d1)) {
+      return isZero(d2)
+        ? type(isZero(d3) ? 'line' : 'quadratic') // 5. / 4.
+        : type('serpentine', d3 / (3 * d2));      // 3b.
+    }
+    
+    const d = 3 * d2 * d2 - 4 * d1 * d3;
+    if (isZero(d)) {
+      return type('cusp', d2 / (2 * d1));         // 3a.
+    }
+    
+    const f1 = d > 0 ? Math.sqrt(d / 3) : Math.sqrt(-d);
+    const f2 = 2 * d1;
+    return type(d > 0 ? 'serpentine' : 'loop',    // 1. / 2.
+      (d2 + f1) / f2,
+      (d2 - f1) / f2);
+  }
 }
