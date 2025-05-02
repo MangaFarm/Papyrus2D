@@ -186,7 +186,90 @@ findBoundsCollisions: function(boundsA, boundsB, tolerance,
     var activeIndicesByPri1 = [],
         allCollisions = new Array(lengthA);
     
-    // ... [implementation details omitted for brevity] ...
+    // Sweep along primary axis. Indices of active bounds are kept in an
+    // array sorted by higher boundary on primary axis.
+    var activeIndicesByPri1 = [],
+        allCollisions = new Array(lengthA);
+    for (var i = 0; i < lengthAll; i++) {
+        var curIndex = allIndicesByPri0[i],
+            curBounds = allBounds[curIndex],
+            // The original index in boundsA or boundsB:
+            origIndex = self ? curIndex : curIndex - lengthA,
+            isCurrentA = curIndex < lengthA,
+            isCurrentB = self || !isCurrentA,
+            curCollisions = isCurrentA ? [] : null;
+        if (activeIndicesByPri1.length) {
+            // remove (prune) indices that are no longer active.
+            var pruneCount = binarySearch(activeIndicesByPri1, pri1,
+                    curBounds[pri0] - tolerance) + 1;
+            activeIndicesByPri1.splice(0, pruneCount);
+            // Add collisions for current index.
+            if (self && onlySweepAxisCollisions) {
+                // All active indexes can be added, no further checks needed
+                curCollisions = curCollisions.concat(activeIndicesByPri1);
+               // Add current index to collisions of all active indexes
+                for (var j = 0; j < activeIndicesByPri1.length; j++) {
+                    var activeIndex = activeIndicesByPri1[j];
+                    allCollisions[activeIndex].push(origIndex);
+                }
+            } else {
+                var curSec1 = curBounds[sec1],
+                    curSec0 = curBounds[sec0];
+                for (var j = 0; j < activeIndicesByPri1.length; j++) {
+                    var activeIndex = activeIndicesByPri1[j],
+                        activeBounds = allBounds[activeIndex],
+                        isActiveA = activeIndex < lengthA,
+                        isActiveB = self || activeIndex >= lengthA;
+
+                    // Check secondary axis bounds if necessary.
+                    if (
+                        onlySweepAxisCollisions ||
+                        (
+                            isCurrentA && isActiveB ||
+                            isCurrentB && isActiveA
+                        ) && (
+                            curSec1 >= activeBounds[sec0] - tolerance &&
+                            curSec0 <= activeBounds[sec1] + tolerance
+                        )
+                    ) {
+                        // Add current index to collisions of active
+                        // indices and vice versa.
+                        if (isCurrentA && isActiveB) {
+                            curCollisions.push(
+                                self ? activeIndex : activeIndex - lengthA);
+                        }
+                        if (isCurrentB && isActiveA) {
+                            allCollisions[activeIndex].push(origIndex);
+                        }
+                    }
+                }
+            }
+        }
+        if (isCurrentA) {
+            if (boundsA === boundsB) {
+                // If both arrays are the same, add self collision.
+                curCollisions.push(curIndex);
+            }
+            // Add collisions for current index.
+            allCollisions[curIndex] = curCollisions;
+        }
+        // Add current index to active indices. Keep array sorted by
+        // their higher boundary on the primary axis.s
+        if (activeIndicesByPri1.length) {
+            var curPri1 = curBounds[pri1],
+                index = binarySearch(activeIndicesByPri1, pri1, curPri1);
+            activeIndicesByPri1.splice(index + 1, 0, curIndex);
+        } else {
+            activeIndicesByPri1.push(curIndex);
+        }
+    }
+    // Sort collision indices in ascending order.
+    for (var i = 0; i < allCollisions.length; i++) {
+        var collisions = allCollisions[i];
+        if (collisions) {
+            collisions.sort(function(i1, i2) { return i1 - i2; });
+        }
+    }
     
     return allCollisions;
 }
@@ -418,7 +501,13 @@ This function demonstrates the hierarchical approach to intersection detection, 
 
 ```javascript
 function getOverlaps(v1, v2) {
-    // Linear curves can only overlap if they are collinear
+    // Linear curves can only overlap if they are collinear. Instead of
+    // using the #isCollinear() check, we pick the longer of the two curves
+    // treated as lines, and see how far the starting and end points of the
+    // other line are from this line (assumed as an infinite line). But even
+    // if the curves are not straight, they might just have tiny handles
+    // within geometric epsilon distance, so we have to check for that too.
+
     function getSquaredLineLength(v) {
         var x = v[6] - v[0],
             y = v[7] - v[1];
@@ -434,10 +523,73 @@ function getOverlaps(v1, v2) {
         straightBoth = straight1 && straight2,
         flip = getSquaredLineLength(v1) < getSquaredLineLength(v2),
         l1 = flip ? v2 : v1,
-        l2 = flip ? v1 : v2;
-    
-    // ... [implementation details omitted for brevity] ...
-    
+        l2 = flip ? v1 : v2,
+        // Get l1 start and end point values for faster referencing.
+        px = l1[0], py = l1[1],
+        vx = l1[6] - px, vy = l1[7] - py;
+    // See if the starting and end point of curve two are very close to the
+    // picked line. Note that the curve for the picked line might not
+    // actually be a line, so we have to perform more checks after.
+    if (getDistance(px, py, vx, vy, l2[0], l2[1], true) < geomEpsilon &&
+        getDistance(px, py, vx, vy, l2[6], l2[7], true) < geomEpsilon) {
+        // If not both curves are straight, check against both of their
+        // handles, and treat them as straight if they are very close.
+        if (!straightBoth &&
+            getDistance(px, py, vx, vy, l1[2], l1[3], true) < geomEpsilon &&
+            getDistance(px, py, vx, vy, l1[4], l1[5], true) < geomEpsilon &&
+            getDistance(px, py, vx, vy, l2[2], l2[3], true) < geomEpsilon &&
+            getDistance(px, py, vx, vy, l2[4], l2[5], true) < geomEpsilon) {
+            straight1 = straight2 = straightBoth = true;
+        }
+    } else if (straightBoth) {
+        // If both curves are straight and not very close to each other,
+        // there can't be a solution.
+        return null;
+    }
+    if (straight1 ^ straight2) {
+        // If one curve is straight, the other curve must be straight too,
+        // otherwise they cannot overlap.
+        return null;
+    }
+
+    var v = [v1, v2],
+        pairs = [];
+    // Iterate through all end points:
+    // First p1 of curve 1 & 2, then p2 of curve 1 & 2.
+    for (var i = 0; i < 4 && pairs.length < 2; i++) {
+        var i1 = i & 1,  // 0, 1, 0, 1
+            i2 = i1 ^ 1, // 1, 0, 1, 0
+            t1 = i >> 1, // 0, 0, 1, 1
+            t2 = Curve.getTimeOf(v[i1], new Point(
+                v[i2][t1 ? 6 : 0],
+                v[i2][t1 ? 7 : 1]));
+        if (t2 != null) {  // If point is on curve
+            var pair = i1 ? [t1, t2] : [t2, t1];
+            // Filter out tiny overlaps.
+            if (!pairs.length ||
+                abs(pair[0] - pairs[0][0]) > timeEpsilon &&
+                abs(pair[1] - pairs[0][1]) > timeEpsilon) {
+                pairs.push(pair);
+            }
+        }
+        // We checked 3 points but found no match, curves can't overlap.
+        if (i > 2 && !pairs.length)
+            break;
+    }
+    if (pairs.length !== 2) {
+        pairs = null;
+    } else if (!straightBoth) {
+        // Straight pairs don't need further checks. If we found 2 pairs,
+        // the end points on v1 & v2 should be the same.
+        var o1 = Curve.getPart(v1, pairs[0][0], pairs[1][0]),
+            o2 = Curve.getPart(v2, pairs[0][1], pairs[1][1]);
+        // Check if handles of the overlapping curves are the same too.
+        if (abs(o2[2] - o1[2]) > geomEpsilon ||
+            abs(o2[3] - o1[3]) > geomEpsilon ||
+            abs(o2[4] - o1[4]) > geomEpsilon ||
+            abs(o2[5] - o1[5]) > geomEpsilon)
+            pairs = null;
+    }
     return pairs;
 }
 ```
@@ -455,24 +607,38 @@ function getOverlaps(v1, v2) {
 
 ```javascript
 function addLocation(locations, include, c1, t1, c2, t2, overlap) {
+    // Determine if locations at the beginning / end of the curves should be
+    // excluded, in case the two curves are neighbors, but do not exclude
+    // connecting points between two curves if they were part of overlap
+    // checks, as they could be self-overlapping.
+    // NOTE: We don't pass p1 and p2, because v1 and v2 may be transformed
+    // by their path.matrix, while c1 and c2 are untransformed. Passing null
+    // for point in CurveLocation() will do the right thing.
     var excludeStart = !overlap && c1.getPrevious() === c2,
-        excludeEnd = !overlap && c1.getNext() === c2,
+        excludeEnd = !overlap && c1 !== c2 && c1.getNext() === c2,
         tMin = /*#=*/Numerical.CURVETIME_EPSILON,
         tMax = 1 - tMin;
-    if (t1 < tMin && (excludeStart || t1 < /*#=*/Numerical.EPSILON)) {
-        t1 = 0;
-    } else if (t1 > tMax && (excludeEnd || t1 > 1 - /*#=*/Numerical.EPSILON)) {
-        t1 = 1;
+    // Check t1 and t2 against correct bounds, based on excludeStart/End:
+    // - excludeStart means the start of c1 connects to the end of c2
+    // - excludeEnd means the end of c1 connects to the start of c2
+    // - If either c1 or c2 are at the end of the path, exclude their end,
+    //   which connects back to the beginning, but only if it's not part of
+    //   a found overlap. The normal intersection will already be found at
+    //   the beginning, and would be added twice otherwise.
+    if (t1 !== null && t1 >= (excludeStart ? tMin : 0) &&
+        t1 <= (excludeEnd ? tMax : 1)) {
+        if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) &&
+            t2 <= (excludeStart ? tMax : 1)) {
+            var loc1 = new CurveLocation(c1, t1, null, overlap),
+                loc2 = new CurveLocation(c2, t2, null, overlap);
+            // Link the two locations to each other.
+            loc1._intersection = loc2;
+            loc2._intersection = loc1;
+            if (!include || include(loc1)) {
+                CurveLocation.insert(locations, loc1, true);
+            }
+        }
     }
-    if (t2 < tMin && (excludeStart || t2 < /*#=*/Numerical.EPSILON)) {
-        t2 = 0;
-    } else if (t2 > tMax && (excludeEnd || t2 > 1 - /*#=*/Numerical.EPSILON)) {
-        t2 = 1;
-    }
-    
-    // ... [implementation details omitted for brevity] ...
-    
-    return location;
 }
 ```
 
@@ -936,25 +1102,28 @@ This sophisticated approach allows Paper.js to efficiently and accurately detect
 
 ```javascript
 function addCurveLineIntersections(v1, v2, c1, c2, locations, include, flip) {
-    var vc = v1, vl = v2;
-    if (flip) {
-        vc = v2;
-        vl = v1;
+    // addCurveLineIntersections() is called so that v1 is always the curve
+    // and v2 the line. flip indicates whether the curves need to be flipped
+    // in the call to addLocation().
+    var x1 = v2[0], y1 = v2[1],
+        x2 = v2[6], y2 = v2[7],
+        roots = getCurveLineIntersections(v1, x1, y1, x2 - x1, y2 - y1);
+    // NOTE: count could be -1 for infinite solutions, but that should only
+    // happen with lines, in which case we should not be here.
+    for (var i = 0, l = roots.length; i < l; i++) {
+        // For each found solution on the rotated curve, get the point on
+        // the real curve and with that the location on the line.
+        var t1 = roots[i],
+            p1 = Curve.getPoint(v1, t1),
+            t2 = Curve.getTimeOf(v2, p1);
+        if (t2 !== null) {
+            // Only use the time values if there was no recursion, and let
+            // addLocation() figure out the actual time values otherwise.
+            addLocation(locations, include,
+                    flip ? c2 : c1, flip ? t2 : t1,
+                    flip ? c1 : c2, flip ? t1 : t2);
+        }
     }
-    var vcPoints = [
-            new Point(vc[0], vc[1]),
-            new Point(vc[2], vc[3]),
-            new Point(vc[4], vc[5]),
-            new Point(vc[6], vc[7])
-        ],
-        vlPoints = [
-            new Point(vl[0], vl[1]),
-            new Point(vl[6], vl[7])
-        ],
-        roots = [];
-    // If the line is horizontal or vertical, use the corresponding curve
-    // function that is much faster.
-    // ... [implementation details omitted for brevity] ...
     return locations;
 }
 ```
@@ -1010,7 +1179,22 @@ var CurveLocation = Base.extend(/** @lends CurveLocation# */{
     _class: 'CurveLocation',
     // DOCS: CurveLocation class description
     initialize: function CurveLocation(curve, time, point, _overlap, _distance) {
-        // ... [implementation details omitted for brevity] ...
+        // Merge intersections very close to the end of a curve with the
+        // beginning of the next curve.
+        if (time >= /*#=*/(1 - Numerical.CURVETIME_EPSILON)) {
+            var next = curve.getNext();
+            if (next) {
+                time = 0;
+                curve = next;
+            }
+        }
+        this._setCurve(curve);
+        this._time = time;
+        this._point = point || curve.getPointAtTime(time);
+        this._overlap = _overlap;
+        this._distance = _distance;
+        // Properties related to linked intersection locations
+        this._intersection = this._next = this._previous = null;
     },
     
     // ... [methods omitted for brevity] ...
