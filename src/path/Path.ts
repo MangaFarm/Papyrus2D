@@ -712,13 +712,12 @@ export class Path implements PathItem {
     }
     
     // 境界ボックスの交差判定
-    // 自己交差の場合はスキップ
     // paper.jsと同様の条件式に修正
     return self || this.getBounds(matrix1 as Matrix | undefined).intersects(
       path!.getBounds(matrix2 as Matrix | undefined), Numerical.EPSILON)
       ? Curve.getIntersections(
           this.getCurves(),
-          self ? null : path!.getCurves(),
+          self ? this.getCurves() : path!.getCurves(),
           include,
           matrix1 as Matrix | undefined,
           matrix2 as Matrix | undefined,

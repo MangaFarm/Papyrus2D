@@ -111,6 +111,20 @@ export class Curve {
   }
 
   /**
+   * 曲線の始点を取得（paper.js互換）
+   */
+  getPoint1(): Point {
+    return this.segment1.point;
+  }
+
+  /**
+   * 曲線の終点を取得（paper.js互換）
+   */
+  getPoint2(): Point {
+    return this.segment2.point;
+  }
+
+  /**
    * 曲線長を返す
    */
   /**

@@ -11,10 +11,6 @@ import { Point } from '../basic/Point';
  * 自己交差チェック
  * paper.jsのgetSelfIntersection実装を移植
  */
-/**
- * 自己交差チェック
- * paper.jsのgetSelfIntersection実装を移植
- */
 export function getSelfIntersection(
   v1: number[],
   c1: Curve,
@@ -116,29 +112,11 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
   for (let i = 0; i < length; i++) {
     const loc = locations[i];
     
-    // 点の距離が十分に近い場合は重複とみなす
-    if (loc.point && location.point) {
-      const dist = loc.point.subtract(location.point).getLength();
-      if (dist < geomEpsilon) {
-        // 交点が既に存在する場合は、相互参照を更新
-        if (location._intersection && loc._intersection) {
-          // 既存の交点の相互参照を新しい交点の相互参照に更新
-          loc._intersection._intersection = location._intersection;
-          location._intersection._intersection = loc._intersection;
-        }
-        
-        // 重複を許可する場合のみ追加
-        if (includeOverlaps) {
-          locations.push(location);
-          return length;
-        }
-        
-        return i;
-      }
-    }
-    
     // 同じ曲線上の交点で、tパラメータが近い場合は重複とみなす
-    if (loc.t1 !== null && location.t1 !== null && loc.t2 !== null && location.t2 !== null) {
+    if (loc.curve1 !== null && location.curve1 !== null &&
+        loc.t1 !== null && location.t1 !== null &&
+        loc.curve2 !== null && location.curve2 !== null &&
+        loc.t2 !== null && location.t2 !== null) {
       // 曲線が同じかどうかをチェック（paper.jsと同様）
       const sameCurves =
         (loc.curve1 === location.curve1 && loc.curve2 === location.curve2) ||
@@ -160,6 +138,13 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
         
         // Paper.jsと同じ条件で重複判定
         if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
+          // 交点が既に存在する場合は、相互参照を更新
+          if (location._intersection && loc._intersection) {
+            // 既存の交点の相互参照を新しい交点の相互参照に更新
+            loc._intersection._intersection = location._intersection;
+            location._intersection._intersection = loc._intersection;
+          }
+          
           // 重複を許可する場合のみ追加
           if (includeOverlaps) {
             locations.push(location);
@@ -167,6 +152,27 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
           }
           return i;
         }
+      }
+    }
+    
+    // 点の距離が十分に近い場合は重複とみなす
+    if (loc.point && location.point) {
+      const dist = loc.point.subtract(location.point).getLength();
+      if (dist < geomEpsilon) {
+        // 交点が既に存在する場合は、相互参照を更新
+        if (location._intersection && loc._intersection) {
+          // 既存の交点の相互参照を新しい交点の相互参照に更新
+          loc._intersection._intersection = location._intersection;
+          location._intersection._intersection = loc._intersection;
+        }
+        
+        // 重複を許可する場合のみ追加
+        if (includeOverlaps) {
+          locations.push(location);
+          return length;
+        }
+        
+        return i;
       }
     }
   }
@@ -253,10 +259,10 @@ export function getCurveIntersections(
       if (!straight || locations.length === before) {
         // 各曲線の端点をチェック
         // paper.jsと同様に、c1.getPoint1()などを使用
-        const c1p1 = c1.getPointAt(0);
-        const c1p2 = c1.getPointAt(1);
-        const c2p1 = c2.getPointAt(0);
-        const c2p2 = c2.getPointAt(1);
+        const c1p1 = c1.getPoint1();
+        const c1p2 = c1.getPoint2();
+        const c2p1 = c2.getPoint1();
+        const c2p2 = c2.getPoint2();
         
         // paper.jsと同様に、isClose()メソッドを使用して端点が近接しているかをチェック
         if (c1p1.isClose(c2p1, epsilon)) {
@@ -487,7 +493,8 @@ function addCurveLineIntersections(
         if (t >= 0 && t <= 1) {
           // 交点が線分上にあるかチェック
           const y = Curve.evaluate(v, t).y;
-          if (Math.min(py, py + dy) <= y && y <= Math.max(py, py + dy)) {
+          if (Math.min(py, py + dy) - Numerical.EPSILON <= y &&
+              y <= Math.max(py, py + dy) + Numerical.EPSILON) {
             roots.push(t);
           }
         }
@@ -508,7 +515,8 @@ function addCurveLineIntersections(
         if (t >= 0 && t <= 1) {
           // 交点が線分上にあるかチェック
           const x = Curve.evaluate(v, t).x;
-          if (Math.min(px, px + dx) <= x && x <= Math.max(px, px + dx)) {
+          if (Math.min(px, px + dx) - Numerical.EPSILON <= x &&
+              x <= Math.max(px, px + dx) + Numerical.EPSILON) {
             roots.push(t);
           }
         }
@@ -534,7 +542,7 @@ function addCurveLineIntersections(
             (p.x - px) / dx :
             (p.y - py) / dy;
           
-          if (s >= 0 && s <= 1) {
+          if (s >= -Numerical.EPSILON && s <= 1 + Numerical.EPSILON) {
             roots.push(t);
           }
         }
