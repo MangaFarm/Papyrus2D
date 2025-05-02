@@ -30,28 +30,111 @@ export class Path implements PathItem {
   }
 
   getBounds(): Rectangle {
-    // paper.jsと同様、全てのベジェ制御点（anchor, handleIn, handleOut）を含む厳密な外接矩形
+    // paper.jsのCurve._addBoundsロジックを移植
     if (this.segments.length === 0) {
       return new Rectangle(new Point(0, 0), new Point(0, 0));
     }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (let i = 0; i < this.segments.length; i++) {
-      const seg = this.segments[i];
-      // アンカーポイント
-      const pts = [seg.point];
-      // handleIn（前のカーブの終端制御点）
-      if (!seg.handleIn.isZero()) {
-        pts.push(seg.point.add(seg.handleIn));
-      }
-      // handleOut（次のカーブの始端制御点）
-      if (!seg.handleOut.isZero()) {
-        pts.push(seg.point.add(seg.handleOut));
-      }
-      for (const pt of pts) {
-        minX = Math.min(minX, pt.x);
-        minY = Math.min(minY, pt.y);
-        maxX = Math.max(maxX, pt.x);
-        maxY = Math.max(maxY, pt.y);
+
+    const add = (x: number, y: number) => {
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    };
+
+    // 各カーブ区間ごとにBézierの極値もAABBに含める
+    for (let i = 0; i < this.segments.length - (this.closed ? 0 : 1); i++) {
+      const seg0 = this.segments[i];
+      const seg1 = this.segments[(i + 1) % this.segments.length];
+      // 4点: p0, handleOut, handleIn, p1
+      const p0 = seg0.point;
+      const p1 = seg1.point;
+      const h0 = p0.add(seg0.handleOut);
+      const h1 = p1.add(seg1.handleIn);
+
+      // x, y それぞれで三次ベジェの極値を求める
+      for (const dim of ['x', 'y'] as const) {
+        // 三次ベジェの係数
+        const v0 = p0[dim];
+        const v1 = h0[dim];
+        const v2 = h1[dim];
+        const v3 = p1[dim];
+
+        // 端点をAABBに含める
+        add(
+          dim === 'x' ? v0 : p0.x,
+          dim === 'y' ? v0 : p0.y
+        );
+        add(
+          dim === 'x' ? v3 : p1.x,
+          dim === 'y' ? v3 : p1.y
+        );
+
+        // 極値（1次導関数=0のt）を求める
+        // 3*( -v0 + 3*v1 - 3*v2 + v3 )*t^2 + 6*(v0 - 2*v1 + v2)*t + 3*(v1 - v0) = 0
+        const a = -v0 + 3 * v1 - 3 * v2 + v3;
+        const b = 2 * (v0 - 2 * v1 + v2);
+        const c = v1 - v0;
+
+        // 2次方程式 at^2 + bt + c = 0
+        if (Math.abs(a) > 1e-12) {
+          const D = b * b - 4 * a * c;
+          if (D >= 0) {
+            const sqrtD = Math.sqrt(D);
+            for (const t of [(-b + sqrtD) / (2 * a), (-b - sqrtD) / (2 * a)]) {
+              if (t > 0 && t < 1) {
+                // 三次ベジェ補間
+                const mt = 1 - t;
+                const bez =
+                  mt * mt * mt * v0 +
+                  3 * mt * mt * t * v1 +
+                  3 * mt * t * t * v2 +
+                  t * t * t * v3;
+                // もう一方の座標値
+                const other =
+                  dim === 'x'
+                    ? mt * mt * mt * p0.y +
+                      3 * mt * mt * t * h0.y +
+                      3 * mt * t * t * h1.y +
+                      t * t * t * p1.y
+                    : mt * mt * mt * p0.x +
+                      3 * mt * mt * t * h0.x +
+                      3 * mt * t * t * h1.x +
+                      t * t * t * p1.x;
+                add(
+                  dim === 'x' ? bez : other,
+                  dim === 'y' ? bez : other
+                );
+              }
+            }
+          }
+        } else if (Math.abs(b) > 1e-12) {
+          // 1次方程式
+          const t = -c / b;
+          if (t > 0 && t < 1) {
+            const mt = 1 - t;
+            const bez =
+              mt * mt * mt * v0 +
+              3 * mt * mt * t * v1 +
+              3 * mt * t * t * v2 +
+              t * t * t * v3;
+            const other =
+              dim === 'x'
+                ? mt * mt * mt * p0.y +
+                  3 * mt * mt * t * h0.y +
+                  3 * mt * t * t * h1.y +
+                  t * t * t * p1.y
+                : mt * mt * mt * p0.x +
+                  3 * mt * mt * t * h0.x +
+                  3 * mt * t * t * h1.x +
+                  t * t * t * p1.x;
+            add(
+              dim === 'x' ? bez : other,
+              dim === 'y' ? bez : other
+            );
+          }
+        }
       }
     }
     return new Rectangle(new Point(minX, minY), new Point(maxX, maxY));

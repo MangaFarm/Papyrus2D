@@ -27,8 +27,8 @@ export class Point {
     // import { EPSILON } from '../util/Numerical'; はファイル冒頭に追加
     // ここではグローバルにEPSILONがある前提で記述
     return (
-      Math.abs(this.x - other.x) <= 1e-8 &&
-      Math.abs(this.y - other.y) <= 1e-8
+      Math.abs(this.x - other.x) <= Numerical.EPSILON &&
+      Math.abs(this.y - other.y) <= Numerical.EPSILON
     );
   }
 
