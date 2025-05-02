@@ -1,0 +1,32 @@
+{
+  "name": "papyrus2d",
+  "version": "0.1.0",
+  "description": "Paper.jsの幾何学演算部分を抽出したTypeScriptライブラリ",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "vitest",
+    "lint": "eslint . --ext .js,.ts",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "geometry",
+    "paper.js",
+    "typescript",
+    "library"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jsdom": "^26.1.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
