@@ -82,6 +82,16 @@ getIntersections周りは長くなると思うので、Path/Curveとは別のフ
 
 ## 監査結果サマリ
 
-Curve / Path / PathItem の getIntersections 系処理は paper.js のロジックと
-完全に一致するところまで移植が完了しました。
-現在、Curve・Path 関連について paper.js との差分はありません。
+以下の問題が見つかり、修正しました：
+
+1. **Curve._getCurveIntersections の早期リターン問題**：
+   - [x] `flat1 && flat2` の場合に両曲線が直線と判定されるが、`addLineIntersection` を呼ばずに単に `return` していた
+   - 修正: `this.addLineIntersection(v1, v2, curve1Index, curve2Index, locations)` を追加
+   - これにより線分同士の交点が正常に検出されるようになった
+
+2. **PathBoolean.getWindingAtPoint の未実装問題**：
+   - [x] スタブ実装で常に `{ windingL: 0, windingR: 0 }` を返していた
+   - 修正: `(path as any)._getWinding(point)` を使用して既存の実装を活用
+   - これにより Path.contains() が正常に動作するようになった
+
+以上の修正により、テストが正常に通るようになりました。

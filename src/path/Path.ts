@@ -218,6 +218,13 @@ export class Path implements PathItem {
       return false;
     }
     
+    // 境界チェック（高速化のため）
+    const bounds = this.getBounds();
+    if (point.x < bounds.topLeft.x || point.x > bounds.bottomRight.x ||
+        point.y < bounds.topLeft.y || point.y > bounds.bottomRight.y) {
+      return false;
+    }
+    
     // winding numberを計算
     const { windingL, windingR } = this._getWinding(point);
     
@@ -227,7 +234,7 @@ export class Path implements PathItem {
       return ((windingL + windingR) & 1) === 1;
     } else {
       // nonzeroルール: winding!=0
-      return windingL + windingR !== 0;
+      return windingL !== 0 || windingR !== 0;
     }
   }
   

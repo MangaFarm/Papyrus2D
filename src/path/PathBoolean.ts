@@ -99,12 +99,10 @@ export class PathBoolean {
    * Path._getWindingのロジックを再利用
    */
   private static getWindingAtPoint(path: Path, point: Point): { windingL: number, windingR: number } {
-    // Path._getWindingを直接呼び出せないため、同等のロジックを実装
-    // 実際の実装では、Path._getWindingをpublicにするか、
-    // このロジックをPathクラスに移動することを検討すべき
+    // Path._getWindingを直接呼び出すため、非公開APIを呼び出す
+    // FIXME：本来はPath._getWindingをPublicにするべき
     
-    // 簡易実装
-    return { windingL: 0, windingR: 0 };
+    return (path as any)._getWinding(point);
   }
   
   /**
