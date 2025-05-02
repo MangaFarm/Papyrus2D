@@ -31,19 +31,19 @@
     - [x] 変換操作（translate, rotate, scale）
     - [x] 行列演算（append, prepend, invert）
 - [ ] 2.2 ユーティリティの実装
-  - [ ] 2.2.1 Numerical ユーティリティ関数
-    - [ ] 数値計算定数（EPSILON, MACHINE_EPSILON, CURVETIME_EPSILON など）
-    - [ ] ヘルパー関数（clamp, isZero）
-    - [ ] 方程式ソルバー（solveQuadratic, solveCubic）
-    - [ ] その他のヘルパー関数（getNormalizationFactor など）
+  - [x] 2.2.1 Numerical ユーティリティ関数
+    - [x] 数値計算定数（EPSILON, MACHINE_EPSILON, CURVETIME_EPSILON など）
+    - [x] ヘルパー関数（clamp, isZero）
+    - [x] 方程式ソルバー（solveQuadratic, solveCubic）
+    - [x] その他のヘルパー関数（getNormalizationFactor など）
 - [ ] 2.3 基本クラスのテスト作成
   - [x] 2.3.1 すべての基本クラスのユニットテスト（Point.test.ts, Size.test.ts 実装完了、残りを実装中）
-  - [ ] 2.3.2 エッジケースのテスト
+  - [x] 2.3.2 エッジケースのテスト
 
 ## フェーズ3: パス関連クラスの実装
 - [ ] 3.1 パスの基本構造の実装
-  - [ ] 3.1.1 Segment クラス（イミュータブル設計）
-    - [ ] point, handleIn, handleOut プロパティ
+  - [x] 3.1.1 Segment クラス（イミュータブル設計）
+    - [x] point, handleIn, handleOut プロパティ
     - [ ] セグメント操作メソッド（translate, rotate, scale, withSmoothHandles など）
   - [ ] 3.1.2 SegmentPoint クラスの実装
   - [ ] 3.1.3 Curve クラスの実装
@@ -61,7 +61,7 @@
   - [ ] 3.3.1 パス生成ファクトリメソッド（Circle, Rectangle, Star など）
   - [ ] 3.3.2 パス変換メソッド
 - [ ] 3.4 パスクラスのテスト作成
-  - [ ] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
+  - [x] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
   - [ ] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
   - [ ] 3.4.3 Pathのユニットテスト（Path.test.ts の実装完了）
   - [ ] 3.4.4 その他のパスクラスのユニットテスト
@@ -117,6 +117,7 @@
   - [ ] 7.3.2 リリースプロセスの整備
 
 ## 次のステップ（優先度順）
+- [x] MangaFarm Organizationへのリモートリポジトリ移行（2025/05/02 完了）
 
 ## 実装方針
 - バグを減らすため、まずpaper.jsの既存コードを流用する

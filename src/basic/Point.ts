@@ -71,4 +71,11 @@ export class Point {
   toString(): string {
     return `{ x: ${this.x}, y: ${this.y} }`;
   }
+
+  /**
+   * x, yがともに0かどうか
+   */
+  isZero(): boolean {
+    return this.x === 0 && this.y === 0;
+  }
 }
