@@ -114,24 +114,28 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
   
   // 重複する交点をフィルタリング
   const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
+  const curveEpsilon = Numerical.CURVETIME_EPSILON;
   
   // 既存の交点と比較して、近接している場合は追加しない
   for (let i = 0; i < length; i++) {
     const loc = locations[i];
     
-    // Paper.jsと同様に、tパラメータの差と点の距離の両方をチェック
-    const param1 = loc.t1;
-    const param2 = location.t1;
-    
-    // tパラメータが近い場合は重複とみなす
-    if (param1 !== null && param2 !== null &&
-        Math.abs(param1 - param2) < geomEpsilon) {
-      // 重複を許可する場合のみ追加
-      if (includeOverlaps) {
-        locations.push(location);
-        return length;
+    // 同じ曲線上の交点で、tパラメータが近い場合は重複とみなす
+    if (loc.curve1Index === location.curve1Index &&
+        loc.curve2Index === location.curve2Index) {
+      const t1Diff = loc.t1 !== null && location.t1 !== null ?
+                    Math.abs(loc.t1 - location.t1) : 1;
+      const t2Diff = loc.t2 !== null && location.t2 !== null ?
+                    Math.abs(loc.t2 - location.t2) : 1;
+      
+      if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
+        // 重複を許可する場合のみ追加
+        if (includeOverlaps) {
+          locations.push(location);
+          return length;
+        }
+        return i;
       }
-      return i;
     }
     
     // 点の距離が十分に近い場合も重複とみなす
@@ -179,19 +183,26 @@ export function getCurveIntersections(
   const min = Math.min;
   const max = Math.max;
 
-  if (max(v1[0], v1[2], v1[4], v1[6]) + epsilon >
-      min(v2[0], v2[2], v2[4], v2[6]) &&
-      min(v1[0], v1[2], v1[4], v1[6]) - epsilon <
-      max(v2[0], v2[2], v2[4], v2[6]) &&
-      max(v1[1], v1[3], v1[5], v1[7]) + epsilon >
-      min(v2[1], v2[3], v2[5], v2[7]) &&
-      min(v1[1], v1[3], v1[5], v1[7]) - epsilon <
-      max(v2[1], v2[3], v2[5], v2[7])) {
+  // Paper.jsと同様の境界ボックスチェック
+  const v1xMin = min(v1[0], v1[2], v1[4], v1[6]);
+  const v1xMax = max(v1[0], v1[2], v1[4], v1[6]);
+  const v1yMin = min(v1[1], v1[3], v1[5], v1[7]);
+  const v1yMax = max(v1[1], v1[3], v1[5], v1[7]);
+  
+  const v2xMin = min(v2[0], v2[2], v2[4], v2[6]);
+  const v2xMax = max(v2[0], v2[2], v2[4], v2[6]);
+  const v2yMin = min(v2[1], v2[3], v2[5], v2[7]);
+  const v2yMax = max(v2[1], v2[3], v2[5], v2[7]);
+
+  if (v1xMax + epsilon > v2xMin &&
+      v1xMin - epsilon < v2xMax &&
+      v1yMax + epsilon > v2yMin &&
+      v1yMin - epsilon < v2yMax) {
     
     // オーバーラップの検出と処理
     const overlaps = getOverlaps(v1, v2);
     if (overlaps) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < overlaps.length; i++) {
         const overlap = overlaps[i];
         addLocation(locations, include,
                 c1, overlap[0],
@@ -236,7 +247,7 @@ export function getCurveIntersections(
           const p2 = new Point(v2[i2], v2[i2 + 1]);
           
           if (p1.isClose(p2, epsilon)) {
-            addLocation(locations, include, c1, t1, c2, t2, true);
+            addLocation(locations, include, c1, t1, c2, t2);
           }
         }
       }
@@ -278,6 +289,8 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   let straight1 = Curve.isStraight(v1);
   let straight2 = Curve.isStraight(v2);
   let straightBoth = straight1 && straight2;
+  
+  // Paper.jsと同様に、常に短い方の曲線をl1とする
   const flip = getSquaredLineLength(v1) < getSquaredLineLength(v2);
   const l1 = flip ? v2 : v1;
   const l2 = flip ? v1 : v2;
@@ -332,13 +345,13 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
         pairs.push(pair);
       }
     }
-    // 3点をチェックしたが一致が見つからない場合、曲線はオーバーラップできない
-    if (i > 2 && !pairs.length)
+    // Paper.jsと同様に、3点をチェックしたが一致が見つからない場合の処理を調整
+    if (i === 2 && !pairs.length)
       break;
   }
   
+  // Paper.jsと同様に、ペアの数をチェック
   if (pairs.length !== 2) {
-    pairs.length = 0;
     return null;
   } else if (!straightBoth) {
     // 直線ペアはさらなるチェックが不要
@@ -567,6 +580,8 @@ function addCurveIntersections(
     // 十分な精度で交点を分離した
     const t = (tMinNew + tMaxNew) / 2;
     const u = (uMin + uMax) / 2;
+    
+    // Paper.jsと同様に、overlapパラメータを省略
     addLocation(locations, include,
       flip ? c2 : c1, flip ? u : t,
       flip ? c1 : c2, flip ? t : u);
@@ -575,6 +590,7 @@ function addCurveIntersections(
     const v1Clipped = Curve.getPart(v1, tMinClip, tMaxClip);
     const uDiff = uMax - uMin;
     
+    // Paper.jsと同様に、分割条件を調整
     if (tMaxClip - tMinClip > 0.8) {
       // 最も収束していない曲線を分割
       if (tMaxNew - tMinNew > uDiff) {
@@ -599,16 +615,16 @@ function addCurveIntersections(
           recursion, calls, u, uMax, tMinNew, tMaxNew);
       }
     } else { // 反復
-      // Paper.jsと同様に、uDiff === 0の場合もチェックする
-      if (uDiff === 0 || uDiff >= fatLineEpsilon) {
-        calls = addCurveIntersections(
-          v2, v1Clipped, c2, c1, locations, include, !flip,
-          recursion, calls, uMin, uMax, tMinNew, tMaxNew);
-      } else {
+      // Paper.jsと同様に、uDiff === 0の場合の処理を調整
+      if (uDiff === 0 || uDiff < fatLineEpsilon) {
         // 他の曲線の間隔が既に十分に狭いため、同じ曲線で反復を続ける
         calls = addCurveIntersections(
           v1Clipped, v2, c1, c2, locations, include, flip,
           recursion, calls, tMinNew, tMaxNew, uMin, uMax);
+      } else {
+        calls = addCurveIntersections(
+          v2, v1Clipped, c2, c1, locations, include, !flip,
+          recursion, calls, uMin, uMax, tMinNew, tMaxNew);
       }
     }
   }
