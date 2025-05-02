@@ -718,7 +718,7 @@ export class Path implements PathItem {
       path!.getBounds(matrix2 as Matrix | undefined), Numerical.EPSILON)
       ? Curve.getIntersections(
           this.getCurves(),
-          !self ? null : path!.getCurves(),
+          self ? null : path!.getCurves(),
           include,
           matrix1 as Matrix | undefined,
           matrix2 as Matrix | undefined,

@@ -545,7 +545,7 @@ function addCurveLineIntersections(
   };
   
   // 曲線と直線の交点を計算
-  const roots = getCurveLineIntersections(v1, x1, y1, dx, dy);
+  const roots = getCurveLineIntersections(v1, x1, y1, x2 - x1, y2 - y1);
   
   // 各解について、実際の曲線上の点と、それに対応する直線上の位置を取得
   for (let i = 0; i < roots.length; i++) {

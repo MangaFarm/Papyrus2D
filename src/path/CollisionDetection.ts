@@ -32,53 +32,11 @@ export class CollisionDetection {
       for (let i = 0; i < curves.length; i++) {
         const v = curves[i];
         
-        // 制御点と曲線上の極値点を考慮して境界ボックスを計算
-        // Paper.jsと同様に、曲線上の極値点も考慮する
-        let minX = min(v[0], v[2], v[4], v[6]);
-        let minY = min(v[1], v[3], v[5], v[7]);
-        let maxX = max(v[0], v[2], v[4], v[6]);
-        let maxY = max(v[1], v[3], v[5], v[7]);
-        
-        // 曲線上の極値点を計算して境界に含める
-        // x方向の極値
-        CollisionDetection.addCurveExtrema(v, 0, (t: number) => {
-          if (t > 0 && t < 1) {
-            const mt = 1 - t;
-            const mt2 = mt * mt;
-            const mt3 = mt2 * mt;
-            const t2 = t * t;
-            const t3 = t2 * t;
-            
-            // 三次ベジェ曲線の補間
-            const x = mt3 * v[0] + 3 * mt2 * t * v[2] + 3 * mt * t2 * v[4] + t3 * v[6];
-            const y = mt3 * v[1] + 3 * mt2 * t * v[3] + 3 * mt * t2 * v[5] + t3 * v[7];
-            
-            minX = min(minX, x);
-            maxX = max(maxX, x);
-            minY = min(minY, y);
-            maxY = max(maxY, y);
-          }
-        });
-        
-        // y方向の極値
-        CollisionDetection.addCurveExtrema(v, 1, (t: number) => {
-          if (t > 0 && t < 1) {
-            const mt = 1 - t;
-            const mt2 = mt * mt;
-            const mt3 = mt2 * mt;
-            const t2 = t * t;
-            const t3 = t2 * t;
-            
-            // 三次ベジェ曲線の補間
-            const x = mt3 * v[0] + 3 * mt2 * t * v[2] + 3 * mt * t2 * v[4] + t3 * v[6];
-            const y = mt3 * v[1] + 3 * mt2 * t * v[3] + 3 * mt * t2 * v[5] + t3 * v[7];
-            
-            minX = min(minX, x);
-            maxX = max(maxX, x);
-            minY = min(minY, y);
-            maxY = max(maxY, y);
-          }
-        });
+        // Paper.jsと同様に、制御点の最小・最大値のみを使用
+        const minX = min(v[0], v[2], v[4], v[6]);
+        const minY = min(v[1], v[3], v[5], v[7]);
+        const maxX = max(v[0], v[2], v[4], v[6]);
+        const maxY = max(v[1], v[3], v[5], v[7]);
         
         bounds[i] = [minX, minY, maxX, maxY];
       }
