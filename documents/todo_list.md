@@ -50,12 +50,12 @@
     - [x] getLength, [x] getPointAt, [x] getTangentAt
     - [x] 曲線操作メソッド（divide, split）
 - [ ] 3.2 パスクラスの実装
-  - [ ] 3.2.1 PathItem 基底クラスの実装（インターフェース定義）
-  - [ ] 3.2.2 Path クラスの実装
-    - [ ] segments 配列と closed フラグ
-    - [ ] セグメント操作（add, insert, removeSegment）
-    - [ ] サブパス操作（moveTo, lineTo, cubicCurveTo）
-    - [ ] 情報取得メソッド（getLength, getBounds）
+  - [x] 3.2.1 PathItem 基底クラスの実装（インターフェース定義）
+  - [x] 3.2.2 Path クラスの実装
+  - [x] segments 配列と closed フラグ
+  - [x] セグメント操作（add, insert, removeSegment）
+  - [x] サブパス操作（moveTo, lineTo, cubicCurveTo）
+  - [x] 情報取得メソッド（getLength, getBounds）
   - [ ] 3.2.3 CompoundPath クラスの実装
 - [ ] 3.3 パス操作メソッドの実装
   - [ ] 3.3.1 パス生成ファクトリメソッド（Circle, Rectangle, Star など）
@@ -63,7 +63,7 @@
 - [ ] 3.4 パスクラスのテスト作成
   - [x] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
   - [x] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
-  - [ ] 3.4.3 Pathのユニットテスト（Path.test.ts の実装完了）
+  - [x] 3.4.3 Pathのユニットテスト（Path.test.ts の実装完了）
   - [x] 3.4.4 その他のパスクラスのユニットテスト（SegmentPointのテスト完了）
 
 ## フェーズ4: ブーリアン演算の実装

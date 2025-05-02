@@ -115,6 +115,10 @@ export class Curve {
    */
   getTangentAt(t: number): Point {
     const v = this.getValues();
+    // 直線の場合は単純なベクトルを返す
+    if (Curve.isStraight(v)) {
+      return new Point(v[6] - v[0], v[7] - v[1]).normalize();
+    }
     // 三次ベジェ曲線の導関数
     const mt = 1 - t;
     const a = -3 * mt * mt;
@@ -123,7 +127,7 @@ export class Curve {
     const d = 3 * t * t;
     const dx = a * v[0] + b * v[2] + c * v[4] + d * v[6];
     const dy = a * v[1] + b * v[3] + c * v[5] + d * v[7];
-    return new Point(dx, dy);
+    return new Point(dx, dy).normalize();
   }
 
   /**

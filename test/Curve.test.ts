@@ -27,6 +27,13 @@ describe('Curve', () => {
     // 直線なので常に(3,4)方向
     expect(tangent.x / tangent.y).toBeCloseTo(3 / 4, 8);
   });
+it('should return (1,0) tangent for a horizontal straight line', () => {
+    const seg1 = new Segment(new Point(0, 0));
+    const seg2 = new Segment(new Point(10, 0));
+    const curve = new Curve(seg1, seg2);
+    expect(curve.getTangentAt(0).equals(new Point(1, 0))).toBe(true);
+    expect(curve.getTangentAt(1).equals(new Point(1, 0))).toBe(true);
+  });
 
   it('should return correct length for a cubic Bezier curve', () => {
     const seg1 = new Segment(new Point(0, 0), new Point(0, 0), new Point(1, 2));

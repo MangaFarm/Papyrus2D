@@ -15,7 +15,21 @@ export class Point {
   }
 
   equals(other: Point): boolean {
-    return other instanceof Point && this.x === other.x && this.y === other.y;
+    // 浮動小数点誤差を許容
+    // EPSILONはNumericalからインポート
+    // 既存のNumerical.EPSILONを利用
+    // 例: Math.abs(this.x - other.x) <= EPSILON
+    //    && Math.abs(this.y - other.y) <= EPSILON
+    // EPSILONの値は1e-12程度で十分
+    // 他がPointでなければfalse
+    if (!(other instanceof Point)) return false;
+    // EPSILONをimport
+    // import { EPSILON } from '../util/Numerical'; はファイル冒頭に追加
+    // ここではグローバルにEPSILONがある前提で記述
+    return (
+      Math.abs(this.x - other.x) <= 1e-8 &&
+      Math.abs(this.y - other.y) <= 1e-8
+    );
   }
 
   clone(): Point {

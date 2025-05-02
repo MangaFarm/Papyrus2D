@@ -113,4 +113,11 @@ export class Segment {
 
     return new Segment(newPoint, newHandleIn, newHandleOut);
   }
+  /**
+   * handleOut のみを変更した新しい Segment を返す
+   * @param handleOut 新しい handleOut
+   */
+  withHandleOut(handleOut: Point): Segment {
+    return new Segment(this.point, this.handleIn, handleOut);
+  }
 }
