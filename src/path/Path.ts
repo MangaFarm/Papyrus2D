@@ -700,35 +700,28 @@ export class Path implements PathItem {
     const self = this === path || !path;
     
     // Paper.jsと同じ行列変換処理を実装
-    // _orNullIfIdentity()メソッドを使用して単位行列の場合はnullを返す
-    let matrix1: Matrix | undefined = undefined;
-    if (this._matrix) {
-      const m = this._matrix._orNullIfIdentity();
-      if (m) matrix1 = m;
-    }
+    const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : undefined;
     
-    let matrix2: Matrix | undefined = undefined;
+    let matrix2: Matrix | undefined | null = undefined;
     if (self) {
       matrix2 = matrix1;
     } else if (_matrix) {
-      const m = _matrix._orNullIfIdentity();
-      if (m) matrix2 = m;
+      matrix2 = _matrix._orNullIfIdentity();
     } else if (path && path._matrix) {
-      const m = path._matrix._orNullIfIdentity();
-      if (m) matrix2 = m;
+      matrix2 = path._matrix._orNullIfIdentity();
     }
     
     // 境界ボックスの交差判定
     // 自己交差の場合はスキップ
     // paper.jsと同様の条件式に修正
-    return self || (path && this.getBounds(matrix1).intersects(
-      path.getBounds(matrix2), Numerical.EPSILON))
+    return self || this.getBounds(matrix1 as Matrix | undefined).intersects(
+      path!.getBounds(matrix2 as Matrix | undefined), Numerical.EPSILON)
       ? Curve.getIntersections(
           this.getCurves(),
-          !self && path ? path.getCurves() : null,
+          !self ? null : path!.getCurves(),
           include,
-          matrix1,
-          matrix2,
+          matrix1 as Matrix | undefined,
+          matrix2 as Matrix | undefined,
           _returnFirst)
       : [];
   }

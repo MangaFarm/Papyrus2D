@@ -14,10 +14,12 @@ export class CurveLocation {
   // 基本情報
   curve1Index: number = -1;  // 曲線1のインデックス
   curve2Index: number = -1;  // 曲線2のインデックス
-  curve1: Curve | null;      // 曲線1オブジェクト（paper.js互換）
-  curve2: Curve | null;      // 曲線2オブジェクト（paper.js互換）
-  t1: number | null;         // 曲線1上のパラメータ
-  t2: number | null;         // 曲線2上のパラメータ
+  curve: Curve | null;       // 曲線オブジェクト（paper.js互換）
+  curve1: Curve | null;      // 曲線1オブジェクト（Papyrus2D拡張）
+  curve2: Curve | null;      // 曲線2オブジェクト（Papyrus2D拡張）
+  time: number | null;       // 曲線上のパラメータ（paper.js互換）
+  t1: number | null;         // 曲線1上のパラメータ（Papyrus2D拡張）
+  t2: number | null;         // 曲線2上のパラメータ（Papyrus2D拡張）
   point: Point;              // 交点の座標
   
   // 追加情報（重複判定・端点マージ用）
@@ -31,40 +33,50 @@ export class CurveLocation {
   _next?: CurveLocation;         // 連結リスト用
   _previous?: CurveLocation;     // 連結リスト用
 
+  /**
+   * Paper.js互換のコンストラクタ
+   * @param curve 曲線
+   * @param time 曲線上のパラメータ
+   * @param point 交点の座標（nullの場合は自動計算）
+   * @param overlap 重複フラグ
+   * @param distance 距離
+   */
   constructor(
-    curve1: Curve | null,
-    t1: number | null,
-    curve2: Curve | null,
-    t2: number | null,
+    curve: Curve | null,
+    time: number | null,
     point?: Point | null,
-    overlap: boolean = false
+    overlap: boolean = false,
+    distance?: number
   ) {
     // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
-    if (t1 !== null && t1 >= (1 - Numerical.CURVETIME_EPSILON) && curve1) {
-      const next = curve1.getNext();
+    if (time !== null && time >= (1 - Numerical.CURVETIME_EPSILON) && curve) {
+      const next = curve.getNext();
       if (next) {
-        t1 = 0;
-        curve1 = next;
+        time = 0;
+        curve = next;
       }
     }
     
-    this.curve1 = curve1;
-    this.curve2 = curve2;
-    this.t1 = t1;
-    this.t2 = t2;
+    this.curve = curve;
+    this.curve1 = curve;  // 互換性のため
+    this.curve2 = null;   // 互換性のため
+    this.time = time;
+    this.t1 = time;       // 互換性のため
+    this.t2 = null;       // 互換性のため
     
     // paper.jsと同様に、pointがnullの場合は自動的に計算
     if (point) {
       this.point = point;
-    } else if (t1 !== null && curve1) {
-      this.point = curve1.getPointAt(t1);
-    } else if (t2 !== null && curve2) {
-      this.point = curve2.getPointAt(t2);
+    } else if (time !== null && curve) {
+      this.point = curve.getPointAt(time);
     } else {
       this.point = new Point(0, 0);
     }
     
     this.overlap = overlap;
+    if (distance !== undefined) {
+      this.distance = distance;
+    }
   }
 }
 
@@ -659,9 +671,11 @@ export class Curve {
   ): CurveLocation[] {
     const epsilon = Numerical.GEOMETRIC_EPSILON;
     const self = !curves2;
-    const _curves2 = self ? curves1 : curves2!;
+    if (self) {
+      curves2 = curves1;
+    }
     const length1 = curves1.length;
-    const length2 = _curves2.length;
+    const length2 = curves2!.length;
     const values1: number[][] = new Array(length1);
     const values2 = self ? values1 : new Array(length2);
     const locations: CurveLocation[] = [];
@@ -682,7 +696,7 @@ export class Curve {
     
     if (!self) {
       for (let i = 0; i < length2; i++) {
-        values2[i] = _curves2[i].getValues();
+        values2[i] = curves2![i].getValues();
         if (matrix2) {
           // 行列変換を適用
           for (let j = 0; j < 8; j += 2) {
@@ -697,7 +711,7 @@ export class Curve {
     
     // CollisionDetection.findCurveBoundsCollisionsを呼び出す
     const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
-      values1, values2, epsilon
+      values1, self ? values1 : values2, epsilon
     );
     
     // 各曲線の交点を計算
@@ -722,7 +736,7 @@ export class Curve {
           const index2 = collisions1[j];
           // 自己交差の場合は、重複チェックを避けるために index2 > index1 の場合のみ処理
           if (!self || index2 > index1) {
-            const curve2 = _curves2[index2];
+            const curve2 = curves2![index2];
             const v2 = values2[index2];
             
             // 曲線の交点を計算
@@ -736,16 +750,9 @@ export class Curve {
               if (loc.curve1Index === -1) {
                 loc.curve1Index = index1;
                 loc.curve2Index = index2;
-                loc.curve1 = curve1;
-                loc.curve2 = curve2;
                 
-                // 交点情報を更新
-                if (loc.t1 !== null && loc.t2 !== null) {
-                  // 曲線インデックスを設定
-                  // paper.jsと同様に、交点が見つかった後に曲線インデックスを設定
-                  loc.curve1Index = index1;
-                  loc.curve2Index = index2;
-                  
+                // paper.jsと同様に、交点が見つかった後に曲線インデックスを設定
+                if (loc.time !== null) {
                   // paper.jsでは交点の位置は変換された座標系で計算され、
                   // 元の座標系に戻す処理は行われない
                   // 交点の位置はそのまま使用する

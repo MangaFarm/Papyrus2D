@@ -68,17 +68,18 @@ export function addLocation(
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
       // paper.jsでは、交点が見つかった時点でCurveLocationオブジェクトが作成され、
       // 後から曲線インデックスが設定される
-      const loc1 = new CurveLocation(
-        c1, t1, c2, t2, point, overlap
-      );
-      
-      const loc2 = new CurveLocation(
-        c2, t2, c1, t1, point, overlap
-      );
+      const loc1 = new CurveLocation(c1, t1, null, overlap);
+      const loc2 = new CurveLocation(c2, t2, null, overlap);
       
       // 相互参照を設定
       loc1._intersection = loc2;
       loc2._intersection = loc1;
+      
+      // 拡張プロパティを設定（Papyrus2D互換性のため）
+      loc1.curve2 = c2;
+      loc1.t2 = t2;
+      loc2.curve2 = c1;
+      loc2.t2 = t1;
       
       // includeコールバックがなければ、または条件を満たせば追加
       if (!include || include(loc1)) {
