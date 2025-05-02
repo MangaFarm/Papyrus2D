@@ -6,8 +6,9 @@
   - paper.js: Numerical.EPSILON (≈1e-12) を使用  
   - 差分: 許容値が大きめ。厳密一致を目指すなら Numerical.EPSILON を参照すべき
 
-- [ ] 2. Curve.getTangentAt  
+- [x] 2. Curve.getTangentAt
   - 直線時は (p2-p1).normalize()、曲線時は導関数 normalize。paper.js と一致
+  - ※paper.jsと完全一致のためtodo対象外
 
 - [x] 3. Curve.getLength（現状paper.jsと同等の分割数推定式を採用）- 曲線長の数値積分で Curve.getIterations() がダミー（未実装）  
   - paper.js: 誤差に応じた adaptive subdivision  
@@ -29,15 +30,14 @@
 
 - [x] 8. Path.lineTo（last変数削除、handle常に0はpaper.jsと同等）- last 変数未使用。handle が保持されず常に 0
 
-- [ ] 9. Curve.divide / split 関連  
-  - divide() は実装されているが split(pathTime)/getPart() など paper.js API の大半が未実装
+- [x] 9. Curve.divide / split 関連
+  - divide/split/getPart等のAPIをpaper.js互換で実装済み
 
-- [ ] 10. Numerical.integrate / Curve.getIterations  
-  - integrate() はあるが精度パラメータ固定  
+- [x] 10. Numerical.integrate / Curve.getIterations（MachineEpsilonに応じたadaptive subdivisionを実装）- integrate() はあるが精度パラメータ固定  
   - paper.js: アダプティブで MachineEpsilon 依存
 
-- [ ] 11. CollisionDetection・Winding/Boolean 演算  
-  - 未実装（todo_list フェーズ4 全体）
+- [ ] 11. CollisionDetection・Winding/Boolean 演算
+  - 未実装（todo_list フェーズ4全体、今後の大規模実装タスク）
 
 ---
 

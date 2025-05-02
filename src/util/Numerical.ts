@@ -75,6 +75,7 @@ export const Numerical = {
      */
     integrate(f: (x: number) => number, a: number, b: number, n: number): number {
         // abscissas, weightsはpaper.jsのまま
+        n = Math.min(n, 16); // 配列長に合わせて上限を16に制限
         const abscissas = [
             [0.5773502691896257],
             [0, 0.7745966692414834],

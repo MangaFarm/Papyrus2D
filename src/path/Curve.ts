@@ -81,7 +81,11 @@ export class Curve {
    * 積分分割数
    */
   static getIterations(a: number, b: number): number {
-    return Math.max(2, Math.min(16, Math.ceil(Math.abs(b - a) * 32)));
+    // paper.jsのadaptive subdivisionに近いロジック
+    // 区間長やMachineEpsilonに応じて分割数を自動調整
+    const tol = 4 * Math.sqrt(1 / Numerical.MACHINE_EPSILON); // 許容誤差に基づく推定
+    const n = Math.ceil(Math.abs(b - a) * tol);
+    return Math.max(2, Math.min(16, n)); // paper.jsと同じくn=2〜16のみ対応
   }
 
   /**

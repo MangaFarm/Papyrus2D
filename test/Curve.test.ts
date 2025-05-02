@@ -107,5 +107,29 @@ it('should divide a straight line at t=0.5 correctly', () => {
     const [left2, _] = curve.divide(0.3);
     expect(left.segment1.point.equals(left2.segment1.point)).toBe(true);
     expect(left.segment2.point.equals(left2.segment2.point)).toBe(true);
-  });
+});
+
+it('getPart(from, to) and fromValues should extract correct sub-curve', () => {
+  // 三次ベジェ: (0,0)→(10,0) ハンドル(0,10),(10,10)
+  const seg1 = new Segment(new Point(0, 0), new Point(0, 0), new Point(0, 10));
+  const seg2 = new Segment(new Point(10, 0), new Point(0, 10), new Point(0, 0));
+  const curve = new Curve(seg1, seg2);
+  const v = curve['getValues']();
+  // 区間[0.2, 0.8]の部分曲線
+  const partVals = Curve.getPart(v, 0.2, 0.8);
+  const partCurve = Curve.fromValues(partVals);
+  // 端点が一致すること
+  expect(partCurve.segment1.point.x).toBeCloseTo(
+    curve.getPointAt(0.2).x, 6
+  );
+  expect(partCurve.segment1.point.y).toBeCloseTo(
+    curve.getPointAt(0.2).y, 6
+  );
+  expect(partCurve.segment2.point.x).toBeCloseTo(
+    curve.getPointAt(0.8).x, 6
+  );
+  expect(partCurve.segment2.point.y).toBeCloseTo(
+    curve.getPointAt(0.8).y, 6
+  );
+});
 });
