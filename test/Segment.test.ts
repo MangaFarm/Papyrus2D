@@ -46,4 +46,31 @@ describe('Segment', () => {
     expect(seg1.equals(seg2)).toBe(true);
     expect(seg1.equals(seg3)).toBe(false);
   });
+it('should translate a segment', () => {
+    const seg = new Segment(new Point(1, 2), new Point(3, 4), new Point(5, 6));
+    const moved = seg.translate(new Point(10, 20));
+    expect(moved.point.equals(new Point(11, 22))).toBe(true);
+    expect(moved.handleIn.equals(seg.handleIn)).toBe(true);
+    expect(moved.handleOut.equals(seg.handleOut)).toBe(true);
+  });
+
+  it('should rotate a segment', () => {
+    const seg = new Segment(new Point(1, 0), new Point(0, 1), new Point(1, 1));
+    const rotated = seg.rotate(90);
+    expect(Math.abs(rotated.point.x - 0) < 1e-10).toBe(true);
+    expect(Math.abs(rotated.point.y - 1) < 1e-10).toBe(true);
+    // handleIn/handleOutも原点中心で回転
+    expect(Math.abs(rotated.handleIn.x - (-1)) < 1e-10).toBe(true);
+    expect(Math.abs(rotated.handleIn.y - 0) < 1e-10).toBe(true);
+    expect(Math.abs(rotated.handleOut.x - (-1)) < 1e-10).toBe(true);
+    expect(Math.abs(rotated.handleOut.y - 1) < 1e-10).toBe(true);
+  });
+
+  it('should scale a segment', () => {
+    const seg = new Segment(new Point(1, 2), new Point(3, 4), new Point(5, 6));
+    const scaled = seg.scale(2);
+    expect(scaled.point.equals(new Point(2, 4))).toBe(true);
+    expect(scaled.handleIn.equals(new Point(6, 8))).toBe(true);
+    expect(scaled.handleOut.equals(new Point(10, 12))).toBe(true);
+  });
 });

@@ -44,7 +44,7 @@
 - [ ] 3.1 パスの基本構造の実装
   - [x] 3.1.1 Segment クラス（イミュータブル設計）
     - [x] point, handleIn, handleOut プロパティ
-    - [ ] セグメント操作メソッド（translate, rotate, scale, withSmoothHandles など）
+    - [x] セグメント操作メソッド（translate, rotate, scale, withSmoothHandles など）
   - [ ] 3.1.2 SegmentPoint クラスの実装
   - [ ] 3.1.3 Curve クラスの実装
     - [ ] 曲線情報メソッド（getLength, getPointAt, getTangentAt）
