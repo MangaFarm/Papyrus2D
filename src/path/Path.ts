@@ -272,7 +272,6 @@ export class Path implements PathItem {
     if (this.segments.length === 0) {
       return this.add(new Segment(point));
     }
-    const last = this.segments[this.segments.length - 1];
     return this.add(new Segment(point));
   }
 

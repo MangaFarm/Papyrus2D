@@ -27,8 +27,7 @@
   - paper.js: handleOut に差分ベクトル、handleIn は toPoint の相対  
   - 差分: self-closing 補助や smoothHandles なし
 
-- [ ] 8. Path.lineTo  
-  - last 変数未使用。handle が保持されず常に 0
+- [x] 8. Path.lineTo（last変数削除、handle常に0はpaper.jsと同等）- last 変数未使用。handle が保持されず常に 0
 
 - [ ] 9. Curve.divide / split 関連  
   - divide() は実装されているが split(pathTime)/getPart() など paper.js API の大半が未実装

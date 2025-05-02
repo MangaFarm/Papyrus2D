@@ -172,33 +172,61 @@ export class Curve {
    */
   split(t: number): Curve {
     return this.divide(t)[0];
-  }
-
-  /**
-   * de Casteljau アルゴリズムによる分割
-   * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
-   * t: 分割位置 (0-1)
-   * 戻り値: [左側の制御点配列, 右側の制御点配列]
-   */
-  private static subdivide(v: number[], t: number): [number[], number[]] {
-    const x0 = v[0], y0 = v[1];
-    const x1 = v[2], y1 = v[3];
-    const x2 = v[4], y2 = v[5];
-    const x3 = v[6], y3 = v[7];
-    const u = 1 - t;
-    // 1次補間
-    const x4 = u * x0 + t * x1, y4 = u * y0 + t * y1;
-    const x5 = u * x1 + t * x2, y5 = u * y1 + t * y2;
-    const x6 = u * x2 + t * x3, y6 = u * y2 + t * y3;
-    // 2次補間
-    const x7 = u * x4 + t * x5, y7 = u * y4 + t * y5;
-    const x8 = u * x5 + t * x6, y8 = u * y5 + t * y6;
-    // 3次補間
-    const x9 = u * x7 + t * x8, y9 = u * y7 + t * y8;
-    // 左右の制御点配列
-    return [
-      [x0, y0, x4, y4, x7, y7, x9, y9],
-      [x9, y9, x8, y8, x6, y6, x3, y3]
-    ];
-  }
+    }
+  
+    /**
+     * 指定した区間[from, to]の部分曲線を返す（paper.jsのgetPart相当）
+     */
+    static getPart(v: number[], from: number, to: number): number[] {
+      let vv = v;
+      if (from > 0) {
+        vv = Curve.subdivide(vv, from)[1];
+      }
+      if (to < 1) {
+        vv = Curve.subdivide(vv, (to - from) / (1 - from))[0];
+      }
+      return vv;
+    }
+  
+    /**
+     * 制御点配列からCurveを生成
+     */
+    static fromValues(v: number[]): Curve {
+      const p0 = new Point(v[0], v[1]);
+      const h0 = new Point(v[2], v[3]).subtract(p0);
+      const h1 = new Point(v[4], v[5]).subtract(new Point(v[6], v[7]));
+      const p1 = new Point(v[6], v[7]);
+      return new Curve(
+        new Segment(p0, new Point(0, 0), h0),
+        new Segment(p1, h1, new Point(0, 0))
+      );
+    }
+  
+    /**
+     * de Casteljau アルゴリズムによる分割
+     * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
+     * t: 分割位置 (0-1)
+     * 戻り値: [左側の制御点配列, 右側の制御点配列]
+     */
+    private static subdivide(v: number[], t: number): [number[], number[]] {
+      const x0 = v[0], y0 = v[1];
+      const x1 = v[2], y1 = v[3];
+      const x2 = v[4], y2 = v[5];
+      const x3 = v[6], y3 = v[7];
+      const u = 1 - t;
+      // 1次補間
+      const x4 = u * x0 + t * x1, y4 = u * y0 + t * y1;
+      const x5 = u * x1 + t * x2, y5 = u * y1 + t * y2;
+      const x6 = u * x2 + t * x3, y6 = u * y2 + t * y3;
+      // 2次補間
+      const x7 = u * x4 + t * x5, y7 = u * y4 + t * y5;
+      const x8 = u * x5 + t * x6, y8 = u * y5 + t * y6;
+      // 3次補間
+      const x9 = u * x7 + t * x8, y9 = u * y7 + t * y8;
+      // 左右の制御点配列
+      return [
+        [x0, y0, x4, y4, x7, y7, x9, y9],
+        [x9, y9, x8, y8, x6, y6, x3, y3]
+      ];
+    }
 }
