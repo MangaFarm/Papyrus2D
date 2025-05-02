@@ -4,6 +4,16 @@ import { Segment } from '../src/path/Segment';
 import { Curve } from '../src/path/Curve';
 
 describe('Curve', () => {
+it('Curve.getIterations should return reasonable step count', () => {
+    // a, bが等しい場合は最小値
+    expect(Curve.getIterations(0, 0)).toBeGreaterThanOrEqual(2);
+    // a, bが1離れている場合
+    const n1 = Curve.getIterations(0, 1);
+    expect(n1).toBeGreaterThanOrEqual(2);
+    // a, bの差が大きい場合は分割数も大きくなる
+    const n2 = Curve.getIterations(0, 100);
+    expect(n2).toBeGreaterThan(n1);
+  });
   it('should return correct length for a straight line', () => {
     const seg1 = new Segment(new Point(0, 0));
     const seg2 = new Segment(new Point(3, 4));
@@ -132,4 +142,15 @@ it('getPart(from, to) and fromValues should extract correct sub-curve', () => {
     curve.getPointAt(0.8).y, 6
   );
 });
+});
+
+it('Curve.getIterations should return reasonable step count', () => {
+  // a, bが等しい場合は最小値
+  expect(Curve.getIterations(0, 0)).toBeGreaterThanOrEqual(1);
+  // a, bが1離れている場合
+  const n1 = Curve.getIterations(0, 1);
+  expect(n1).toBeGreaterThanOrEqual(1);
+  // a, bの差が大きい場合は分割数も大きくなる
+  const n2 = Curve.getIterations(0, 100);
+  expect(n2).toBeGreaterThan(n1);
 });

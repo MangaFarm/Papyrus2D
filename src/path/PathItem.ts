@@ -8,6 +8,8 @@
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Curve } from './Curve';
+import type { Path } from './Path';
+import type { CurveLocation } from './Curve';
 
 export interface PathItem {
   /**
@@ -51,4 +53,8 @@ export interface PathItem {
    * パスの全Curveを取得
    */
   getCurves(): Curve[];
+  /**
+   * 他のPathとの交点列挙
+   */
+  getIntersections(other: Path): CurveLocation[];
 }

@@ -6,7 +6,7 @@
 
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
-import { Curve } from './Curve';
+import { Curve, CurveLocation } from './Curve';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
 import { PathItem } from './PathItem';
@@ -32,16 +32,32 @@ export class Path implements PathItem {
 
   getBounds(): Rectangle {
     // paper.jsのCurve._addBoundsロジックを移植
+    return this._computeBounds(0);
+  }
+
+  /**
+   * paper.jsそっくりのストローク境界計算
+   * @param strokeWidth 線幅
+   */
+  getStrokeBounds(strokeWidth: number): Rectangle {
+    // strokeWidth/2をpaddingとしてAABB拡張
+    return this._computeBounds(strokeWidth / 2);
+  }
+
+  /**
+   * 内部: paddingを加味したAABB計算
+   */
+  private _computeBounds(padding: number): Rectangle {
     if (this.segments.length === 0) {
       return new Rectangle(new Point(0, 0), new Point(0, 0));
     }
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
     const add = (x: number, y: number) => {
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
+      minX = Math.min(minX, x - padding);
+      minY = Math.min(minY, y - padding);
+      maxX = Math.max(maxX, x + padding);
+      maxY = Math.max(maxY, y + padding);
     };
 
     // 各カーブ区間ごとにBézierの極値もAABBに含める
@@ -173,6 +189,9 @@ export class Path implements PathItem {
     return curves[curves.length - 1].getTangentAt(1);
   }
 
+  /**
+   * paper.jsそっくりの点包含判定
+   */
   contains(point: Point): boolean {
     // 頂点または辺上の点は外部扱い（paper.js仕様）
     const EPS = 1e-8;
@@ -189,45 +208,61 @@ export class Path implements PathItem {
       const dy = p2.y - p1.y;
       const len2 = dx * dx + dy * dy;
       if (len2 > 0) {
-        // 線分上のパラメータtを計算
         const t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / len2;
         if (t >= 0 - EPS && t <= 1 + EPS) {
-          // 線分上の最近点
           const proj = new Point(p1.x + t * dx, p1.y + t * dy);
           if (proj.equals(point)) return false;
         }
       }
     }
-    // winding number アルゴリズム（even-odd ルール）
-    let crossings = 0;
-    // 曲線区間も含めてBézier曲線と水平方向の直線の交点を厳密に求める
-    for (const curve of curves) {
-      const p0 = curve.segment1.point;
-      const p1 = p0.add(curve.segment1.handleOut);
-      const p2 = curve.segment2.point.add(curve.segment2.handleIn);
-      const p3 = curve.segment2.point;
-      // y成分がpoint.yと等しくなるtを全て求める
-      const roots: number[] = [];
-      const a = -p0.y + 3 * p1.y - 3 * p2.y + p3.y;
-      const b = 3 * p0.y - 6 * p1.y + 3 * p2.y;
-      const c = -3 * p0.y + 3 * p1.y;
-      const d = p0.y - point.y;
-      // solveCubic(a, b, c, d, roots, 0, 1)
-      // 0 < t < 1 の範囲で交点を全て求める
-      Numerical.solveCubic(a, b, c, d, roots, 0, 1);
-      for (const t of roots) {
-        if (t < 0 || t > 1) continue;
-        // tでのx座標
-        const mt = 1 - t;
-        const x =
-          mt * mt * mt * p0.x +
-          3 * mt * mt * t * p1.x +
-          3 * mt * t * t * p2.x +
-          t * t * t * p3.x;
-        if (x > point.x) crossings++;
+    // paper.js本家のgetWindingロジック
+    function getWinding(point: Point, curves: Curve[]): number {
+      let winding = 0;
+      for (const curve of curves) {
+        const v = [
+          curve.segment1.point.x, curve.segment1.point.y,
+          curve.segment1.point.x + curve.segment1.handleOut.x, curve.segment1.point.y + curve.segment1.handleOut.y,
+          curve.segment2.point.x + curve.segment2.handleIn.x, curve.segment2.point.y + curve.segment2.handleIn.y,
+          curve.segment2.point.x, curve.segment2.point.y
+        ];
+        // y成分の範囲外ならスキップ
+        const y = point.y;
+        const minY = Math.min(v[1], v[3], v[5], v[7]);
+        const maxY = Math.max(v[1], v[3], v[5], v[7]);
+        if (y < minY || y > maxY) continue;
+        // y成分の三次方程式
+        const roots: number[] = [];
+        const a = -v[1] + 3 * v[3] - 3 * v[5] + v[7];
+        const b = 3 * v[1] - 6 * v[3] + 3 * v[5];
+        const c = -3 * v[1] + 3 * v[3];
+        const d = v[1] - y;
+        Numerical.solveCubic(a, b, c, d, roots, 0, 1);
+        for (const t of roots) {
+          if (t < EPS || t > 1 - EPS) continue;
+          // x座標を計算
+          const mt = 1 - t;
+          const x =
+            mt * mt * mt * v[0] +
+            3 * mt * mt * t * v[2] +
+            3 * mt * t * t * v[4] +
+            t * t * t * v[6];
+          if (x > point.x) {
+            // 上昇/下降で符号を分ける
+            const dy =
+              3 * (mt * mt * (v[3] - v[1]) +
+                   2 * mt * t * (v[5] - v[3]) +
+                   t * t * (v[7] - v[5]));
+            winding += dy > 0 ? 1 : -1;
+          }
+        }
       }
+      return winding;
     }
-    return (crossings % 2) === 1;
+    // even-oddルール: 交差数の偶奇
+    // nonzeroルール: winding!=0
+    // Papyrus2Dはeven-oddルールをデフォルトとする
+    const winding = getWinding(point, curves);
+    return (winding & 1) === 1;
   }
 
   getCurves(): Curve[] {
@@ -275,22 +310,53 @@ export class Path implements PathItem {
     return this.add(new Segment(point));
   }
 
-  cubicCurveTo(handle1: Point, handle2: Point, to: Point): Path {
-    // paper.jsと同様、handleOut/handleInを相対値で設定
+  /**
+   * cubicCurveTo: smoothHandles/selfClosing対応
+   * @param handle1
+   * @param handle2
+   * @param to
+   * @param options.smoothHandles: 連続ノードのハンドルを平滑化
+   * @param options.selfClosing: 始点と終点が一致していれば自動的にclose
+   */
+  cubicCurveTo(
+    handle1: Point,
+    handle2: Point,
+    to: Point,
+    options?: { smoothHandles?: boolean; selfClosing?: boolean }
+  ): Path {
     if (this.segments.length === 0) {
-      // 始点がない場合は to のみ追加
       return this.add(new Segment(to));
     }
     const newSegments = this.segments.slice();
-    const lastSeg = newSegments[newSegments.length - 1];
+    const lastIdx = newSegments.length - 1;
+    const lastSeg = newSegments[lastIdx];
     // handleOut: handle1 - last.point
-    const relHandleOut = handle1.subtract(lastSeg.point);
+    let relHandleOut = handle1.subtract(lastSeg.point);
+    let relHandleIn = handle2.subtract(to);
+
+    // smoothHandles: 連続ノードのハンドルを平滑化
+    if (options?.smoothHandles && lastIdx > 0) {
+      const prev = newSegments[lastIdx - 1].point;
+      const curr = lastSeg.point;
+      // Catmull-Rom的な平滑化
+      relHandleOut = curr.subtract(prev).multiply(1 / 3);
+      relHandleIn = to.subtract(lastSeg.point).multiply(-1 / 3);
+    }
+
     const last = lastSeg.withHandleOut(relHandleOut);
-    newSegments[newSegments.length - 1] = last;
-    // handleIn: handle2 - to
-    const relHandleIn = handle2.subtract(to);
+    newSegments[lastIdx] = last;
     newSegments.push(new Segment(to, relHandleIn, new Point(0, 0)));
-    return new Path(newSegments, this.closed);
+
+    // selfClosing: 始点と終点が一致していれば自動的にclose
+    let closed = this.closed;
+    if (options?.selfClosing) {
+      const firstPt = newSegments[0].point;
+      const lastPt = to;
+      if (firstPt.equals(lastPt)) {
+        closed = true;
+      }
+    }
+    return new Path(newSegments, closed);
   }
 
 /**
@@ -317,4 +383,57 @@ export class Path implements PathItem {
   close(): Path {
     return new Path(this.segments, true);
   }
+// Boolean演算API（unite, intersect, subtract, exclude, divide）
+  unite(other: Path): Path {
+    throw new Error('uniteは未実装です（paper.js BooleanOperations参照）');
+  }
+  intersect(other: Path): Path {
+    throw new Error('intersectは未実装です（paper.js BooleanOperations参照）');
+  }
+  subtract(other: Path): Path {
+    throw new Error('subtractは未実装です（paper.js BooleanOperations参照）');
+  }
+  exclude(other: Path): Path {
+    throw new Error('excludeは未実装です（paper.js BooleanOperations参照）');
+  }
+  divide(other: Path): Path {
+    throw new Error('divideは未実装です（paper.js BooleanOperations参照）');
+  }
+
+  /**
+     * 2つのPathの全Curveペアについて交点を列挙
+     */
+  getIntersections(other: Path): CurveLocation[] {
+    const result: CurveLocation[] = [];
+    const curves1 = this.getCurves();
+    const curves2 = other.getCurves();
+    for (let i = 0; i < curves1.length; i++) {
+      for (let j = 0; j < curves2.length; j++) {
+        const v1 = [
+          curves1[i].segment1.point.x, curves1[i].segment1.point.y,
+          curves1[i].segment1.point.x + curves1[i].segment1.handleOut.x, curves1[i].segment1.point.y + curves1[i].segment1.handleOut.y,
+          curves1[i].segment2.point.x + curves1[i].segment2.handleIn.x, curves1[i].segment2.point.y + curves1[i].segment2.handleIn.y,
+          curves1[i].segment2.point.x, curves1[i].segment2.point.y
+        ];
+        const v2 = [
+          curves2[j].segment1.point.x, curves2[j].segment1.point.y,
+          curves2[j].segment1.point.x + curves2[j].segment1.handleOut.x, curves2[j].segment1.point.y + curves2[j].segment1.handleOut.y,
+          curves2[j].segment2.point.x + curves2[j].segment2.handleIn.x, curves2[j].segment2.point.y + curves2[j].segment2.handleIn.y,
+          curves2[j].segment2.point.x, curves2[j].segment2.point.y
+        ];
+        const intersections = Curve.getIntersections(v1, v2);
+        for (const inter of intersections) {
+          result.push({
+            curve1Index: i,
+            curve2Index: j,
+            t1: inter.t1,
+            t2: inter.t2,
+            point: inter.point
+          });
+        }
+      }
+    }
+    return result;
+  }
+
 }

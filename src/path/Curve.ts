@@ -1,4 +1,14 @@
 /**
+ * CurveLocation: 2つの曲線の交点情報
+ */
+export interface CurveLocation {
+  curve1Index: number;
+  curve2Index: number;
+  t1: number;
+  t2: number;
+  point: import('../basic/Point').Point;
+}
+/**
  * Curveクラス: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
  * - paper.jsのCurveクラスAPIを参考に設計
  * - イミュータブル設計
@@ -20,17 +30,39 @@ export class Curve {
   /**
    * 曲線長を返す
    */
+  /**
+   * 曲線長を返す（paper.jsそっくり）
+   */
   getLength(): number {
-    // ベジェ制御点配列を取得
-    const v = this.getValues();
-    // 直線判定
-    if (Curve.isStraight(v)) {
-      const dx = v[6] - v[0];
-      const dy = v[7] - v[1];
-      return Math.hypot(dx, dy);
+    if ((this as any)._length == null) {
+      (this as any)._length = Curve.getLength(this.getValues(), 0, 1);
     }
-    // 曲線長を数値積分で計算
-    return Numerical.integrate(Curve.getLengthIntegrand(v), 0, 1, Curve.getIterations(0, 1));
+    return (this as any)._length;
+  }
+
+  /**
+   * static: paper.jsそっくりの曲線長計算
+   */
+  static getLength(v: number[], a?: number, b?: number, ds?: (t: number) => number): number {
+    if (a === undefined) a = 0;
+    if (b === undefined) b = 1;
+    if (Curve.isStraight(v)) {
+      // Sub-divide the linear curve at a and b, so we can simply
+      // calculate the Pythagorean Theorem to get the range's length.
+      let c = v;
+      if (b < 1) {
+        c = Curve.subdivide(c, b)[0]; // left
+        a /= b; // Scale parameter to new sub-curve.
+      }
+      if (a > 0) {
+        c = Curve.subdivide(c, a)[1]; // right
+      }
+      // The length of straight curves can be calculated more easily.
+      const dx = c[6] - c[0];
+      const dy = c[7] - c[1];
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    return Numerical.integrate(ds || Curve.getLengthIntegrand(v), a, b, Curve.getIterations(a, b));
   }
 
   /**
@@ -62,30 +94,42 @@ export class Curve {
   /**
    * 曲線長積分用の関数
    */
+  /**
+   * paper.jsそっくりの曲線長積分用関数
+   */
   static getLengthIntegrand(v: number[]): (t: number) => number {
-    const x0 = v[0], y0 = v[1], x1 = v[2], y1 = v[3], x2 = v[4], y2 = v[5], x3 = v[6], y3 = v[7];
-    const ax = 9 * (x1 - x2) + 3 * (x3 - x0);
-    const bx = 6 * (x0 + x2) - 12 * x1;
-    const cx = 3 * (x1 - x0);
-    const ay = 9 * (y1 - y2) + 3 * (y3 - y0);
-    const by = 6 * (y0 + y2) - 12 * y1;
-    const cy = 3 * (y1 - y0);
+    // Calculate the coefficients of a Bezier derivative.
+    const x0 = v[0], y0 = v[1],
+      x1 = v[2], y1 = v[3],
+      x2 = v[4], y2 = v[5],
+      x3 = v[6], y3 = v[7];
+
+    const ax = 9 * (x1 - x2) + 3 * (x3 - x0),
+      bx = 6 * (x0 + x2) - 12 * x1,
+      cx = 3 * (x1 - x0),
+      ay = 9 * (y1 - y2) + 3 * (y3 - y0),
+      by = 6 * (y0 + y2) - 12 * y1,
+      cy = 3 * (y1 - y0);
+
     return function (t: number) {
-      const dx = (ax * t + bx) * t + cx;
-      const dy = (ay * t + by) * t + cy;
-      return Math.hypot(dx, dy);
+      // Calculate quadratic equations of derivatives for x and y
+      const dx = (ax * t + bx) * t + cx,
+        dy = (ay * t + by) * t + cy;
+      return Math.sqrt(dx * dx + dy * dy);
     };
   }
 
   /**
    * 積分分割数
    */
+  /**
+   * paper.jsそっくりの分割数推定
+   */
   static getIterations(a: number, b: number): number {
-    // paper.jsのadaptive subdivisionに近いロジック
-    // 区間長やMachineEpsilonに応じて分割数を自動調整
-    const tol = 4 * Math.sqrt(1 / Numerical.MACHINE_EPSILON); // 許容誤差に基づく推定
-    const n = Math.ceil(Math.abs(b - a) * tol);
-    return Math.max(2, Math.min(16, n)); // paper.jsと同じくn=2〜16のみ対応
+    // Guess required precision based and size of range...
+    // TODO: There should be much better educated guesses for this. Also, what does this depend on? Required precision?
+    // paper.js本家と同じ仕様: 上限なし
+    return Math.max(2, Math.ceil(Math.abs(b - a) * 32));
   }
 
   /**
@@ -191,6 +235,94 @@ export class Curve {
       }
       return vv;
     }
+/**
+   * 2つの三次ベジェ曲線の交点を列挙（AABB分割による粗実装, paper.js参考）
+   * @param v1 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param v2 制御点配列
+   * @param t1s t1開始
+   * @param t1e t1終了
+   * @param t2s t2開始
+   * @param t2e t2終了
+   * @param depth 再帰深さ
+   */
+  static getIntersections(
+    v1: number[],
+    v2: number[],
+    t1s = 0, t1e = 1,
+    t2s = 0, t2e = 1,
+    depth = 0
+  ): { t1: number; t2: number; point: import('../basic/Point').Point }[] {
+    // AABBで早期リターン
+    function getAABB(v: number[]) {
+      const xs = [v[0], v[2], v[4], v[6]];
+      const ys = [v[1], v[3], v[5], v[7]];
+      return {
+        minX: Math.min(...xs), maxX: Math.max(...xs),
+        minY: Math.min(...ys), maxY: Math.max(...ys)
+      };
+    }
+    const a1 = getAABB(v1), a2 = getAABB(v2);
+    if (
+      a1.maxX < a2.minX || a1.minX > a2.maxX ||
+      a1.maxY < a2.minY || a1.minY > a2.maxY
+    ) return [];
+
+    // 直線同士なら厳密計算
+    function isLine(v: number[]) {
+      return v[0] === v[2] && v[1] === v[3] && v[4] === v[6] && v[5] === v[7];
+    }
+    if (isLine(v1) && isLine(v2)) {
+      // v1: (x1,y1)-(x2,y2), v2: (x3,y3)-(x4,y4)
+      const x1 = v1[0], y1 = v1[1], x2 = v1[6], y2 = v1[7];
+      const x3 = v2[0], y3 = v2[1], x4 = v2[6], y4 = v2[7];
+      const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+      if (Math.abs(denom) < 1e-12) return []; // 平行
+      const px = ((x1*y2 - y1*x2)*(x3 - x4) - (x1 - x2)*(x3*y4 - y3*x4)) / denom;
+      const py = ((x1*y2 - y1*x2)*(y3 - y4) - (y1 - y2)*(x3*y4 - y3*x4)) / denom;
+      // パラメータ計算
+      const t1 = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) /
+                 ((x2 - x1) ** 2 + (y2 - y1) ** 2);
+      const t2 = ((px - x3) * (x4 - x3) + (py - y3) * (y4 - y3)) /
+                 ((x4 - x3) ** 2 + (y4 - y3) ** 2);
+      if (t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1) {
+        return [{ t1: t1s + (t1e - t1s) * t1, t2: t2s + (t2e - t2s) * t2, point: new Point(px, py) }];
+      }
+      return [];
+    }
+
+    // 十分小さければ交点近似
+    const EPS = 1e-4;
+    if (
+      Math.max(a1.maxX - a1.minX, a1.maxY - a1.minY) < EPS &&
+      Math.max(a2.maxX - a2.minX, a2.maxY - a2.minY) < EPS
+    ) {
+      // 交点近似
+      const t1 = (t1s + t1e) / 2;
+      const t2 = (t2s + t2e) / 2;
+      const p = Curve.evaluate(v1, t1);
+      return [{ t1, t2, point: p }];
+    }
+    // 再帰分割
+    if (depth > 18) return [];
+    // 長い方を分割
+    const d1 = Math.max(a1.maxX - a1.minX, a1.maxY - a1.minY);
+    const d2 = Math.max(a2.maxX - a2.minX, a2.maxY - a2.minY);
+    if (d1 > d2) {
+      const [left, right] = Curve.subdivide(v1, 0.5);
+      const mid = (t1s + t1e) / 2;
+      return [
+        ...Curve.getIntersections(left, v2, t1s, mid, t2s, t2e, depth + 1),
+        ...Curve.getIntersections(right, v2, mid, t1e, t2s, t2e, depth + 1)
+      ];
+    } else {
+      const [left, right] = Curve.subdivide(v2, 0.5);
+      const mid = (t2s + t2e) / 2;
+      return [
+        ...Curve.getIntersections(v1, left, t1s, t1e, t2s, mid, depth + 1),
+        ...Curve.getIntersections(v1, right, t1s, t1e, mid, t2e, depth + 1)
+      ];
+    }
+  }
   
     /**
      * 制御点配列からCurveを生成

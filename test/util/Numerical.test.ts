@@ -74,6 +74,14 @@ describe('Numerical', () => {
     expect(result).toBeCloseTo(0.5, 4);
   });
 
+  it('integrate: should clamp n to 16 if n is too large', () => {
+    // n=1000でもn=16と同じ結果になるはず
+    const f = (x: number) => x;
+    const result16 = Numerical.integrate(f, 0, 1, 16);
+    const result1000 = Numerical.integrate(f, 0, 1, 1000);
+    expect(result1000).toBeCloseTo(result16, 10);
+  });
+
   it('findRoot: should find root of f(x)=x^2-2 near sqrt(2)', () => {
     const f = (x: number) => x * x - 2;
     const df = (x: number) => 2 * x;
