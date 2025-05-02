@@ -22,7 +22,7 @@ export function getSelfIntersection(
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
   const info = Curve.classify(v1);
-  if (info.type === 'loop' && info.roots) {
+  if (info.type === 'loop' && info.roots && info.roots.length >= 2) {
     // ループ曲線の場合、自己交差点を追加
     // Paper.jsと同様に、overlapパラメータを省略（デフォルトはfalse）
     addLocation(locations, include,
@@ -120,13 +120,34 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
   for (let i = 0; i < length; i++) {
     const loc = locations[i];
     
+    // 点の距離が十分に近い場合は重複とみなす
+    // paper.jsと同様に、点の距離を計算
+    if (loc.point && location.point) {
+      const dist = loc.point.subtract(location.point).getLength();
+      if (dist < geomEpsilon) {
+        // 交点が既に存在する場合は、相互参照を更新
+        if (location._intersection && loc._intersection) {
+          // 既存の交点の相互参照を新しい交点の相互参照に更新
+          loc._intersection._intersection = location._intersection;
+          location._intersection._intersection = loc._intersection;
+        }
+        
+        // 重複を許可する場合のみ追加
+        if (includeOverlaps) {
+          locations.push(location);
+          return length;
+        }
+        
+        return i;
+      }
+    }
+    
     // 同じ曲線上の交点で、tパラメータが近い場合は重複とみなす
-    if (loc.curve1Index === location.curve1Index &&
-        loc.curve2Index === location.curve2Index) {
-      const t1Diff = loc.t1 !== null && location.t1 !== null ?
-                    Math.abs(loc.t1 - location.t1) : 1;
-      const t2Diff = loc.t2 !== null && location.t2 !== null ?
-                    Math.abs(loc.t2 - location.t2) : 1;
+    // paper.jsと同様に、curve1IndexとcurveIndex2の比較は行わない
+    // （これらの値はまだ設定されていない可能性があるため）
+    if (loc.t1 !== null && location.t1 !== null && loc.t2 !== null && location.t2 !== null) {
+      const t1Diff = Math.abs(loc.t1 - location.t1);
+      const t2Diff = Math.abs(loc.t2 - location.t2);
       
       if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
         // 重複を許可する場合のみ追加
@@ -136,24 +157,6 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
         }
         return i;
       }
-    }
-    
-    // 点の距離が十分に近い場合も重複とみなす
-    if (loc.point.subtract(location.point).getLength() < geomEpsilon) {
-      // 交点が既に存在する場合は、相互参照を更新
-      if (location._intersection && loc._intersection) {
-        // 既存の交点の相互参照を新しい交点の相互参照に更新
-        loc._intersection._intersection = location._intersection;
-        location._intersection._intersection = loc._intersection;
-      }
-      
-      // 重複を許可する場合のみ追加
-      if (includeOverlaps) {
-        locations.push(location);
-        return length;
-      }
-      
-      return i;
     }
   }
   
@@ -270,18 +273,11 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   }
 
   const abs = Math.abs;
-  // Line.getDistanceの代わりに簡易実装
-  const getDistance = (px: number, py: number, vx: number, vy: number, x: number, y: number, asVector = false): number => {
-    if (vx === 0) return Math.abs(x - px);
-    if (vy === 0) return Math.abs(y - py);
-    
-    // 点から直線への距離
-    const u = ((x - px) * vx + (y - py) * vy) / (vx * vx + vy * vy);
-    if (!asVector) {
-      if (u < 0) return Math.sqrt((x - px) * (x - px) + (y - py) * (y - py));
-      if (u > 1) return Math.sqrt((x - px - vx) * (x - px - vx) + (y - py - vy) * (y - py - vy));
-    }
-    return Math.abs((y - py) * vx - (x - px) * vy) / Math.sqrt(vx * vx + vy * vy);
+  // Line.getSignedDistanceの実装（paper.jsと同じ）
+  const getSignedDistance = (px: number, py: number, vx: number, vy: number, x: number, y: number): number => {
+    return vx === 0 ? x - px
+      : vy === 0 ? py - y
+      : ((y - py) * vx - (x - px) * vy) / Math.sqrt(vx * vx + vy * vy);
   };
   
   const timeEpsilon = Numerical.CURVETIME_EPSILON;
@@ -300,17 +296,16 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   const vx = l1[6] - px, vy = l1[7] - py;
   
   // 曲線2の始点と終点がl1に十分近いかチェック
-  if (getDistance(px, py, vx, vy, l2[0], l2[1], true) < geomEpsilon &&
-      getDistance(px, py, vx, vy, l2[6], l2[7], true) < geomEpsilon) {
+  // paper.jsと同じgetSignedDistanceを使用
+  if (Math.abs(getSignedDistance(px, py, vx, vy, l2[0], l2[1])) < geomEpsilon &&
+      Math.abs(getSignedDistance(px, py, vx, vy, l2[6], l2[7])) < geomEpsilon) {
     // 両方の曲線が直線でない場合、ハンドルもチェック
     if (!straightBoth &&
-        getDistance(px, py, vx, vy, l1[2], l1[3], true) < geomEpsilon &&
-        getDistance(px, py, vx, vy, l1[4], l1[5], true) < geomEpsilon &&
-        getDistance(px, py, vx, vy, l2[2], l2[3], true) < geomEpsilon &&
-        getDistance(px, py, vx, vy, l2[4], l2[5], true) < geomEpsilon) {
-      straight1 = true;
-      straight2 = true;
-      straightBoth = true;
+        Math.abs(getSignedDistance(px, py, vx, vy, l1[2], l1[3])) < geomEpsilon &&
+        Math.abs(getSignedDistance(px, py, vx, vy, l1[4], l1[5])) < geomEpsilon &&
+        Math.abs(getSignedDistance(px, py, vx, vy, l2[2], l2[3])) < geomEpsilon &&
+        Math.abs(getSignedDistance(px, py, vx, vy, l2[4], l2[5])) < geomEpsilon) {
+      straight1 = straight2 = straightBoth = true;
     }
   } else if (straightBoth) {
     // 両方の曲線が直線で、互いに十分近くない場合、解はない
@@ -323,10 +318,10 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   }
 
   const v = [v1, v2];
-  const pairs: [number, number][] = [];
+  let pairs: [number, number][] | null = [];
   
   // すべての端点を反復処理
-  for (let i = 0; i < 4 && pairs.length < 2; i++) {
+  for (let i = 0; i < 4 && pairs && pairs.length < 2; i++) {
     const i1 = i & 1;  // 0, 1, 0, 1
     const i2 = i1 ^ 1; // 1, 0, 1, 0
     const t1 = i >> 1; // 0, 0, 1, 1
@@ -345,15 +340,15 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
         pairs.push(pair);
       }
     }
-    // Paper.jsと同様に、3点をチェックしたが一致が見つからない場合の処理を調整
-    if (i === 2 && !pairs.length)
+    // Paper.jsと同様に、3点をチェックしたが一致が見つからない場合は早期終了
+    if (i > 2 && pairs.length === 0)
       break;
   }
   
   // Paper.jsと同様に、ペアの数をチェック
-  if (pairs.length !== 2) {
-    return null;
-  } else if (!straightBoth) {
+  if (pairs && pairs.length !== 2) {
+    pairs = null;
+  } else if (pairs && !straightBoth) {
     // 直線ペアはさらなるチェックが不要
     // 2つのペアが見つかった場合、v1とv2の端点は同じはず
     const o1 = Curve.getPart(v1, pairs[0][0], pairs[1][0]);
@@ -363,7 +358,7 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
         abs(o2[3] - o1[3]) > geomEpsilon ||
         abs(o2[4] - o1[4]) > geomEpsilon ||
         abs(o2[5] - o1[5]) > geomEpsilon) {
-      return null;
+      pairs = null;
     }
   }
   
@@ -381,20 +376,39 @@ function addLineIntersection(
   include?: (loc: CurveLocation) => boolean,
   flip?: boolean
 ): CurveLocation[] {
-  // Line.intersectの簡易実装
+  // Line.intersectの実装
+  // paper.jsと同じ実装を使用
   const lineIntersect = (
     p1x: number, p1y: number, p2x: number, p2y: number,
     p3x: number, p3y: number, p4x: number, p4y: number
   ): Point | null => {
-    const nx = (p1x * p2y - p1y * p2x) * (p3x - p4x) - (p1x - p2x) * (p3x * p4y - p3y * p4x);
-    const ny = (p1x * p2y - p1y * p2x) * (p3y - p4y) - (p1y - p2y) * (p3x * p4y - p3y * p4x);
-    const denominator = (p1x - p2x) * (p3y - p4y) - (p1y - p2y) * (p3x - p4x);
+    // クラメルの公式を使用して交点を計算
+    const d = (p1x - p2x) * (p3y - p4y) - (p1y - p2y) * (p3x - p4x);
     
-    if (Math.abs(denominator) < Numerical.EPSILON) {
+    if (Math.abs(d) < Numerical.EPSILON) {
       return null; // 平行または重なっている
     }
     
-    return new Point(nx / denominator, ny / denominator);
+    const a = p1x * p2y - p1y * p2x;
+    const b = p3x * p4y - p3y * p4x;
+    
+    const x = (a * (p3x - p4x) - (p1x - p2x) * b) / d;
+    const y = (a * (p3y - p4y) - (p1y - p2y) * b) / d;
+    
+    // 交点が線分上にあるかチェック
+    const epsilon = Numerical.EPSILON;
+    const min = Math.min, max = Math.max;
+    
+    if (
+      min(p1x, p2x) - epsilon <= x && x <= max(p1x, p2x) + epsilon &&
+      min(p1y, p2y) - epsilon <= y && y <= max(p1y, p2y) + epsilon &&
+      min(p3x, p4x) - epsilon <= x && x <= max(p3x, p4x) + epsilon &&
+      min(p3y, p4y) - epsilon <= y && y <= max(p3y, p4y) + epsilon
+    ) {
+      return new Point(x, y);
+    }
+    
+    return null;
   };
   
   const pt = lineIntersect(
@@ -403,6 +417,8 @@ function addLineIntersection(
   );
   
   if (pt) {
+    // paper.jsと同様に、交点の座標を使用せず、
+    // 単にaddLocationを呼び出す
     addLocation(locations, include,
       flip ? c2 : c1, null,
       flip ? c1 : c2, null,
@@ -427,58 +443,82 @@ function addCurveLineIntersections(
   // flipは、addLocationへの呼び出しで曲線を反転する必要があるかどうかを示す
   const x1 = v2[0], y1 = v2[1];
   const x2 = v2[6], y2 = v2[7];
+  const dx = x2 - x1;
+  const dy = y2 - y1;
   
-  // getCurveLineIntersectionsの簡易実装
-  // 曲線と直線の交点を求める
-  const getCurveLineIntersections = (v: number[], x1: number, y1: number, dx: number, dy: number): number[] => {
-    // 曲線を直線に対して回転・平行移動して、y=0の直線との交点を求める
+  // getCurveLineIntersectionsの実装
+  // paper.jsと同じアルゴリズムを使用
+  const getCurveLineIntersections = (v: number[], px: number, py: number, dx: number, dy: number): number[] => {
+    // 曲線と直線の交点を求める
     const roots: number[] = [];
     
     // 直線が垂直または水平の場合の特別処理
     if (Math.abs(dx) < Numerical.EPSILON) {
-      // 垂直線 x = x1
+      // 垂直線 x = px
       const txs: number[] = [];
       Numerical.solveCubic(
         v[0] - 3 * v[2] + 3 * v[4] - v[6],
         3 * (v[2] - 2 * v[4] + v[6]),
         3 * (v[4] - v[6]),
-        v[6] - x1,
+        v[6] - px,
         txs, 0, 1
       );
+      
+      // 有効な解のみを追加
       for (const t of txs) {
         if (t >= 0 && t <= 1) {
-          roots.push(t);
+          // 交点が線分上にあるかチェック
+          const y = Curve.evaluate(v, t).y;
+          if (Math.min(py, py + dy) <= y && y <= Math.max(py, py + dy)) {
+            roots.push(t);
+          }
         }
       }
     } else if (Math.abs(dy) < Numerical.EPSILON) {
-      // 水平線 y = y1
+      // 水平線 y = py
       const tys: number[] = [];
       Numerical.solveCubic(
         v[1] - 3 * v[3] + 3 * v[5] - v[7],
         3 * (v[3] - 2 * v[5] + v[7]),
         3 * (v[5] - v[7]),
-        v[7] - y1,
+        v[7] - py,
         tys, 0, 1
       );
+      
+      // 有効な解のみを追加
       for (const t of tys) {
         if (t >= 0 && t <= 1) {
-          roots.push(t);
+          // 交点が線分上にあるかチェック
+          const x = Curve.evaluate(v, t).x;
+          if (Math.min(px, px + dx) <= x && x <= Math.max(px, px + dx)) {
+            roots.push(t);
+          }
         }
       }
     } else {
       // 一般的な直線
-      // 曲線上の点と直線の距離関数
+      // 曲線上の点と直線の距離関数の係数を計算
       const tempRoots: number[] = [];
       Numerical.solveCubic(
         dy * (v[0] - 3 * v[2] + 3 * v[4] - v[6]) - dx * (v[1] - 3 * v[3] + 3 * v[5] - v[7]),
         3 * (dy * (v[2] - 2 * v[4] + v[6]) - dx * (v[3] - 2 * v[5] + v[7])),
         3 * (dy * (v[4] - v[6]) - dx * (v[5] - v[7])),
-        dy * (v[6] - x1) - dx * (v[7] - y1),
+        dy * (v[6] - px) - dx * (v[7] - py),
         tempRoots, 0, 1
       );
+      
+      // 有効な解のみを追加
       for (const t of tempRoots) {
         if (t >= 0 && t <= 1) {
-          roots.push(t);
+          // 交点が線分上にあるかチェック
+          const p = Curve.evaluate(v, t);
+          const s = dx !== 0 ?
+            (p.x - px) / dx :
+            (p.y - py) / dy;
+          
+          if (s >= 0 && s <= 1) {
+            roots.push(t);
+          }
         }
       }
     }
@@ -486,7 +526,8 @@ function addCurveLineIntersections(
     return roots;
   };
   
-  const roots = getCurveLineIntersections(v1, x1, y1, x2 - x1, y2 - y1);
+  // 曲線と直線の交点を計算
+  const roots = getCurveLineIntersections(v1, x1, y1, dx, dy);
   
   // 各解について、実際の曲線上の点と、それに対応する直線上の位置を取得
   for (let i = 0; i < roots.length; i++) {
@@ -495,7 +536,7 @@ function addCurveLineIntersections(
     const t2 = Curve.getTimeOf(v2, p1);
     
     if (t2 !== null) {
-      // 再帰がない場合のみ時間値を使用し、それ以外の場合はaddLocationに実際の時間値を計算させる
+      // paper.jsと同様に、addLocationを呼び出す
       addLocation(locations, include,
         flip ? c2 : c1, flip ? t2 : t1,
         flip ? c1 : c2, flip ? t1 : t2);
@@ -536,7 +577,7 @@ function addCurveIntersections(
   // PをQ（第2曲線）のfat-lineでクリッピング
   const q0x = v2[0], q0y = v2[1], q3x = v2[6], q3y = v2[7];
   
-  // Line.getSignedDistanceの簡易実装
+  // Line.getSignedDistanceの実装（paper.jsと同じ）
   const getSignedDistance = (px: number, py: number, vx: number, vy: number, x: number, y: number): number => {
     return vx === 0 ? x - px
       : vy === 0 ? py - y
@@ -562,15 +603,24 @@ function addCurveIntersections(
   const hull = getConvexHull(dp0, dp1, dp2, dp3);
   const top = hull[0];
   const bottom = hull[1];
-  let tMinClip: number | null;
-  let tMaxClip: number | null;
+  let tMinClip: number | null = null;
+  let tMaxClip: number | null = null;
   
   // すべての点と制御点が共線の場合は反復を停止
-  if (d1 === 0 && d2 === 0 && dp0 === 0 && dp1 === 0 && dp2 === 0 && dp3 === 0
-    // dMinとdMaxで凸包をクリップし、結果の1つがnullの場合は交点がないことを考慮
-    || (tMinClip = clipConvexHull(top, bottom, dMin, dMax)) == null
-    || (tMaxClip = clipConvexHull(top.slice().reverse(), bottom.slice().reverse(), dMin, dMax)) == null)
+  if (d1 === 0 && d2 === 0 && dp0 === 0 && dp1 === 0 && dp2 === 0 && dp3 === 0) {
     return calls;
+  }
+  
+  // dMinとdMaxで凸包をクリップし、結果の1つがnullの場合は交点がないことを考慮
+  tMinClip = clipConvexHull(top, bottom, dMin, dMax);
+  if (tMinClip === null) {
+    return calls;
+  }
+  
+  tMaxClip = clipConvexHull(top.slice().reverse(), bottom.slice().reverse(), dMin, dMax);
+  if (tMaxClip === null) {
+    return calls;
+  }
   
   // tMinとtMaxは(0, 1)の範囲内。v2の元のパラメータ範囲に戻す
   const tMinNew = tMin + (tMax - tMin) * tMinClip;
@@ -616,15 +666,15 @@ function addCurveIntersections(
       }
     } else { // 反復
       // Paper.jsと同様に、uDiff === 0の場合の処理を調整
-      if (uDiff === 0 || uDiff < fatLineEpsilon) {
+      if (uDiff === 0 || uDiff >= fatLineEpsilon) {
+        calls = addCurveIntersections(
+          v2, v1Clipped, c2, c1, locations, include, !flip,
+          recursion, calls, uMin, uMax, tMinNew, tMaxNew);
+      } else {
         // 他の曲線の間隔が既に十分に狭いため、同じ曲線で反復を続ける
         calls = addCurveIntersections(
           v1Clipped, v2, c1, c2, locations, include, flip,
           recursion, calls, tMinNew, tMaxNew, uMin, uMax);
-      } else {
-        calls = addCurveIntersections(
-          v2, v1Clipped, c2, c1, locations, include, !flip,
-          recursion, calls, uMin, uMax, tMinNew, tMaxNew);
       }
     }
   }

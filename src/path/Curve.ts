@@ -684,7 +684,7 @@ export class Curve {
                 // 交点情報を更新
                 if (loc.t1 !== null && loc.t2 !== null) {
                   // 交点の位置を正確に計算
-                  if (matrix1) {
+                  if (matrix1 && !self) {
                     // 行列変換を適用した場合は、元の座標系に戻す
                     const invMatrix1 = matrix1.invert();
                     if (invMatrix1) {
