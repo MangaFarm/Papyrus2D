@@ -43,6 +43,9 @@ Papyrus2Dはpaper.jsから幾何部分を抽出するプロジェクトです。
 3. **paper_js.md**
    - paper.jsの実装についてのメモ。paper.jsについて調べたら、随時追記していってください。参考にしたソースの場所などを簡潔に。
 
+4. **paper_js_geometry.md**
+   - paper.jsの幾何学実装の詳細なドキュメント。paper.jsのアルゴリズムを知りたいときに読んでください。
+
 ## テスト実行
 
   % npm test filename
