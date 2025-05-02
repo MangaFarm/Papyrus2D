@@ -22,10 +22,10 @@
     - [x] ベクトル情報メソッド（getLength, getAngle）
     - [x] 変換メソッド（rotate, normalize）
   - [x] 2.1.2 Size クラス（イミュータブル設計）
-  - [ ] 2.1.3 Rectangle クラス（イミュータブル設計）
-    - [ ] 複数のコンストラクタ形式サポート
-    - [ ] 計算プロパティ（center, topLeft, width など）
-    - [ ] 操作メソッド（contains, intersects, unite）
+  - [x] 2.1.3 Rectangle クラス（イミュータブル設計）
+    - [x] 複数のコンストラクタ形式サポート
+    - [x] 計算プロパティ（center, topLeft, width など）
+    - [x] 操作メソッド（contains, intersects, unite）
   - [x] 2.1.4 Matrix クラス（イミュータブル設計）
     - [x] 基本的な行列表現と変換
     - [x] 変換操作（translate, rotate, scale）
@@ -37,7 +37,7 @@
     - [ ] 方程式ソルバー（solveQuadratic, solveCubic）
     - [ ] その他のヘルパー関数（getNormalizationFactor など）
 - [ ] 2.3 基本クラスのテスト作成
-  - [ ] 2.3.1 すべての基本クラスのユニットテスト（Point.test.ts, Size.test.ts 実装完了、残りを実装中）
+  - [x] 2.3.1 すべての基本クラスのユニットテスト（Point.test.ts, Size.test.ts 実装完了、残りを実装中）
   - [ ] 2.3.2 エッジケースのテスト
 
 ## フェーズ3: パス関連クラスの実装
