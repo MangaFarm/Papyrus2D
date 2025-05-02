@@ -168,7 +168,7 @@ The implementation of boolean operations is based on the following key algorithm
 
 The winding number represents the number of times a closed path winds around a point. Paper.js uses winding numbers to determine the inside and outside of paths and to determine the result of boolean operations.
 
-**Implementation**: `getWinding()` function (lines 536-777)
+**Implementation**: `getWinding()` function in `/src/path/PathItem.Boolean.js` (lines 536-777)
 
 ```javascript
 function getWinding(point, curves, dir, closed, dontFlip) {
@@ -181,7 +181,7 @@ function getWinding(point, curves, dir, closed, dontFlip) {
 
 Algorithm for resolving self-intersections and intersections between two paths.
 
-**Implementation**: `resolveCrossings()` method (lines 1240-1345)
+**Implementation**: `resolveCrossings()` method in `/src/path/PathItem.js` (lines 1240-1345)
 
 ```javascript
 resolveCrossings: function() {
@@ -194,7 +194,7 @@ resolveCrossings: function() {
 
 Algorithm for constructing new paths from segments divided at intersection points.
 
-**Implementation**: `tracePaths()` function (lines 872-1110)
+**Implementation**: `tracePaths()` function in `/src/path/PathItem.Boolean.js` (lines 872-1110)
 
 ```javascript
 function tracePaths(segments, operator) {
@@ -207,7 +207,7 @@ function tracePaths(segments, operator) {
 
 Algorithm for propagating winding numbers to segment chains starting from intersection points.
 
-**Implementation**: `propagateWinding()` function (lines 779-860)
+**Implementation**: `propagateWinding()` function in `/src/path/PathItem.Boolean.js` (lines 779-860)
 
 ```javascript
 function propagateWinding(segment, path1, path2, curveCollisionsMap, operator) {
@@ -218,20 +218,20 @@ function propagateWinding(segment, path1, path2, curveCollisionsMap, operator) {
 
 ### 4.3 Boolean Operation Implementation Flow
 
-1. **Preparation**: `preparePath()` function (lines 58-81) prepares paths
+1. **Preparation**: `preparePath()` function in `/src/path/PathItem.Boolean.js` (lines 58-81) prepares paths
    - Clone paths
    - Resolve self-intersections
    - Adjust path orientation
 
-2. **Intersection Detection**: `CurveLocation.expand()` and `divideLocations()` function (lines 395-509) detect and divide at intersections
+2. **Intersection Detection**: `CurveLocation.expand()` and `divideLocations()` function in `/src/path/PathItem.Boolean.js` (lines 395-509) detect and divide at intersections
 
-3. **Winding Calculation**: `getWinding()` function (lines 536-777) calculates winding numbers
+3. **Winding Calculation**: `getWinding()` function in `/src/path/PathItem.Boolean.js` (lines 536-777) calculates winding numbers
 
-4. **Winding Propagation**: `propagateWinding()` function (lines 779-860) propagates winding numbers
+4. **Winding Propagation**: `propagateWinding()` function in `/src/path/PathItem.Boolean.js` (lines 779-860) propagates winding numbers
 
-5. **Path Tracing**: `tracePaths()` function (lines 872-1110) constructs result paths
+5. **Path Tracing**: `tracePaths()` function in `/src/path/PathItem.Boolean.js` (lines 872-1110) constructs result paths
 
-6. **Result Creation**: `createResult()` function (lines 83-97) creates final result
+6. **Result Creation**: `createResult()` function in `/src/path/PathItem.Boolean.js` (lines 83-97) creates final result
 
 ### 4.4 Public API
 
