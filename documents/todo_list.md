@@ -26,10 +26,10 @@
     - [ ] 複数のコンストラクタ形式サポート
     - [ ] 計算プロパティ（center, topLeft, width など）
     - [ ] 操作メソッド（contains, intersects, unite）
-  - [ ] 2.1.4 Matrix クラス（イミュータブル設計）
-    - [ ] 基本的な行列表現と変換
-    - [ ] 変換操作（translate, rotate, scale）
-    - [ ] 行列演算（append, prepend, invert）
+  - [x] 2.1.4 Matrix クラス（イミュータブル設計）
+    - [x] 基本的な行列表現と変換
+    - [x] 変換操作（translate, rotate, scale）
+    - [x] 行列演算（append, prepend, invert）
 - [ ] 2.2 ユーティリティの実装
   - [ ] 2.2.1 Numerical ユーティリティ関数
     - [ ] 数値計算定数（EPSILON, MACHINE_EPSILON, CURVETIME_EPSILON など）
