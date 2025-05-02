@@ -33,6 +33,7 @@ export class CollisionDetection {
         const v = curves[i];
         
         // Paper.jsと同様に、制御点のみを使用して境界ボックスを計算
+        // Paper.jsと同様に、制御点のみを使用して境界ボックスを計算
         bounds[i] = [
           min(v[0], v[2], v[4], v[6]),
           min(v[1], v[3], v[5], v[7]),

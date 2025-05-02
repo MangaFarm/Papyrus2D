@@ -21,26 +21,14 @@ export function getSelfIntersection(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
-  // paper.jsと同様の実装
+  // paper.jsと同様の実装に修正
   const info = Curve.classify(v1);
   
-  // ループ型の曲線の場合
+  // ループ型の曲線の場合のみ交点を検出（paper.jsと同様）
   if (info.type === 'loop' && info.roots) {
     addLocation(locations, include,
       c1, info.roots[0],
       c1, info.roots[1]);
-  }
-  
-  // 追加: 自己交差の検出を強化
-  // 曲線を分割して交点を検出
-  if (info.type === 'serpentine' || info.type === 'cusp') {
-    // 曲線を複数の部分に分割
-    const parts = Curve.subdivide(v1, 0.5);
-    
-    // 分割した部分同士の交点を検出
-    getCurveIntersections(
-      parts[0], parts[1], c1, c1, locations, include
-    );
   }
   
   return locations;
@@ -119,7 +107,7 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
     location._previous = current;
   }
   
-  // 重複する交点をフィルタリング
+  // 重複する交点をフィルタリング - paper.jsと同様の条件に修正
   const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
   const curveEpsilon = Numerical.CURVETIME_EPSILON;
   
@@ -156,13 +144,12 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
         (loc.curve1 === location.curve2 && loc.curve2 === location.curve1);
       
       if (sameCurves) {
+        // paper.jsと同様の重複チェック - 条件を緩和
         const t1Diff = Math.abs(loc.t1 - location.t1);
         const t2Diff = Math.abs(loc.t2 - location.t2);
         
-        // より厳密な重複チェック
-        if ((t1Diff < curveEpsilon && t2Diff < curveEpsilon) ||
-            (t1Diff < curveEpsilon && Math.abs(loc.t2 - location.t1) < curveEpsilon) ||
-            (t2Diff < curveEpsilon && Math.abs(loc.t1 - location.t2) < curveEpsilon)) {
+        // 単純にtパラメータの差が小さい場合は重複とみなす
+        if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
           // 重複を許可する場合のみ追加
           if (includeOverlaps) {
             locations.push(location);
@@ -588,13 +575,13 @@ function addCurveIntersections(
 ): number {
   // Paper.jsと同じ再帰深度と呼び出し回数の制限を設定
   // 再帰が深すぎる場合や呼び出し回数が多すぎる場合は停止
+  // paper.jsと同じ値に調整
   if (++calls >= 4096 || ++recursion >= 40)
     return calls;
   
   // paper.jsと同様に、CURVETIME_EPSILONより小さいイプシロンを使用して、
   // fat-lineクリッピングコードで曲線時間パラメータを比較
   // 数値計算の安定性を確保するために重要
-  // paper.jsと同じ値に調整
   const fatLineEpsilon = 1e-9;
   
   // PをQ（第2曲線）のfat-lineでクリッピング
@@ -610,6 +597,7 @@ function addCurveIntersections(
   // Qのfat-lineを計算：ベースラインlと、曲線Pを完全に囲む2つのオフセット
   const d1 = getSignedDistance(q0x, q0y, q3x - q0x, q3y - q0y, v2[2], v2[3]);
   const d2 = getSignedDistance(q0x, q0y, q3x - q0x, q3y - q0y, v2[4], v2[5]);
+  // paper.jsと同じfactor計算
   const factor = d1 * d2 > 0 ? 3 / 4 : 4 / 9;
   const dMin = factor * Math.min(0, d1, d2);
   const dMax = factor * Math.max(0, d1, d2);
@@ -636,10 +624,6 @@ function addCurveIntersections(
   
   // dMinとdMaxで凸包をクリップし、結果の1つがnullの場合は交点がないことを考慮
   // paper.jsと完全に同じ実装にする
-  // 特に、top.reverse()とbottom.reverse()を使用する部分を修正
-  // paper.jsでは、top.reverse()とbottom.reverse()を使用しているが、
-  // TypeScriptでは不変性を保つためにslice()を使用している
-  // しかし、この場合はtopとbottomは一時的な変数なので、直接変更しても問題ない
   tMinClip = clipConvexHull(top, bottom, dMin, dMax);
   if (tMinClip === null) {
     return calls;
@@ -677,7 +661,7 @@ function addCurveIntersections(
     const uDiff = uMax - uMin;
     
     // Paper.jsと同様に、分割条件を調整
-    if (tMaxClip - tMinClip > 0.8) {
+    if (tMaxClip - tMinClip > 0.8) { // paper.jsと同じ値に戻す
       // 最も収束していない曲線を分割
       if (tMaxNew - tMinNew > uDiff) {
         // 曲線1を分割
@@ -702,7 +686,7 @@ function addCurveIntersections(
       }
     } else { // 反復
       // Paper.jsと同様に、uDiff === 0の場合の処理を調整
-      if (uDiff === 0 || uDiff >= fatLineEpsilon) {
+      if (uDiff === 0 || uDiff >= fatLineEpsilon) { // paper.jsと同じ値に戻す
         calls = addCurveIntersections(
           v2, v1Clipped, c2, c1, locations, include, !flip,
           recursion, calls, uMin, uMax, tMinNew, tMaxNew);

@@ -700,13 +700,15 @@ export class Path implements PathItem {
     const self = this === path || !path;
     
     // 行列の取得（paper.jsと同様に_orNullIfIdentity()を使用）
-    const matrix1 = this._matrix?._orNullIfIdentity();
-    const matrix2 = self ? matrix1 : (_matrix?._orNullIfIdentity() || (path && path._matrix?._orNullIfIdentity()));
+    // Matrix | null型に対応するように修正
+    const matrix1 = this._matrix?._orNullIfIdentity() as Matrix | undefined;
+    const matrix2 = self ? matrix1 : (_matrix?._orNullIfIdentity() as Matrix | undefined || (path && path._matrix?._orNullIfIdentity() as Matrix | undefined));
     
     // 境界ボックスの交差判定
     // 自己交差の場合はスキップ
-    return self || this.getBounds(matrix1).intersects(
-      path && path.getBounds(matrix2), Numerical.EPSILON)
+    // paper.jsと同様の条件式に修正
+    return self || (path && this.getBounds(matrix1).intersects(
+      path.getBounds(matrix2), Numerical.EPSILON))
       ? Curve.getIntersections(
           this.getCurves(),
           !self && path ? path.getCurves() : null,
