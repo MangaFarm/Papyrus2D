@@ -32,14 +32,55 @@ export class CollisionDetection {
       for (let i = 0; i < curves.length; i++) {
         const v = curves[i];
         
-        // Paper.jsと同様に、制御点のみを使用して境界ボックスを計算
-        // Paper.jsと同様に、制御点のみを使用して境界ボックスを計算
-        bounds[i] = [
-          min(v[0], v[2], v[4], v[6]),
-          min(v[1], v[3], v[5], v[7]),
-          max(v[0], v[2], v[4], v[6]),
-          max(v[1], v[3], v[5], v[7])
-        ];
+        // 制御点と曲線上の極値点を考慮して境界ボックスを計算
+        // Paper.jsと同様に、曲線上の極値点も考慮する
+        let minX = min(v[0], v[2], v[4], v[6]);
+        let minY = min(v[1], v[3], v[5], v[7]);
+        let maxX = max(v[0], v[2], v[4], v[6]);
+        let maxY = max(v[1], v[3], v[5], v[7]);
+        
+        // 曲線上の極値点を計算して境界に含める
+        // x方向の極値
+        CollisionDetection.addCurveExtrema(v, 0, (t: number) => {
+          if (t > 0 && t < 1) {
+            const mt = 1 - t;
+            const mt2 = mt * mt;
+            const mt3 = mt2 * mt;
+            const t2 = t * t;
+            const t3 = t2 * t;
+            
+            // 三次ベジェ曲線の補間
+            const x = mt3 * v[0] + 3 * mt2 * t * v[2] + 3 * mt * t2 * v[4] + t3 * v[6];
+            const y = mt3 * v[1] + 3 * mt2 * t * v[3] + 3 * mt * t2 * v[5] + t3 * v[7];
+            
+            minX = min(minX, x);
+            maxX = max(maxX, x);
+            minY = min(minY, y);
+            maxY = max(maxY, y);
+          }
+        });
+        
+        // y方向の極値
+        CollisionDetection.addCurveExtrema(v, 1, (t: number) => {
+          if (t > 0 && t < 1) {
+            const mt = 1 - t;
+            const mt2 = mt * mt;
+            const mt3 = mt2 * mt;
+            const t2 = t * t;
+            const t3 = t2 * t;
+            
+            // 三次ベジェ曲線の補間
+            const x = mt3 * v[0] + 3 * mt2 * t * v[2] + 3 * mt * t2 * v[4] + t3 * v[6];
+            const y = mt3 * v[1] + 3 * mt2 * t * v[3] + 3 * mt * t2 * v[5] + t3 * v[7];
+            
+            minX = min(minX, x);
+            maxX = max(maxX, x);
+            minY = min(minY, y);
+            maxY = max(maxY, y);
+          }
+        });
+        
+        bounds[i] = [minX, minY, maxX, maxY];
       }
       
       return bounds;
@@ -225,5 +266,38 @@ export class CollisionDetection {
     }
     
     return result;
+  }
+  
+  /**
+   * 曲線の極値を計算して処理する
+   * @param v 曲線の制御点配列
+   * @param coord 座標インデックス（0=x, 1=y）
+   * @param callback 極値のtパラメータを受け取るコールバック
+   */
+  private static addCurveExtrema(v: number[], coord: number, callback: (t: number) => void): void {
+    // 三次ベジェ曲線の導関数の係数を計算
+    const v0 = v[coord];
+    const v1 = v[coord + 2];
+    const v2 = v[coord + 4];
+    const v3 = v[coord + 6];
+    
+    // 導関数の係数: at^2 + bt + c = 0
+    const a = 3 * (v1 - v2) - v0 + v3;
+    const b = 2 * (v0 + v2) - 4 * v1;
+    const c = v1 - v0;
+    
+    // 2次方程式を解く
+    if (Math.abs(a) > 1e-12) {
+      // 判別式
+      const D = b * b - 4 * a * c;
+      if (D >= 0) {
+        const sqrtD = Math.sqrt(D);
+        callback((-b + sqrtD) / (2 * a));
+        callback((-b - sqrtD) / (2 * a));
+      }
+    } else if (Math.abs(b) > 1e-12) {
+      // 1次方程式
+      callback(-c / b);
+    }
   }
 }

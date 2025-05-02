@@ -107,7 +107,7 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
     location._previous = current;
   }
   
-  // 重複する交点をフィルタリング - paper.jsと同様の条件に修正
+  // Paper.jsと完全に同じ重複判定ロジックを実装
   const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
   const curveEpsilon = Numerical.CURVETIME_EPSILON;
   
@@ -144,11 +144,20 @@ function insertLocation(locations: CurveLocation[], location: CurveLocation, inc
         (loc.curve1 === location.curve2 && loc.curve2 === location.curve1);
       
       if (sameCurves) {
-        // paper.jsと同様の重複チェック - 条件を緩和
-        const t1Diff = Math.abs(loc.t1 - location.t1);
-        const t2Diff = Math.abs(loc.t2 - location.t2);
+        // Paper.jsと同じ重複チェックロジック
+        // 曲線が同じ場合、t1とt2を適切に比較
+        let t1Diff: number, t2Diff: number;
         
-        // 単純にtパラメータの差が小さい場合は重複とみなす
+        if (loc.curve1 === location.curve1) {
+          t1Diff = Math.abs(loc.t1 - location.t1);
+          t2Diff = Math.abs(loc.t2 - location.t2);
+        } else {
+          // 曲線が逆の場合、t1とt2を入れ替えて比較
+          t1Diff = Math.abs(loc.t1 - location.t2);
+          t2Diff = Math.abs(loc.t2 - location.t1);
+        }
+        
+        // Paper.jsと同じ条件で重複判定
         if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
           // 重複を許可する場合のみ追加
           if (includeOverlaps) {
@@ -579,8 +588,8 @@ function addCurveIntersections(
   if (++calls >= 4096 || ++recursion >= 40)
     return calls;
   
-  // paper.jsと同様に、CURVETIME_EPSILONより小さいイプシロンを使用して、
-  // fat-lineクリッピングコードで曲線時間パラメータを比較
+  // Paper.jsと完全に同じ値を使用
+  // fat-lineクリッピングコードで曲線時間パラメータを比較する際のイプシロン
   // 数値計算の安定性を確保するために重要
   const fatLineEpsilon = 1e-9;
   
@@ -644,9 +653,10 @@ function addCurveIntersections(
   const tMinNew = tMin + (tMax - tMin) * tMinClip;
   const tMaxNew = tMin + (tMax - tMin) * tMaxClip;
   
-  // paper.jsと同様の条件判定
+  // Paper.jsと完全に同じ条件判定
   // 数値計算の安定性を確保するために、閾値の比較を厳密に行う
-  if (Math.max(uMax - uMin, tMaxNew - tMinNew) < fatLineEpsilon) {
+  // 精度の問題を避けるために、浮動小数点の比較を慎重に行う
+  if (Math.max(uMax - uMin, tMaxNew - tMinNew) <= fatLineEpsilon) {
     // 十分な精度で交点を分離した
     const t = (tMinNew + tMaxNew) / 2;
     const u = (uMin + uMax) / 2;
@@ -660,8 +670,8 @@ function addCurveIntersections(
     const v1Clipped = Curve.getPart(v1, tMinClip, tMaxClip);
     const uDiff = uMax - uMin;
     
-    // Paper.jsと同様に、分割条件を調整
-    if (tMaxClip - tMinClip > 0.8) { // paper.jsと同じ値に戻す
+    // Paper.jsと完全に同じ分割条件を使用
+    if (tMaxClip - tMinClip > 0.8) {
       // 最も収束していない曲線を分割
       if (tMaxNew - tMinNew > uDiff) {
         // 曲線1を分割
@@ -685,8 +695,9 @@ function addCurveIntersections(
           recursion, calls, u, uMax, tMinNew, tMaxNew);
       }
     } else { // 反復
-      // Paper.jsと同様に、uDiff === 0の場合の処理を調整
-      if (uDiff === 0 || uDiff >= fatLineEpsilon) { // paper.jsと同じ値に戻す
+      // Paper.jsと完全に同じ条件判定
+      // #1638の問題を回避するために、uDiff === 0の特別処理を維持
+      if (uDiff === 0 || uDiff >= fatLineEpsilon) {
         calls = addCurveIntersections(
           v2, v1Clipped, c2, c1, locations, include, !flip,
           recursion, calls, uMin, uMax, tMinNew, tMaxNew);

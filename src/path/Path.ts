@@ -699,10 +699,24 @@ export class Path implements PathItem {
     // 自己交差判定: pathが未指定またはthisと同じ場合
     const self = this === path || !path;
     
-    // 行列の取得（paper.jsと同様に_orNullIfIdentity()を使用）
-    // Matrix | null型に対応するように修正
-    const matrix1 = this._matrix?._orNullIfIdentity() as Matrix | undefined;
-    const matrix2 = self ? matrix1 : (_matrix?._orNullIfIdentity() as Matrix | undefined || (path && path._matrix?._orNullIfIdentity() as Matrix | undefined));
+    // Paper.jsと同じ行列変換処理を実装
+    // _orNullIfIdentity()メソッドを使用して単位行列の場合はnullを返す
+    let matrix1: Matrix | undefined = undefined;
+    if (this._matrix) {
+      const m = this._matrix._orNullIfIdentity();
+      if (m) matrix1 = m;
+    }
+    
+    let matrix2: Matrix | undefined = undefined;
+    if (self) {
+      matrix2 = matrix1;
+    } else if (_matrix) {
+      const m = _matrix._orNullIfIdentity();
+      if (m) matrix2 = m;
+    } else if (path && path._matrix) {
+      const m = path._matrix._orNullIfIdentity();
+      if (m) matrix2 = m;
+    }
     
     // 境界ボックスの交差判定
     // 自己交差の場合はスキップ

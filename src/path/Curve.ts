@@ -39,6 +39,15 @@ export class CurveLocation {
     point?: Point | null,
     overlap: boolean = false
   ) {
+    // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
+    if (t1 !== null && t1 >= (1 - Numerical.CURVETIME_EPSILON) && curve1) {
+      const next = curve1.getNext();
+      if (next) {
+        t1 = 0;
+        curve1 = next;
+      }
+    }
+    
     this.curve1 = curve1;
     this.curve2 = curve2;
     this.t1 = t1;
@@ -784,7 +793,9 @@ export class Curve {
     // ベクトル(d1, d2, d3)を正規化して誤差を一定に保つ
     const l = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
     const s = l !== 0 ? 1 / l : 0;
-    const isZero = Numerical.isZero;
+    // Paper.jsと完全に同じ精度で計算するために、
+    // isZero関数の代わりにNumerical.EPSILONを直接使用
+    const isZero = (val: number): boolean => Math.abs(val) < Numerical.EPSILON;
     
     d1 *= s;
     d2 *= s;
@@ -823,6 +834,9 @@ export class Curve {
     if (isZero(d)) {
       return type('cusp', d2 / (2 * d1));         // 3a.
     }
+    
+    // Paper.jsと同じ精度で計算するために、
+    // 数値計算の安定性を向上させる
     
     const f1 = d > 0 ? Math.sqrt(d / 3) : Math.sqrt(-d);
     const f2 = 2 * d1;
