@@ -58,4 +58,47 @@ describe('Curve', () => {
     expect(tan0.x).toBeGreaterThan(0);
     expect(tan1.x).toBeGreaterThan(0);
   });
+it('should divide a straight line at t=0.5 correctly', () => {
+    const seg1 = new Segment(new Point(0, 0));
+    const seg2 = new Segment(new Point(10, 0));
+    const curve = new Curve(seg1, seg2);
+    const [left, right] = curve.divide(0.5);
+
+    // 左カーブの始点は元の始点
+    expect(left.segment1.point.equals(new Point(0, 0))).toBe(true);
+    // 右カーブの終点は元の終点
+    expect(right.segment2.point.equals(new Point(10, 0))).toBe(true);
+    // 分割点は両カーブの接続点
+    expect(left.segment2.point.equals(right.segment1.point)).toBe(true);
+    // 分割点はt=0.5の点
+    const mid = curve.getPointAt(0.5);
+    expect(left.segment2.point.equals(mid)).toBe(true);
+  });
+
+  it('should divide a cubic Bezier curve at t=0.5 correctly', () => {
+    const seg1 = new Segment(new Point(0, 0), new Point(0, 0), new Point(2, 4));
+    const seg2 = new Segment(new Point(10, 0), new Point(-2, -4), new Point(0, 0));
+    const curve = new Curve(seg1, seg2);
+    const [left, right] = curve.divide(0.5);
+
+    // 左カーブの始点は元の始点
+    expect(left.segment1.point.equals(new Point(0, 0))).toBe(true);
+    // 右カーブの終点は元の終点
+    expect(right.segment2.point.equals(new Point(10, 0))).toBe(true);
+    // 分割点は両カーブの接続点
+    expect(left.segment2.point.equals(right.segment1.point)).toBe(true);
+    // 分割点はt=0.5の点
+    const mid = curve.getPointAt(0.5);
+    expect(left.segment2.point.equals(mid)).toBe(true);
+  });
+
+  it('split(t) should return the left part of divide(t)', () => {
+    const seg1 = new Segment(new Point(0, 0));
+    const seg2 = new Segment(new Point(10, 0));
+    const curve = new Curve(seg1, seg2);
+    const left = curve.split(0.3);
+    const [left2, _] = curve.divide(0.3);
+    expect(left.segment1.point.equals(left2.segment1.point)).toBe(true);
+    expect(left.segment2.point.equals(left2.segment2.point)).toBe(true);
+  });
 });

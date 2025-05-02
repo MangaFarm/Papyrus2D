@@ -48,7 +48,7 @@
   - [x] 3.1.2 SegmentPoint クラスの実装（SegmentPoint.ts, SegmentPoint.test.ts 完了）
   - [x] 3.1.3 Curve クラスの実装
     - [x] getLength, [x] getPointAt, [x] getTangentAt
-    - [ ] 曲線操作メソッド（divide, split）
+    - [x] 曲線操作メソッド（divide, split）
 - [ ] 3.2 パスクラスの実装
   - [ ] 3.2.1 PathItem 基底クラスの実装（インターフェース定義）
   - [ ] 3.2.2 Path クラスの実装

@@ -128,17 +128,73 @@ export class Curve {
 
   /**
    * 曲線をtで分割し、2つのCurveに分ける
+   * paper.jsのde CasteljauアルゴリズムをTypeScriptで実装
    */
   divide(t: number): [Curve, Curve] {
-    // 実装はpaper.jsのアルゴリズムを参照
-    throw new Error('Not implemented');
+    if (t < 0 || t > 1) throw new Error('t must be in [0,1]');
+    const v = this.getValues();
+    const [left, right] = Curve.subdivide(v, t);
+
+    // left: [x0, y0, x4, y4, x7, y7, x9, y9]
+    // right: [x9, y9, x8, y8, x6, y6, x3, y3]
+    const seg1_left = new Segment(
+      new Point(left[0], left[1]),
+      new Point(left[2] - left[0], left[3] - left[1]), // handleOut
+      new Point(0, 0) // handleIn
+    );
+    const seg2_left = new Segment(
+      new Point(left[6], left[7]),
+      new Point(0, 0), // handleOut
+      new Point(left[4] - left[6], left[5] - left[7]) // handleIn
+    );
+    const seg1_right = new Segment(
+      new Point(right[0], right[1]),
+      new Point(right[2] - right[0], right[3] - right[1]), // handleOut
+      new Point(0, 0) // handleIn
+    );
+    const seg2_right = new Segment(
+      new Point(right[6], right[7]),
+      new Point(0, 0), // handleOut
+      new Point(right[4] - right[6], right[5] - right[7]) // handleIn
+    );
+    return [
+      new Curve(seg1_left, seg2_left),
+      new Curve(seg1_right, seg2_right)
+    ];
   }
 
   /**
    * tで分割し、前半部分のCurveを返す
    */
   split(t: number): Curve {
-    // 実装はpaper.jsのアルゴリズムを参照
-    throw new Error('Not implemented');
+    return this.divide(t)[0];
+  }
+
+  /**
+   * de Casteljau アルゴリズムによる分割
+   * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
+   * t: 分割位置 (0-1)
+   * 戻り値: [左側の制御点配列, 右側の制御点配列]
+   */
+  private static subdivide(v: number[], t: number): [number[], number[]] {
+    const x0 = v[0], y0 = v[1];
+    const x1 = v[2], y1 = v[3];
+    const x2 = v[4], y2 = v[5];
+    const x3 = v[6], y3 = v[7];
+    const u = 1 - t;
+    // 1次補間
+    const x4 = u * x0 + t * x1, y4 = u * y0 + t * y1;
+    const x5 = u * x1 + t * x2, y5 = u * y1 + t * y2;
+    const x6 = u * x2 + t * x3, y6 = u * y2 + t * y3;
+    // 2次補間
+    const x7 = u * x4 + t * x5, y7 = u * y4 + t * y5;
+    const x8 = u * x5 + t * x6, y8 = u * y5 + t * y6;
+    // 3次補間
+    const x9 = u * x7 + t * x8, y9 = u * y7 + t * y8;
+    // 左右の制御点配列
+    return [
+      [x0, y0, x4, y4, x7, y7, x9, y9],
+      [x9, y9, x8, y8, x6, y6, x3, y3]
+    ];
   }
 }
