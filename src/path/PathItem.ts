@@ -7,11 +7,22 @@
 
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
+import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import type { Path } from './Path';
 import type { CurveLocation } from './Curve';
 
 export interface PathItem {
+  /**
+   * 変換行列（paper.js互換）
+   * 内部キャッシュとして使用
+   */
+  _matrix?: Matrix;
+  
+  /**
+   * 行列が変更されたかどうかのフラグ
+   */
+  _matrixDirty?: boolean;
   /**
    * パスが閉じているかどうか
    */

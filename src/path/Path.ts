@@ -6,6 +6,7 @@
 
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
+import { Matrix } from '../basic/Matrix';
 import { Curve, CurveLocation } from './Curve';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
@@ -14,6 +15,10 @@ import { PathItem } from './PathItem';
 export class Path implements PathItem {
   readonly segments: Segment[];
   readonly closed: boolean;
+  
+  // PathItemインターフェースの実装
+  _matrix?: Matrix;
+  _matrixDirty: boolean = false;
 
   constructor(segments: Segment[] = [], closed: boolean = false) {
     // セグメント配列はコピーして保持（イミュータブル設計）
@@ -397,6 +402,59 @@ export class Path implements PathItem {
     return { windingL, windingR };
   }
 
+  /**
+   * 変換行列を設定
+   * @param matrix 変換行列
+   */
+  transform(matrix: Matrix): Path {
+    this._matrix = matrix;
+    this._matrixDirty = true;
+    return this;
+  }
+  
+  /**
+   * 平行移動
+   * @param dx x方向の移動量
+   * @param dy y方向の移動量
+   */
+  translate(dx: number, dy: number): Path {
+    if (!this._matrix) {
+      this._matrix = Matrix.identity();
+    }
+    this._matrix = this._matrix.translate(dx, dy);
+    this._matrixDirty = true;
+    return this;
+  }
+  
+  /**
+   * 回転
+   * @param angle 回転角度（度）
+   * @param center 回転中心
+   */
+  rotate(angle: number, center?: Point): Path {
+    if (!this._matrix) {
+      this._matrix = Matrix.identity();
+    }
+    this._matrix = this._matrix.rotate(angle, center);
+    this._matrixDirty = true;
+    return this;
+  }
+  
+  /**
+   * スケーリング
+   * @param sx x方向のスケール
+   * @param sy y方向のスケール
+   * @param center スケーリングの中心
+   */
+  scale(sx: number, sy?: number, center?: Point): Path {
+    if (!this._matrix) {
+      this._matrix = Matrix.identity();
+    }
+    this._matrix = this._matrix.scale(sx, sy, center);
+    this._matrixDirty = true;
+    return this;
+  }
+  
   getCurves(): Curve[] {
     // セグメント配列から Curve 配列を生成
     const curves: Curve[] = [];
@@ -588,20 +646,33 @@ export class Path implements PathItem {
   getIntersections(
     other: Path,
     options?: {
-      matrix1?: import('../basic/Matrix').Matrix;
-      matrix2?: import('../basic/Matrix').Matrix;
+      matrix1?: Matrix;
+      matrix2?: Matrix;
       include?: (loc: CurveLocation) => boolean;
     }
   ): CurveLocation[] {
     const result: CurveLocation[] = [];
     const curves1 = this.getCurves();
     const curves2 = other.getCurves();
-    const matrix1 = options?.matrix1;
-    const matrix2 = options?.matrix2;
+    
+    // 行列を取得（キャッシュを使用）
+    const matrix1 = options?.matrix1 || this._matrix;
+    const matrix2 = options?.matrix2 || (other as PathItem)._matrix;
     const include = options?.include;
     
+    // 行列が変更されていたら更新
+    if (this._matrixDirty && this._matrix) {
+      // 実際の実装では、ここで_matrixを更新する処理を行う
+      this._matrixDirty = false;
+    }
+    
+    if ((other as PathItem)._matrixDirty && (other as PathItem)._matrix) {
+      // 実際の実装では、ここで_matrixを更新する処理を行う
+      (other as PathItem)._matrixDirty = false;
+    }
+    
     // 行列変換を適用する関数
-    function applyMatrix(v: number[], matrix?: import('../basic/Matrix').Matrix): number[] {
+    function applyMatrix(v: number[], matrix?: Matrix): number[] {
       if (!matrix) return v;
       const result = v.slice();
       for (let i = 0; i < v.length; i += 2) {

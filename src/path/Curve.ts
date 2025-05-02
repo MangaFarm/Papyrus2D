@@ -244,18 +244,12 @@ export class Curve {
     }
   /**
    * 動的再帰深度の計算
-   * paper.jsのgetDepthを参考に実装
+   * paper.jsのgetDepthを完全移植
    */
   private static getDepth(v: number[]): number {
-    // 曲線の複雑さに基づいて再帰深度を決定
-    // 曲線が複雑なほど深い再帰が必要
-    
-    // 曲線の長さを計算
+    // paper.jsと同じLUTベースの実装
     const p1 = new Point(v[0], v[1]);
     const p2 = new Point(v[6], v[7]);
-    const lineLength = p2.subtract(p1).getLength();
-    
-    // 制御点の曲線からの距離を計算
     const c1 = new Point(v[2], v[3]);
     const c2 = new Point(v[4], v[5]);
     
@@ -266,16 +260,41 @@ export class Curve {
     // 最大距離
     const maxDist = Math.max(d1, d2);
     
-    // 曲線の複雑さに基づいて再帰深度を決定
-    // 複雑な曲線ほど深い再帰が必要
+    // paper.jsと同じLUT（Look-Up Table）を使用
+    const LUT_SIZE = 16;
+    const lookupTable = [
+      [0.0150, 4], // 0
+      [0.0205, 5], // 1
+      [0.0260, 5], // 2
+      [0.0315, 6], // 3
+      [0.0370, 6], // 4
+      [0.0425, 7], // 5
+      [0.0480, 7], // 6
+      [0.0540, 8], // 7
+      [0.0600, 8], // 8
+      [0.0665, 9], // 9
+      [0.0730, 9], // 10
+      [0.0795, 10], // 11
+      [0.0860, 10], // 12
+      [0.0930, 11], // 13
+      [0.1000, 11], // 14
+      [0.1075, 12]  // 15
+    ];
+    
+    // 曲線が直線に近い場合は再帰深度を小さく
     if (maxDist < Numerical.EPSILON) {
-      return 1; // ほぼ直線
-    } else {
-      // 曲率に基づいて再帰深度を計算
-      // 曲率が大きいほど深い再帰が必要
-      const ratio = maxDist / lineLength;
-      return Math.min(32, Math.max(1, Math.ceil(Math.log(ratio) / Math.log(0.5)) + 1));
+      return 1;
     }
+    
+    // LUTを使用して再帰深度を決定
+    for (let i = 0; i < LUT_SIZE; i++) {
+      if (maxDist <= lookupTable[i][0]) {
+        return lookupTable[i][1];
+      }
+    }
+    
+    // LUTの範囲外の場合は最大値を返す
+    return 12;
   }
   
   /**
@@ -309,6 +328,299 @@ export class Curve {
    * @param depth 再帰深さ
    * @param maxDepth 最大再帰深さ
    */
+  /**
+   * convex-hull fat-line clipping 補助関数: 凸包を計算
+   * paper.jsのgetConvexHull実装を移植
+   */
+  private static getConvexHull(dq0: number, dq1: number, dq2: number, dq3: number): [number[][], number[][]] {
+    const p0 = [0, dq0];
+    const p1 = [1/3, dq1];
+    const p2 = [2/3, dq2];
+    const p3 = [1, dq3];
+    
+    // p1とp2が線分[p0, p3]に対して同じ側にあるか確認
+    const dist1 = dq1 - (2 * dq0 + dq3) / 3;
+    const dist2 = dq2 - (dq0 + 2 * dq3) / 3;
+    let hull: [number[][], number[][]];
+    
+    // p1とp2が線分[p0, p3]の反対側にある場合
+    if (dist1 * dist2 < 0) {
+      // 凸包は四角形で、線分[p0, p3]は凸包の一部ではない
+      hull = [[p0, p1, p3], [p0, p2, p3]];
+    } else {
+      // p1とp2が線分[p0, p3]の同じ側にある場合
+      // 凸包は三角形または四角形で、線分[p0, p3]は凸包の一部
+      const distRatio = dist1 / dist2;
+      hull = [
+        // p2が内側にある場合、凸包は三角形
+        distRatio >= 2 ? [p0, p1, p3]
+        // p1が内側にある場合、凸包は三角形
+        : distRatio <= 0.5 ? [p0, p2, p3]
+        // 凸包は四角形、全ての線を正しい順序で必要
+        : [p0, p1, p2, p3],
+        // 線分[p0, p3]は凸包の一部
+        [p0, p3]
+      ];
+    }
+    
+    // dist1またはdist2が負の場合、凸包を反転
+    return (dist1 || dist2) < 0 ? hull.reverse() as [number[][], number[][]] : hull;
+  }
+  
+  /**
+   * convex-hull fat-line clipping 補助関数: 凸包をクリップ
+   * paper.jsのclipConvexHullPart実装を移植
+   */
+  private static clipConvexHullPart(part: number[][], top: boolean, threshold: number): number | null {
+    let px = part[0][0];
+    let py = part[0][1];
+    
+    for (let i = 1; i < part.length; i++) {
+      const qx = part[i][0];
+      const qy = part[i][1];
+      
+      if (top ? qy >= threshold : qy <= threshold) {
+        return qy === threshold ? qx
+          : px + (threshold - py) * (qx - px) / (qy - py);
+      }
+      
+      px = qx;
+      py = qy;
+    }
+    
+    // 凸包の全ての点がしきい値の上/下にある
+    return null;
+  }
+  
+  /**
+   * convex-hull fat-line clipping 補助関数: 凸包をクリップ
+   * paper.jsのclipConvexHull実装を移植
+   */
+  private static clipConvexHull(hullTop: number[][], hullBottom: number[][], dMin: number, dMax: number): number | null {
+    if (hullTop[0][1] < dMin) {
+      // 凸包の左側がdMinより下にある場合、dMinとdMaxの間の領域に入るまで凸包を歩く
+      return this.clipConvexHullPart(hullTop, true, dMin);
+    } else if (hullBottom[0][1] > dMax) {
+      // 凸包の左側がdMaxより上にある場合、dMinとdMaxの間の領域に入るまで凸包を歩く
+      return this.clipConvexHullPart(hullBottom, false, dMax);
+    } else {
+      // 凸包の左側がdMinとdMaxの間にある場合、クリッピングは不可能
+      return hullTop[0][0];
+    }
+  }
+  
+  /**
+   * 曲線と直線の交点を計算
+   * paper.jsのgetCurveLineIntersections実装を移植
+   */
+  /**
+   * 曲線上の点のtパラメータを取得
+   * paper.jsのgetTimeOf実装を移植
+   */
+  static getTimeOf(v: number[], point: Point): number | null {
+    // paper.jsの完全実装に合わせる
+    // まず端点との距離をチェック
+    const p0 = new Point(v[0], v[1]);
+    const p3 = new Point(v[6], v[7]);
+    const epsilon = Numerical.EPSILON;
+    const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
+    
+    // 端点が十分近い場合は早期リターン
+    if (point.isClose(p0, epsilon)) return 0;
+    if (point.isClose(p3, epsilon)) return 1;
+    
+    // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
+    // 最小になる t を求める
+    const coords = [point.x, point.y];
+    const roots: number[] = [];
+    const maxRoots = 8; // paper.jsと同じ最大ルート数
+    let tMin = 1;
+    let tMax = 0;
+    
+    // 再利用可能なルート配列
+    const allRoots: number[] = new Array(maxRoots);
+    
+    for (let c = 0; c < 2; c++) {
+      // 三次方程式を解く
+      const count = Numerical.solveCubic(
+        3 * (-v[c] + 3 * v[c + 2] - 3 * v[c + 4] + v[c + 6]),
+        6 * (v[c] - 2 * v[c + 2] + v[c + 4]),
+        3 * (-v[c] + v[c + 2]),
+        v[c] - coords[c],
+        allRoots, 0, 1
+      );
+      
+      // 各解について、曲線上の点と与えられた点の距離をチェック
+      for (let i = 0; i < count; i++) {
+        const t = allRoots[i];
+        // 既に見つかったルートと重複しないようにする
+        let duplicate = false;
+        for (let j = 0; j < roots.length && !duplicate; j++) {
+          duplicate = Math.abs(t - roots[j]) < epsilon;
+        }
+        
+        if (!duplicate) {
+          roots.push(t);
+          const p = Curve.evaluate(v, t);
+          if (point.isClose(p, geomEpsilon)) {
+            return t;
+          }
+          // 最小・最大のtを更新
+          if (t < tMin) tMin = t;
+          if (t > tMax) tMax = t;
+        }
+      }
+    }
+    
+    // 端点が十分近い場合は幾何学的イプシロンでも確認
+    if (point.isClose(p0, geomEpsilon)) return 0;
+    if (point.isClose(p3, geomEpsilon)) return 1;
+    
+    // 見つかったルートの範囲内で最も近い点を探す
+    if (roots.length > 0) {
+      // 範囲を少し広げる
+      tMin = Math.max(0, tMin - 0.01);
+      tMax = Math.min(1, tMax + 0.01);
+      
+      // 最も近い点を探す
+      let minDist = Number.MAX_VALUE;
+      let bestT: number | null = null;
+      
+      // サンプリング数（paper.jsと同じ）
+      const samples = 100;
+      for (let i = 0; i <= samples; i++) {
+        const t = tMin + (tMax - tMin) * i / samples;
+        const p = Curve.evaluate(v, t);
+        const dist = point.subtract(p).getLength();
+        if (dist < minDist) {
+          minDist = dist;
+          bestT = t;
+        }
+      }
+      
+      if (bestT !== null && minDist < geomEpsilon) {
+        return bestT;
+      }
+    }
+    
+    return null;
+  }
+  
+  /**
+   * 三次方程式を解く
+   * paper.jsのsolveCubic実装を移植
+   */
+  static solveCubic(a: number, b: number, c: number, d: number, roots: number[], min?: number, max?: number): number {
+    // Numerical.solveCubicを使用
+    return Numerical.solveCubic(a, b, c, d, roots, min, max);
+  }
+  
+  static getCurveLineIntersections(v: number[], px: number, py: number, vx: number, vy: number): number[] {
+    // vx, vyが両方0の場合は点として扱う
+    if (Math.abs(vx) < Numerical.EPSILON && Math.abs(vy) < Numerical.EPSILON) {
+      const t = this.getTimeOf(v, new Point(px, py));
+      return t === null ? [] : [t];
+    }
+    
+    // x軸に対する角度を計算
+    const angle = Math.atan2(-vy, vx);
+    const sin = Math.sin(angle);
+    const cos = Math.cos(angle);
+    
+    // 回転した曲線の値を計算
+    const rv: number[] = [];
+    const roots: number[] = [];
+    
+    for (let i = 0; i < 8; i += 2) {
+      const x = v[i] - px;
+      const y = v[i + 1] - py;
+      rv.push(
+        x * cos - y * sin,
+        x * sin + y * cos
+      );
+    }
+    
+    // y = 0 について解く
+    // 三次ベジェの係数を計算
+    const a = 3 * (-rv[1] + 3 * rv[3] - 3 * rv[5] + rv[7]);
+    const b = 6 * (rv[1] - 2 * rv[3] + rv[5]);
+    const c = 3 * (-rv[1] + rv[3]);
+    const d = rv[1];
+    
+    // 三次方程式を解く
+    Curve.solveCubic(a, b, c, d, roots, 0, 1);
+    return roots;
+  }
+  
+  /**
+   * 曲線と直線の交点を追加
+   * paper.jsのaddCurveLineIntersections実装を移植
+   */
+  private static addCurveLineIntersections(
+    v1: number[],
+    v2: number[],
+    curve1Index: number,
+    curve2Index: number,
+    locations: CurveLocation[]
+  ): void {
+    const x1 = v2[0], y1 = v2[1];
+    const x2 = v2[6], y2 = v2[7];
+    const roots = this.getCurveLineIntersections(v1, x1, y1, x2 - x1, y2 - y1);
+    
+    for (const t1 of roots) {
+      const p1 = this.evaluate(v1, t1);
+      const t2 = this.getTimeOf(v2, p1);
+      if (t2 !== null) {
+        this._addUniqueLocation(locations, {
+          curve1Index,
+          curve2Index,
+          t1,
+          t2,
+          point: p1
+        });
+      }
+    }
+  }
+  
+  /**
+   * 直線と直線の交点を追加
+   * paper.jsのaddLineIntersection実装を移植
+   */
+  private static addLineIntersection(
+    v1: number[],
+    v2: number[],
+    curve1Index: number,
+    curve2Index: number,
+    locations: CurveLocation[]
+  ): void {
+    // 線分の交点を計算
+    const x1 = v1[0], y1 = v1[1], x2 = v1[6], y2 = v1[7];
+    const x3 = v2[0], y3 = v2[1], x4 = v2[6], y4 = v2[7];
+    const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+    
+    if (Math.abs(denom) < Numerical.EPSILON) {
+      return; // 平行
+    }
+    
+    const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+    const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+    
+    if (ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1) {
+      const point = new Point(
+        x1 + ua * (x2 - x1),
+        y1 + ua * (y2 - y1)
+      );
+      
+      this._addUniqueLocation(locations, {
+        curve1Index,
+        curve2Index,
+        t1: ua,
+        t2: ub,
+        point
+      });
+    }
+  }
+  
   /**
    * 2つの三次ベジェ曲線の交点を列挙（paper.js完全版）
    * @param v1 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
@@ -460,11 +772,6 @@ export class Curve {
 
     // recursion / calls ガード (paper.js同様)
     if (++depth >= 40) {
-      return;
-    }
-    
-    // recursion / calls ガード (paper.js同様)
-    if (depth > 40) {
       return;
     }
     

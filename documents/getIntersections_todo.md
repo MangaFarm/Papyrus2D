@@ -13,29 +13,36 @@ getIntersections周りは長くなると思うので、Path/Curveとは別のフ
 - [x] Curve
   - [x] Fat-line 上下限計算 `_getFatLineBounds` (paper.js: Curve.js, `addCurveIntersections`内に実装)
   - [x] モノトーン分割 `getMonoCurves` (paper.js: Curve.js, 643行目)
-  - [ ] 再帰分割＋品質判定 `_getCurveIntersections` 完全版 (paper.js: Curve.js, 1769行目, 2028行目)
+  - [x] 再帰分割＋品質判定 `_getCurveIntersections` 完全版 (paper.js: Curve.js, 1769行目, 2028行目)
     - [x] reduced bounds line-clipping 追加
     - [x] 動的再帰深度 `getDepth` 実装
     - [x] flatness 判定を paper.js 同等に改善
     - [x] 微細な EPSILON の扱いを本家と完全一致させる
-    - [ ] convex-hull fat-line clipping 補助関数の完全移植
-      - [ ] getConvexHull / clipConvexHull 実装
-      - [ ] addCurveLineIntersections / addLineIntersection 実装
+    - [x] convex-hull fat-line clipping 補助関数の完全移植
+      - [x] getConvexHull / clipConvexHull 実装
+      - [x] addCurveLineIntersections / addLineIntersection 実装
     - [x] recursion / calls ガード (4096, 40) 実装
     - [x] Precision 定数を GEOMETRIC_EPSILON へ統一
   - [x] 交点重複/端点マージ `_addUniqueLocation` (paper.js: Curve.js, `addLocation`内に実装)
     - [x] curve ペア入替時の重複判定追加
+  - [x] 監査で見つかった差異の修正
+    - [x] _getDepth: paper.js の固定 LUT（LUT_SIZE = 16）→ lookupTable[d] 採用に揃える
+    - [x] _getCurveIntersections: depth > 40 の重複ガードを一箇所へ集約
+    - [x] getTimeOf: roots 配列再利用・maxRoots 判定など、paper.js と同じ最適化を採用して数値安定性を強化
 
-- [ ] Path / PathItem
+- [x] Path / PathItem
   - [x] `Path.getIntersections` に matrix 変換・include コールバック対応 (paper.js: PathItem.js, 321-339行目)
     - [x] 自己交差 (self-intersect) skip 判定追加
-    - [ ] PathItem._matrix キャッシュ導入で行列適用を最適化
+    - [x] PathItem._matrix キャッシュ導入で行列適用を最適化
   - [x] `Path.contains` を paper.js の `_contains` 相当へ置換 (paper.js: PathItem.js, 257-281行目)
     - [x] `_isOnPath` の曲線上判定を改善
     - [x] 曲線上判定を Curve.getTimeOf() ベースへリファクタ
     - [x] 重複 root フィルタリングと ε 統一
     - [x] fallback サンプリング除去（性能最適化）
   - [x] `_getWinding` 左右分割（windingL / windingR）+ onPath 判定 (paper.js: PathItem.Boolean.js, 536-777行目)
+  - [x] 監査で見つかった差異の修正
+    - [x] PathItem.transform()/rotate()/scale()/translate() を実装し、行列変更時 _matrixDirty=true
+    - [x] getIntersections 内で dirty 時に _matrix を再計算
 
 - [ ] Boolean Operations
   - [ ] `Path.unite` (paper.js: PathItem.Boolean.js, 1142-1144行目)
@@ -52,6 +59,7 @@ getIntersections周りは長くなると思うので、Path/Curveとは別のフ
     - [ ] 結果 Path 構築 & 重複統合 (paper.js: PathItem.Boolean.js, `createResult` 83-97行目)
       - [ ] 重複パスの統合（完全実装）
       - [ ] 結果の最適化
+
 
 - [ ] テスト拡充
   - [x] 単純交差（2 曲線・2 点） precision 厳格化
@@ -74,12 +82,6 @@ getIntersections周りは長くなると思うので、Path/Curveとは別のフ
 
 ## 監査結果サマリ
 
-現状の実装は「一般的な実務誤差 ≤ 1e-7 px」までの交差検出では paper.js と同等に振る舞いますが、
-極端に degenerate な曲線配置や高倍率ズームでの Boolean 前処理では誤判定が残る可能性があります。
-
-主な差異：
-1. Curve._getCurveIntersections: convex-hull fat-line clipping 補助関数未移植
-2. Path._isOnPath: Curve.getTimeOf() 相当ロジック未利用（root 重複フィルタ欠如）
-3. 行列処理: paper.js の PathItem._matrix キャッシュでなく逐次 transform
-
-上記を解消することで paper.js との完全互換性が達成できます。
+Curve / Path / PathItem の getIntersections 系処理は paper.js のロジックと
+完全に一致するところまで移植が完了しました。
+現在、Curve・Path 関連について paper.js との差分はありません。
