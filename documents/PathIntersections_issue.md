@@ -15,8 +15,35 @@
 
 ## Path.getIntersections と paper.js の getIntersections の違い
 
+Papyrus2DのPath.getIntersectionsとpaper.jsのPathItem.getIntersectionsを比較した結果、以下の違いが見つかりました：
 
+1. **交点情報の構造の違い**:
+   - paper.jsでは、交点情報は`CurveLocation`クラスのインスタンスとして作成され、相互参照が設定されます。
+   - Papyrus2Dでは、交点情報はインターフェースとして定義され、オブジェクトリテラルとして作成されています。
 
+2. **曲線インデックスの設定タイミング**:
+   - paper.jsでは、交点が見つかった時点で`CurveLocation`オブジェクトが作成され、後から曲線インデックスが設定されます。
+   - Papyrus2Dでは、`getCurveIntersections`関数内で交点が見つかった後、曲線インデックスを設定していますが、一部のケースで設定されていない可能性があります。
+
+3. **行列変換の処理**:
+   - paper.jsでは、交点計算後に元の座標系に戻す処理が行われていますが、Papyrus2Dでは一部のケースでこの処理が不完全です。
+   - 特に、`addCurveIntersections`関数内で行列変換を適用した後の逆変換処理が不足しています。
+
+4. **自己交差の処理**:
+   - paper.jsでは自己交差の検出が完全に実装されていますが、Papyrus2Dでは一部のケースで検出できていない可能性があります。
+   - 特に、`getSelfIntersection`関数の呼び出し後の処理に違いがあります。
+
+5. **境界ボックスの計算と交差判定**:
+   - paper.jsでは境界ボックスの交差判定が厳密に行われていますが、Papyrus2Dでは一部のケースで判定が不正確な可能性があります。
+   - `CollisionDetection.findCurveBoundsCollisions`の結果の処理方法に違いがあります。
+
+6. **端点の処理**:
+   - paper.jsでは端点の特別な処理が行われていますが、Papyrus2Dでは一部のケースでこの処理が不完全です。
+   - 特に、隣接する曲線の端点の処理に違いがあります。
+
+7. **数値計算の精度と安定性**:
+   - paper.jsでは数値計算の安定性を確保するための処理が多く含まれていますが、Papyrus2Dでは一部の処理が簡略化されています。
+   - 特に、`fatLineEpsilon`などの定数の使用方法に違いがあります。
 
 ## 修正方針
 
