@@ -16,12 +16,12 @@
 
 ## フェーズ2: 基本クラスの実装
 - [ ] 2.1 基本的な幾何学クラスの実装
-  - [ ] 2.1.1 Point クラス（イミュータブル設計）
-    - [ ] コンストラクタと基本プロパティ
-    - [ ] ベクトル操作メソッド（add, subtract, multiply, divide）
-    - [ ] ベクトル情報メソッド（getLength, getAngle）
-    - [ ] 変換メソッド（rotate, normalize）
-  - [ ] 2.1.2 Size クラス（イミュータブル設計）
+  - [x] 2.1.1 Point クラス（イミュータブル設計）
+    - [x] コンストラクタと基本プロパティ
+    - [x] ベクトル操作メソッド（add, subtract, multiply, divide）
+    - [x] ベクトル情報メソッド（getLength, getAngle）
+    - [x] 変換メソッド（rotate, normalize）
+  - [x] 2.1.2 Size クラス（イミュータブル設計）
   - [ ] 2.1.3 Rectangle クラス（イミュータブル設計）
     - [ ] 複数のコンストラクタ形式サポート
     - [ ] 計算プロパティ（center, topLeft, width など）
@@ -37,7 +37,7 @@
     - [ ] 方程式ソルバー（solveQuadratic, solveCubic）
     - [ ] その他のヘルパー関数（getNormalizationFactor など）
 - [ ] 2.3 基本クラスのテスト作成
-  - [ ] 2.3.1 すべての基本クラスのユニットテスト（Rectangle.test.js の実装完了、残りを実装中）
+  - [ ] 2.3.1 すべての基本クラスのユニットテスト（Point.test.ts, Size.test.ts 実装完了、残りを実装中）
   - [ ] 2.3.2 エッジケースのテスト
 
 ## フェーズ3: パス関連クラスの実装
@@ -61,9 +61,9 @@
   - [ ] 3.3.1 パス生成ファクトリメソッド（Circle, Rectangle, Star など）
   - [ ] 3.3.2 パス変換メソッド
 - [ ] 3.4 パスクラスのテスト作成
-  - [ ] 3.4.1 Segmentのユニットテスト（Segment.test.js の実装完了）
-  - [ ] 3.4.2 Curveのユニットテスト（Curve.test.js の実装完了）
-  - [ ] 3.4.3 Pathのユニットテスト（Path.test.js の実装完了）
+  - [ ] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
+  - [ ] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
+  - [ ] 3.4.3 Pathのユニットテスト（Path.test.ts の実装完了）
   - [ ] 3.4.4 その他のパスクラスのユニットテスト
 
 ## フェーズ4: ブーリアン演算の実装
