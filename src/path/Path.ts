@@ -35,18 +35,39 @@ export class Path implements PathItem {
     return this.getCurves().reduce((sum, curve) => sum + curve.getLength(), 0);
   }
 
-  getBounds(): Rectangle {
+  /**
+   * パスの境界ボックスを取得
+   * paper.jsのItem.getBoundsメソッドに相当
+   * @param matrix 変換行列（オプション）
+   * @returns 境界ボックス
+   */
+  getBounds(matrix?: Matrix): Rectangle {
     // paper.jsのCurve._addBoundsロジックを移植
-    return this._computeBounds(0);
+    let bounds = this._computeBounds(0);
+    
+    // 行列変換がある場合は適用
+    if (matrix) {
+      bounds = bounds.transform(matrix);
+    }
+    
+    return bounds;
   }
 
   /**
    * paper.jsそっくりのストローク境界計算
    * @param strokeWidth 線幅
+   * @param matrix 変換行列（オプション）
    */
-  getStrokeBounds(strokeWidth: number): Rectangle {
+  getStrokeBounds(strokeWidth: number, matrix?: Matrix): Rectangle {
     // strokeWidth/2をpaddingとしてAABB拡張
-    return this._computeBounds(strokeWidth / 2);
+    let bounds = this._computeBounds(strokeWidth / 2);
+    
+    // 行列変換がある場合は適用
+    if (matrix) {
+      bounds = bounds.transform(matrix);
+    }
+    
+    return bounds;
   }
 
   /**
@@ -648,31 +669,51 @@ export class Path implements PathItem {
    * @param options.include 交点をフィルタリングするコールバック関数
    * @returns 交点情報の配列
    */
+  /**
+   * 他のパスとの交点を取得
+   * paper.jsのPathItem.getIntersectionsメソッドに相当
+   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
+   * @param include 交点をフィルタリングするコールバック関数
+   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
+   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
+   * @returns 交点情報の配列
+   */
   getIntersections(
-    path: Path,
-    options?: { include?: (loc: CurveLocation) => boolean }
+    path?: Path,
+    includeParam?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
+    _matrix?: Matrix,
+    _returnFirst?: boolean
   ): CurveLocation[] {
-    // paper.jsのPathItem.getIntersectionsを移植
-    const self = this === path || !path; // 自己交差判定
-    const matrix1 = this._matrix;
-    const matrix2 = self ? matrix1 : path._matrix;
-
-    // Paper.jsと同様に、まず境界ボックスが交差するかチェック
-    // 交差しない場合は早期に空の配列を返す
-    if (!self) {
-      const bounds1 = this.getBounds();
-      const bounds2 = path.getBounds();
-      if (!bounds1.intersects(bounds2, Numerical.EPSILON)) {
-        return [];
+    // paper.jsのPathItem.getIntersectionsを完全移植
+    // includeパラメータの処理: オブジェクトまたは関数として受け取れるようにする
+    let include: ((loc: CurveLocation) => boolean) | undefined;
+    
+    if (includeParam) {
+      if (typeof includeParam === 'function') {
+        include = includeParam;
+      } else if (typeof includeParam === 'object' && 'include' in includeParam && typeof includeParam.include === 'function') {
+        include = includeParam.include;
       }
     }
-
-    return Curve.getIntersections(
-      this.getCurves(),
-      !self ? path.getCurves() : null,
-      options?.include,
-      matrix1,
-      matrix2
-    );
+    
+    // 自己交差判定: pathが未指定またはthisと同じ場合
+    const self = this === path || !path;
+    
+    // 行列の取得（paper.jsと同様に_orNullIfIdentity()を使用）
+    const matrix1 = this._matrix?._orNullIfIdentity();
+    const matrix2 = self ? matrix1 : (_matrix?._orNullIfIdentity() || (path && path._matrix?._orNullIfIdentity()));
+    
+    // 境界ボックスの交差判定
+    // 自己交差の場合はスキップ
+    return self || this.getBounds(matrix1).intersects(
+      path && path.getBounds(matrix2), Numerical.GEOMETRIC_EPSILON)
+      ? Curve.getIntersections(
+          this.getCurves(),
+          !self && path ? path.getCurves() : null,
+          include,
+          matrix1,
+          matrix2,
+          _returnFirst)
+      : [];
   }
 }

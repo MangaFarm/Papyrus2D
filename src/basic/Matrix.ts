@@ -296,4 +296,12 @@ export class Matrix {
   applyToContext(_ctx: unknown): void {
     // レンダリング非対応
   }
+
+  /**
+   * 単位行列の場合はnullを返し、そうでない場合は行列自身を返す
+   * paper.jsの_orNullIfIdentity()メソッドに相当
+   */
+  _orNullIfIdentity(): Matrix | undefined {
+    return this.isIdentity() ? undefined : this;
+  }
 }

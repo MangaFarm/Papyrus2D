@@ -103,7 +103,15 @@ export class Rectangle {
    * @param rect 判定対象の矩形
    * @param epsilon 許容誤差（デフォルトは0）
    */
-  intersects(rect: Rectangle, epsilon: number = 0): boolean {
+  /**
+   * 他の矩形と交差しているか判定
+   * @param rect 判定対象の矩形（nullの場合は常にfalseを返す）
+   * @param epsilon 許容誤差（デフォルトは0）
+   */
+  intersects(rect: Rectangle | null | undefined, epsilon: number = 0): boolean {
+    // rectがnullまたはundefinedの場合は常にfalseを返す
+    if (!rect) return false;
+    
     return !(
       rect.x > this.x + this.width + epsilon ||
       rect.x + rect.width < this.x - epsilon ||
@@ -120,6 +128,29 @@ export class Rectangle {
     const y1 = Math.min(this.y, rect.y);
     const x2 = Math.max(this.x + this.width, rect.x + rect.width);
     const y2 = Math.max(this.y + this.height, rect.y + rect.height);
+    return new Rectangle(x1, y1, x2 - x1, y2 - y1);
+  }
+
+  /**
+   * 行列変換を適用した新しい矩形を返す
+   * paper.jsの実装に基づく
+   * @param matrix 適用する変換行列
+   */
+  transform(matrix: import('./Matrix').Matrix): Rectangle {
+    // paper.jsのItem._getBoundsメソッドの実装に基づく
+    // 矩形の4つの角を変換し、それらを含む最小の矩形を返す
+    const topLeft = matrix.transform(this.topLeft);
+    const topRight = matrix.transform(new Point(this.x + this.width, this.y));
+    const bottomLeft = matrix.transform(new Point(this.x, this.y + this.height));
+    const bottomRight = matrix.transform(this.bottomRight);
+    
+    // 変換後の4点から最小と最大の座標を求める
+    const x1 = Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const y1 = Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+    const x2 = Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
+    const y2 = Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
+    
+    // 新しい矩形を作成して返す
     return new Rectangle(x1, y1, x2 - x1, y2 - y1);
   }
 }

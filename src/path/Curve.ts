@@ -1,13 +1,14 @@
 /**
  * CurveLocation: 曲線上の位置情報（交点、端点など）
+ * paper.jsのCurveLocationクラスに相当
  */
 export interface CurveLocation {
   // 基本情報
-  curve1Index: number;
-  curve2Index: number;
-  t1: number;
-  t2: number;
-  point: import('../basic/Point').Point;
+  curve1Index: number;  // 曲線1のインデックス
+  curve2Index: number;  // 曲線2のインデックス
+  t1: number | null;    // 曲線1上のパラメータ
+  t2: number | null;    // 曲線2上のパラメータ
+  point: import('../basic/Point').Point;  // 交点の座標
   
   // 追加情報（重複判定・端点マージ用）
   overlap?: boolean;  // 重複フラグ
@@ -613,8 +614,8 @@ export class Curve {
     curves1: Curve[],
     curves2: Curve[] | null,
     include?: (loc: CurveLocation) => boolean,
-    matrix1?: Matrix | null,
-    matrix2?: Matrix | null,
+    matrix1?: Matrix,
+    matrix2?: Matrix,
     _returnFirst?: boolean
   ): CurveLocation[] {
     const epsilon = Numerical.GEOMETRIC_EPSILON;
@@ -699,12 +700,24 @@ export class Curve {
                 
                 // 交点情報を更新
                 if (loc.t1 !== null && loc.t2 !== null) {
+                  // 曲線インデックスを設定
+                  // paper.jsと同様に、交点が見つかった後に曲線インデックスを設定
+                  loc.curve1Index = index1;
+                  loc.curve2Index = index2;
+                  
                   // 交点の位置を正確に計算
+                  // paper.jsと同様に、行列変換を適用した場合は元の座標系に戻す
                   if (matrix1) {
                     // 行列変換を適用した場合は、元の座標系に戻す
                     const invMatrix1 = matrix1.invert();
                     if (invMatrix1) {
                       loc.point = invMatrix1.transform(loc.point);
+                    }
+                  } else if (matrix2) {
+                    // matrix1がなくmatrix2がある場合も処理
+                    const invMatrix2 = matrix2.invert();
+                    if (invMatrix2) {
+                      loc.point = invMatrix2.transform(loc.point);
                     }
                   }
                 }

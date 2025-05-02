@@ -21,15 +21,13 @@ export function getSelfIntersection(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
+  // paper.jsと完全に同じ実装
   const info = Curve.classify(v1);
   if (info.type === 'loop' && info.roots) {
-    // ループ曲線の場合、自己交差点を追加
-    // Paper.jsと同様に、overlapパラメータを省略（デフォルトはfalse）
     addLocation(locations, include,
       c1, info.roots[0],
       c1, info.roots[1]);
   }
-  
   return locations;
 }
 
@@ -57,16 +55,26 @@ export function addLocation(
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
   
-  // 範囲チェック
+  // 範囲チェック - paper.jsと同様の条件判定
   if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
     if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) && t2 <= (excludeStart ? tMax : 1)) {
       // 交点の座標を計算
-      const point = t1 !== null ? c1.getPointAt(t1) : new Point(0, 0);
+      // t1がnullの場合はt2を使用して計算
+      let point: Point;
+      if (t1 !== null) {
+        point = c1.getPointAt(t1);
+      } else if (t2 !== null) {
+        point = c2.getPointAt(t2);
+      } else {
+        point = new Point(0, 0);
+      }
       
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
+      // paper.jsでは、交点が見つかった時点でCurveLocationオブジェクトが作成され、
+      // 後から曲線インデックスが設定される
       const loc1: CurveLocation = {
-        curve1Index: -1, // 後で設定
-        curve2Index: -1, // 後で設定
+        curve1Index: -1, // 後でCurve.getIntersectionsで設定
+        curve2Index: -1, // 後でCurve.getIntersectionsで設定
         t1,
         t2,
         point,
@@ -74,8 +82,8 @@ export function addLocation(
       };
       
       const loc2: CurveLocation = {
-        curve1Index: -1, // 後で設定
-        curve2Index: -1, // 後で設定
+        curve1Index: -1, // 後でCurve.getIntersectionsで設定
+        curve2Index: -1, // 後でCurve.getIntersectionsで設定
         t1: t2,
         t2: t1,
         point,
@@ -242,17 +250,24 @@ export function getCurveIntersections(
       // 直線同士の交点が見つからなかった場合や、曲線の場合は端点のチェックを行う
       if (!straight || locations.length === before) {
         // 各曲線の端点をチェック
-        for (let i = 0; i < 4; i++) {
-          const t1 = i >> 1;  // 0, 0, 1, 1
-          const t2 = i & 1;   // 0, 1, 0, 1
-          const i1 = t1 * 6;  // 0, 0, 6, 6
-          const i2 = t2 * 6;  // 0, 6, 0, 6
-          const p1 = new Point(v1[i1], v1[i1 + 1]);
-          const p2 = new Point(v2[i2], v2[i2 + 1]);
-          
-          if (p1.isClose(p2, epsilon)) {
-            addLocation(locations, include, c1, t1, c2, t2);
-          }
+        // paper.jsと同様に、c1.getPoint1()などを使用
+        const c1p1 = c1.getPointAt(0);
+        const c1p2 = c1.getPointAt(1);
+        const c2p1 = c2.getPointAt(0);
+        const c2p2 = c2.getPointAt(1);
+        
+        // paper.jsと同様に、isClose()メソッドを使用して端点が近接しているかをチェック
+        if (c1p1.isClose(c2p1, epsilon)) {
+          addLocation(locations, include, c1, 0, c2, 0, true);
+        }
+        if (c1p1.isClose(c2p2, epsilon)) {
+          addLocation(locations, include, c1, 0, c2, 1, true);
+        }
+        if (c1p2.isClose(c2p1, epsilon)) {
+          addLocation(locations, include, c1, 1, c2, 0, true);
+        }
+        if (c1p2.isClose(c2p2, epsilon)) {
+          addLocation(locations, include, c1, 1, c2, 1, true);
         }
       }
     }
@@ -571,8 +586,9 @@ function addCurveIntersections(
   if (++calls >= 4096 || ++recursion >= 40)
     return calls;
   
-  // CURVETIME_EPSILONより小さいイプシロンを使用して、fat-lineクリッピングコードで
-  // 曲線時間パラメータを比較
+  // paper.jsと同様に、CURVETIME_EPSILONより小さいイプシロンを使用して、
+  // fat-lineクリッピングコードで曲線時間パラメータを比較
+  // 数値計算の安定性を確保するために重要
   const fatLineEpsilon = 1e-9;
   
   // PをQ（第2曲線）のfat-lineでクリッピング
@@ -613,12 +629,23 @@ function addCurveIntersections(
   }
   
   // dMinとdMaxで凸包をクリップし、結果の1つがnullの場合は交点がないことを考慮
+  // paper.jsと完全に同じ実装にする
+  // 特に、top.reverse()とbottom.reverse()を使用する部分を修正
+  // paper.jsでは、top.reverse()とbottom.reverse()を使用しているが、
+  // TypeScriptでは不変性を保つためにslice()を使用している
+  // しかし、この場合はtopとbottomは一時的な変数なので、直接変更しても問題ない
   tMinClip = clipConvexHull(top, bottom, dMin, dMax);
   if (tMinClip === null) {
     return calls;
   }
   
-  tMaxClip = clipConvexHull(top.slice().reverse(), bottom.slice().reverse(), dMin, dMax);
+  // 配列を反転
+  top.reverse();
+  bottom.reverse();
+  tMaxClip = clipConvexHull(top, bottom, dMin, dMax);
+  // 元に戻す（念のため）
+  top.reverse();
+  bottom.reverse();
   if (tMaxClip === null) {
     return calls;
   }
@@ -627,6 +654,8 @@ function addCurveIntersections(
   const tMinNew = tMin + (tMax - tMin) * tMinClip;
   const tMaxNew = tMin + (tMax - tMin) * tMaxClip;
   
+  // paper.jsと同様の条件判定
+  // 数値計算の安定性を確保するために、閾値の比較を厳密に行う
   if (Math.max(uMax - uMin, tMaxNew - tMinNew) < fatLineEpsilon) {
     // 十分な精度で交点を分離した
     const t = (tMinNew + tMaxNew) / 2;
