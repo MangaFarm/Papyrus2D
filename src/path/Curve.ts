@@ -2,30 +2,6 @@
  * CurveLocation: 曲線上の位置情報（交点、端点など）
  * paper.jsのCurveLocationクラスに相当
  */
-export interface CurveLocation {
-  // 基本情報
-  curve1Index: number;  // 曲線1のインデックス
-  curve2Index: number;  // 曲線2のインデックス
-  t1: number | null;    // 曲線1上のパラメータ
-  t2: number | null;    // 曲線2上のパラメータ
-  point: import('../basic/Point').Point;  // 交点の座標
-  
-  // 追加情報（重複判定・端点マージ用）
-  overlap?: boolean;  // 重複フラグ
-  distance?: number;  // 距離（近接判定用）
-  tangent?: boolean;  // 接線共有フラグ
-  onPath?: boolean;   // パス上フラグ
-  
-  // Paper.jsと同様のプロパティ（交点の相互参照用）
-  _intersection?: CurveLocation; // 対応する交点
-  _next?: CurveLocation;         // 連結リスト用
-  _previous?: CurveLocation;     // 連結リスト用
-}
-/**
- * Curveクラス: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
- * - paper.jsのCurveクラスAPIを参考に設計
- * - イミュータブル設計
- */
 
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
@@ -34,6 +10,56 @@ import { Numerical } from '../util/Numerical';
 import { CollisionDetection } from './CollisionDetection';
 import { getSelfIntersection, getCurveIntersections } from './CurveIntersections';
 
+export class CurveLocation {
+  // 基本情報
+  curve1Index: number = -1;  // 曲線1のインデックス
+  curve2Index: number = -1;  // 曲線2のインデックス
+  t1: number | null;         // 曲線1上のパラメータ
+  t2: number | null;         // 曲線2上のパラメータ
+  point: Point;              // 交点の座標
+  
+  // 追加情報（重複判定・端点マージ用）
+  overlap: boolean;          // 重複フラグ
+  distance?: number;         // 距離（近接判定用）
+  tangent?: boolean;         // 接線共有フラグ
+  onPath?: boolean;          // パス上フラグ
+  
+  // Paper.jsと同様のプロパティ（交点の相互参照用）
+  _intersection?: CurveLocation; // 対応する交点
+  _next?: CurveLocation;         // 連結リスト用
+  _previous?: CurveLocation;     // 連結リスト用
+
+  constructor(
+    curve1: Curve | null,
+    t1: number | null,
+    curve2: Curve | null,
+    t2: number | null,
+    point?: Point | null,
+    overlap: boolean = false
+  ) {
+    this.t1 = t1;
+    this.t2 = t2;
+    
+    // paper.jsと同様に、pointがnullの場合は自動的に計算
+    if (point) {
+      this.point = point;
+    } else if (t1 !== null && curve1) {
+      this.point = curve1.getPointAt(t1);
+    } else if (t2 !== null && curve2) {
+      this.point = curve2.getPointAt(t2);
+    } else {
+      this.point = new Point(0, 0);
+    }
+    
+    this.overlap = overlap;
+  }
+}
+
+/**
+ * Curveクラス: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
+ * - paper.jsのCurveクラスAPIを参考に設計
+ * - イミュータブル設計
+ */
 export class Curve {
   readonly segment1: Segment;
   readonly segment2: Segment;

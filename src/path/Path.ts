@@ -706,7 +706,7 @@ export class Path implements PathItem {
     // 境界ボックスの交差判定
     // 自己交差の場合はスキップ
     return self || this.getBounds(matrix1).intersects(
-      path && path.getBounds(matrix2), Numerical.GEOMETRIC_EPSILON)
+      path && path.getBounds(matrix2), Numerical.EPSILON)
       ? Curve.getIntersections(
           this.getCurves(),
           !self && path ? path.getCurves() : null,

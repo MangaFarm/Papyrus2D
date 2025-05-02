@@ -14,19 +14,3 @@
 - その他のテストケースでも交点が検出されていないものが多い
 
 ## Path.getIntersections と paper.js の getIntersections の違い
-
-3. **CurveLocation構造の違い**:
-   - Papyrus2DのCurveLocationはインターフェースとして定義されていますが、paper.jsではクラスとして実装されています。
-   - Papyrus2Dでは`curve1Index`と`curve2Index`が追加されていますが、paper.jsでは交点が見つかった後に曲線インデックスが設定される仕組みになっています。
-
-4. **交点の重複チェック**:
-   - `insertLocation`関数の実装に違いがあり、Papyrus2Dでは重複チェックの条件が異なります。
-   - paper.jsでは`CurveLocation.insert`メソッドを使用していますが、Papyrus2Dでは独自の`insertLocation`関数を実装しています。
-
-5. **自己交差の検出**:
-   - 円と円の交差テストで3点の交点が検出される問題は、自己交差検出の実装に関連している可能性があります。
-   - 特に、円のセグメントがループ曲線として分類され、自己交差点が追加されている可能性があります。
-   - paper.jsでは、Curve.classify関数は曲線の分類を行い、ループ曲線の場合は自己交差点のルートを返します。
-   - 円のセグメントが誤ってループ曲線として分類されている可能性があります。
-   - paper.jsの実装に忠実に従い、自己交差の検出を正確に再現する必要があります。
-

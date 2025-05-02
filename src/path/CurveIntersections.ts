@@ -58,37 +58,20 @@ export function addLocation(
   // 範囲チェック - paper.jsと同様の条件判定
   if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
     if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) && t2 <= (excludeStart ? tMax : 1)) {
-      // 交点の座標を計算
-      // t1がnullの場合はt2を使用して計算
-      let point: Point;
-      if (t1 !== null) {
-        point = c1.getPointAt(t1);
-      } else if (t2 !== null) {
-        point = c2.getPointAt(t2);
-      } else {
-        point = new Point(0, 0);
-      }
+      // Paper.jsと同様に、交点の座標をnullで初期化
+      // 後で必要に応じて計算される
+      const point: Point | null = null;
       
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
       // paper.jsでは、交点が見つかった時点でCurveLocationオブジェクトが作成され、
       // 後から曲線インデックスが設定される
-      const loc1: CurveLocation = {
-        curve1Index: -1, // 後でCurve.getIntersectionsで設定
-        curve2Index: -1, // 後でCurve.getIntersectionsで設定
-        t1,
-        t2,
-        point,
-        overlap
-      };
+      const loc1 = new CurveLocation(
+        c1, t1, c2, t2, point, overlap
+      );
       
-      const loc2: CurveLocation = {
-        curve1Index: -1, // 後でCurve.getIntersectionsで設定
-        curve2Index: -1, // 後でCurve.getIntersectionsで設定
-        t1: t2,
-        t2: t1,
-        point,
-        overlap
-      };
+      const loc2 = new CurveLocation(
+        c2, t2, c1, t1, point, overlap
+      );
       
       // 相互参照を設定
       loc1._intersection = loc2;
