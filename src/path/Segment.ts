@@ -247,7 +247,7 @@ export class Segment {
     }
 
     if (matrix) {
-      matrix.transform(coords, coords, i / 2);
+      matrix._transformCoordinates(coords, coords, i / 2);
       
       if (!handleIn) {
         coords[2] = coords[0];
@@ -358,15 +358,17 @@ export class Segment {
       }
     } else if (type === 'geometric') {
       // 幾何学的スムージング
-      const vector = p0.subtract(p2);
-      const t = factor === undefined ? 0.4 : factor;
-      const k = t * d1 / (d1 + d2);
-      
-      if (!_first) {
-        newHandleIn = vector.multiply(k);
-      }
-      if (!_last) {
-        newHandleOut = vector.multiply(k - t);
+      if (prev && next) {
+        const vector = p0.subtract(p2);
+        const t = factor === undefined ? 0.4 : factor;
+        const k = t * d1 / (d1 + d2);
+        
+        if (!_first) {
+          newHandleIn = vector.multiply(k);
+        }
+        if (!_last) {
+          newHandleOut = vector.multiply(k - t);
+        }
       }
     } else {
       throw new Error(`Smoothing method '${type}' not supported.`);
