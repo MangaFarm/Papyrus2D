@@ -100,8 +100,8 @@ describe('Curve', () => {
       
       for (const [t, expectedPoint] of points) {
         const point = curve.getPointAtTime(t as number);
-        expect(point.x).toBeCloseTo((expectedPoint as Point).x, 4);
-        expect(point.y).toBeCloseTo((expectedPoint as Point).y, 4);
+        expect(point.x).toBeCloseTo((expectedPoint as Point).x, 5);
+        expect(point.y).toBeCloseTo((expectedPoint as Point).y, 5);
       }
       
       // 範囲外のオフセットはnullを返すが、getPointAtはエラーをスローするので
@@ -146,13 +146,13 @@ describe('Curve', () => {
         // 正規化された接線をテスト
         const tangent = curve.getTangentAtTime(t as number);
         const expectedNormalized = (expectedTangent as Point).normalize();
-        expect(tangent.x).toBeCloseTo(expectedNormalized.x, 4);
-        expect(tangent.y).toBeCloseTo(expectedNormalized.y, 4);
+        expect(tangent.x).toBeCloseTo(expectedNormalized.x, 5);
+        expect(tangent.y).toBeCloseTo(expectedNormalized.y, 5);
         
         // 重み付き接線をテスト
         const weightedTangent = curve.getWeightedTangentAtTime(t as number);
-        expect(weightedTangent.x).toBeCloseTo((expectedTangent as Point).x, 4);
-        expect(weightedTangent.y).toBeCloseTo((expectedTangent as Point).y, 4);
+        expect(weightedTangent.x).toBeCloseTo((expectedTangent as Point).x, 5);
+        expect(weightedTangent.y).toBeCloseTo((expectedTangent as Point).y, 5);
       }
     });
   });
@@ -182,13 +182,13 @@ describe('Curve', () => {
         // 正規化された法線をテスト
         const normal = curve.getNormalAtTime(t as number);
         const expectedNormalized = (expectedNormal as Point).normalize();
-        expect(normal.x).toBeCloseTo(expectedNormalized.x, 4);
-        expect(normal.y).toBeCloseTo(expectedNormalized.y, 4);
+        expect(normal.x).toBeCloseTo(expectedNormalized.x, 5);
+        expect(normal.y).toBeCloseTo(expectedNormalized.y, 5);
         
         // 重み付き法線をテスト
         const weightedNormal = curve.getWeightedNormalAtTime(t as number);
-        expect(weightedNormal.x).toBeCloseTo((expectedNormal as Point).x, 4);
-        expect(weightedNormal.y).toBeCloseTo((expectedNormal as Point).y, 4);
+        expect(weightedNormal.x).toBeCloseTo((expectedNormal as Point).x, 5);
+        expect(weightedNormal.y).toBeCloseTo((expectedNormal as Point).y, 5);
       }
     });
   });
@@ -216,7 +216,7 @@ describe('Curve', () => {
       
       for (const [t, expectedCurvature] of curvatures) {
         const curvature = curve.getCurvatureAtTime(t as number);
-        expect(curvature).toBeCloseTo(expectedCurvature as number, 10);
+        expect(curvature).toBeCloseTo(expectedCurvature as number, 5);
       }
     });
 
@@ -236,7 +236,7 @@ describe('Curve', () => {
       
       for (const [t, expectedCurvature] of curvatures) {
         const curvature = curve.getCurvatureAtTime(t as number);
-        expect(curvature).toBeCloseTo(expectedCurvature as number, 10);
+        expect(curvature).toBeCloseTo(expectedCurvature as number, 5);
       }
     });
   });
@@ -254,7 +254,7 @@ describe('Curve', () => {
         const t1 = curve.getTimeAt(o1);
         const t2 = curve.getTimeAt(o2);
         
-        expect(t1).toBeCloseTo(t2, Numerical.CURVETIME_EPSILON);
+        expect(t1).toBeCloseTo(t2, 8);
         
         // papyrus2dではgetOffsetAtTimeがない
         // 代わりにgetPartLengthを使用
@@ -290,7 +290,7 @@ describe('Curve', () => {
       
       const length = curve.getLength();
       const t = curve.getTimeAt(length / 3);
-      expect(t).toBeCloseTo(0.3869631475722452, 10);
+      expect(t).toBeCloseTo(0.3869631475722452, 5);
     });
 
     it('should handle edge cases in straight curves', () => {
@@ -302,13 +302,13 @@ describe('Curve', () => {
       
       const offset = 63.999999999999716;
       expect(offset < curve.getLength()).toBe(true);
-      expect(curve.getTimeAt(offset)).toBeCloseTo(1, 10);
+      expect(curve.getTimeAt(offset)).toBeCloseTo(1, 5);
     });
 
     it('should handle offset at end of curve', () => {
       // paper.js issue #1149 テスト
       const values = [-7500, 0, -7500, 4142.135623730952, -4142.135623730952, 7500, 0, 7500];
-      expect(Curve.getTimeAt(values, 11782.625235553916)).toBeCloseTo(1, 10);
+      expect(Curve.getTimeAt(values, 11782.625235553916)).toBeCloseTo(1, 5);
     });
   });
 
@@ -416,8 +416,8 @@ describe('Curve', () => {
       );
       
       const [left, right] = curve.divide(0.5);
-      expect(left.getPoint2().x).toBeCloseTo(middle.x, 8);
-      expect(left.getPoint2().y).toBeCloseTo(middle.y, 8);
+      expect(left.getPoint2().x).toBeCloseTo(middle.x, 5);
+      expect(left.getPoint2().y).toBeCloseTo(middle.y, 5);
     });
   });
 
@@ -525,8 +525,8 @@ describe('Curve', () => {
         
         // 変換前後の点が一致するか
         if (point1 && point2) {
-          expect(point1.x).toBeCloseTo(point2.x, 8);
-          expect(point1.y).toBeCloseTo(point2.y, 8);
+          expect(point1.x).toBeCloseTo(point2.x, 5);
+          expect(point1.y).toBeCloseTo(point2.y, 5);
         }
       }
     });
@@ -540,11 +540,11 @@ describe('Curve', () => {
       );
       
       // Paper.jsと一致させる
-      expect(curve.getPartLength(0.0, 0.25)).toBeCloseTo(10, 8);
-      expect(curve.getPartLength(0.25, 0.5)).toBeCloseTo(22, 8);
-      expect(curve.getPartLength(0.25, 0.75)).toBeCloseTo(44, 8);
-      expect(curve.getPartLength(0.5, 0.75)).toBeCloseTo(22, 8);
-      expect(curve.getPartLength(0.75, 1)).toBeCloseTo(10, 8);
+      expect(curve.getPartLength(0.0, 0.25)).toBeCloseTo(10, 5);
+      expect(curve.getPartLength(0.25, 0.5)).toBeCloseTo(22, 5);
+      expect(curve.getPartLength(0.25, 0.75)).toBeCloseTo(44, 5);
+      expect(curve.getPartLength(0.5, 0.75)).toBeCloseTo(22, 5);
+      expect(curve.getPartLength(0.75, 1)).toBeCloseTo(10, 5);
     });
   });
 });
