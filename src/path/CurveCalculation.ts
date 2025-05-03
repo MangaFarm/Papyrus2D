@@ -59,12 +59,17 @@ export class CurveCalculation {
       let x, y;
       
       // Prevent tangents and normals of length 0:
+      // paper.jsと同じ境界条件処理を行う
       if (t < tMin) {
-        x = cx1 - x0;
-        y = cy1 - y0;
+        // 3 * (x1 - x0), 3 * (y1 - y0)
+        const cx = 3 * (cx1 - x0);
+        const cy = 3 * (cy1 - y0);
+        x = cx;
+        y = cy;
       } else if (t > tMax) {
-        x = x3 - cx2;
-        y = y3 - cy2;
+        // 3 * (x3 - x2), 3 * (y3 - y2)
+        x = 3 * (x3 - cx2);
+        y = 3 * (y3 - cy2);
       } else {
         // Calculate the polynomial coefficients.
         const cx = 3 * (cx1 - x0),

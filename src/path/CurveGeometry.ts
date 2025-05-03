@@ -74,6 +74,7 @@ export class CurveGeometry {
         c = CurveSubdivision.subdivide(c, a)[1]; // right
       }
       // The length of straight curves can be calculated more easily.
+      // paper.jsと同じ計算方法を使用
       const dx = c[6] - c[0];
       const dy = c[7] - c[1];
       return Math.sqrt(dx * dx + dy * dy);
