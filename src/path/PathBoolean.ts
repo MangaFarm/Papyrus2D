@@ -1,169 +1,16 @@
 /**
- * PathBoolean: Boolean演算ユーティリティクラス
+ * PathBoolean: Boolean演算クラス
  * paper.jsのPathItem.Boolean.jsを参考に実装
  */
 
-import { Point } from '../basic/Point';
 import { Path } from './Path';
-import { Curve, CurveLocation } from './Curve';
-import { Numerical } from '../util/Numerical';
 import { Segment } from './Segment';
+import { PathBooleanTool, Intersection } from './PathBooleanTool';
 
 /**
- * 交点情報（拡張版）
- */
-interface Intersection extends CurveLocation {
-  // 交点の種類（entry/exit）
-  type?: 'entry' | 'exit';
-  // 交点のwinding number
-  winding?: number;
-  // 交点の処理済みフラグ
-  visited?: boolean;
-}
-
-/**
- * Boolean演算ユーティリティクラス
+ * Boolean演算クラス
  */
 export class PathBoolean {
-  /**
-   * 2つのパスの交点を計算し、entry/exitタイプを分類
-   */
-  static getIntersections(path1: Path, path2: Path): Intersection[] {
-    // 交点計算
-    const intersections = path1.getIntersections(path2) as Intersection[];
-    
-    // 交点のentry/exit分類
-    PathBoolean.classifyIntersections(intersections, path1, path2);
-    
-    return intersections;
-  }
-  
-  /**
-   * 交点のentry/exit分類
-   * paper.jsのpropagateWindingを参考に実装
-   */
-  private static classifyIntersections(
-    intersections: Intersection[],
-    path1: Path,
-    path2: Path
-  ): void {
-    if (intersections.length === 0) return;
-
-    // 交点をソート（curve1Index, t1の順）
-    intersections.sort((a, b) => {
-      if (a.curve1Index !== b.curve1Index) {
-        return a.curve1Index - b.curve1Index;
-      }
-      return a.t1 - b.t1;
-    });
-
-    // 各交点のwinding numberを計算
-    const curves1 = path1.getCurves();
-    const curves2 = path2.getCurves();
-
-    // 各交点について、その点でのwinding numberを計算
-    for (const intersection of intersections) {
-      const point = intersection.point;
-      
-      // path2上の点におけるpath1のwinding number
-      const { windingL: winding1L, windingR: winding1R } = this.getWindingAtPoint(path1, point);
-      const winding1 = winding1L + winding1R;
-      
-      // path1上の点におけるpath2のwinding number
-      const { windingL: winding2L, windingR: winding2R } = this.getWindingAtPoint(path2, point);
-      const winding2 = winding2L + winding2R;
-      
-      // 交点の種類（entry/exit）を決定
-      // paper.jsのロジックを簡略化：
-      // - 両方のパスのwinding numberが奇数なら交差領域内
-      // - 片方のパスのwinding numberが奇数、もう片方が偶数なら境界上
-      const isInside1 = (winding1 & 1) === 1;
-      const isInside2 = (winding2 & 1) === 1;
-      
-      // 交点の種類を決定（簡略版）
-      if (isInside1 && isInside2) {
-        // 両方のパスの内部にある場合
-        intersection.type = 'exit';
-      } else {
-        // それ以外の場合
-        intersection.type = 'entry';
-      }
-      
-      // winding numberを保存
-      intersection.winding = winding1;
-    }
-  }
-  
-  /**
-   * 指定した点でのwinding numberを計算
-   * Path._getWindingのロジックを再利用
-   */
-  private static getWindingAtPoint(path: Path, point: Point): { windingL: number, windingR: number } {
-    // Path._getWindingを直接呼び出すため、非公開APIを呼び出す
-    // FIXME：本来はPath._getWindingをPublicにするべき
-    
-    return (path as any)._getWinding(point);
-  }
-  
-  /**
-   * 結果Path構築と重複統合
-   * paper.jsのcreateResultを参考に実装
-   */
-  private static createResult(
-    paths: Path[],
-    operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
-  ): Path {
-    if (paths.length === 0) {
-      return new Path();
-    }
-    
-    if (paths.length === 1) {
-      return paths[0];
-    }
-    
-    // 重複パスの統合（簡易実装）
-    // 実際には、重なり合うパスを適切に統合する必要がある
-    
-    // 最初のパスをベースにする
-    let result = paths[0];
-    
-    // 残りのパスを処理
-    for (let i = 1; i < paths.length; i++) {
-      const path = paths[i];
-      
-      // 操作に応じて異なる処理
-      switch (operation) {
-        case 'unite':
-          // 合成：パスを追加
-          // 実際には、重なり合う部分を適切に処理する必要がある
-          result = result; // 簡易実装
-          break;
-        case 'intersect':
-          // 交差：共通部分のみ残す
-          // 実際には、重なり合う部分を適切に処理する必要がある
-          result = result; // 簡易実装
-          break;
-        case 'subtract':
-          // 差分：パスを引く
-          // 実際には、重なり合う部分を適切に処理する必要がある
-          result = result; // 簡易実装
-          break;
-        case 'exclude':
-          // 排他的論理和：重なり合う部分を除外
-          // 実際には、重なり合う部分を適切に処理する必要がある
-          result = result; // 簡易実装
-          break;
-        case 'divide':
-          // 分割：パスを分割
-          // 実際には、重なり合う部分を適切に処理する必要がある
-          result = result; // 簡易実装
-          break;
-      }
-    }
-    
-    return result;
-  }
-
   /**
    * マーチングアルゴリズムによるパス構築
    * paper.jsのtracePathsを参考に実装
@@ -242,7 +89,7 @@ export class PathBoolean {
       let currentIntersection = intersection;
       let currentPath = path1;
       let currentCurveIndex = currentIntersection.curve1Index;
-      let currentT = currentIntersection.t1;
+      let currentT = currentIntersection.t1 ?? 0;
       
       // パスをトレース
       do {
@@ -257,8 +104,8 @@ export class PathBoolean {
         for (const intersection of intersections) {
           if (!intersection.visited &&
               intersection.curve1Index === currentCurveIndex &&
-              intersection.t1 > currentT) {
-            if (!nextIntersection || intersection.t1 < nextIntersection.t1) {
+              (intersection.t1 ?? 0) > currentT) {
+            if (!nextIntersection || (intersection.t1 ?? 0) < (nextIntersection.t1 ?? 0)) {
               nextIntersection = intersection;
             }
           }
@@ -269,7 +116,7 @@ export class PathBoolean {
         
         // 次の交点に移動
         currentIntersection = nextIntersection;
-        currentT = currentIntersection.t1;
+        currentT = currentIntersection.t1 ?? 0;
         
       } while (segments.length < 100); // 無限ループ防止
       
@@ -301,14 +148,72 @@ export class PathBoolean {
   }
   
   /**
+   * 結果Path構築と重複統合
+   * paper.jsのcreateResultを参考に実装
+   */
+  static createResult(
+    paths: Path[],
+    operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
+  ): Path {
+    if (paths.length === 0) {
+      return new Path();
+    }
+    
+    if (paths.length === 1) {
+      return paths[0];
+    }
+    
+    // 重複パスの統合（簡易実装）
+    // 実際には、重なり合うパスを適切に統合する必要がある
+    
+    // 最初のパスをベースにする
+    let result = paths[0];
+    
+    // 残りのパスを処理
+    for (let i = 1; i < paths.length; i++) {
+      const path = paths[i];
+      
+      // 操作に応じて異なる処理
+      switch (operation) {
+        case 'unite':
+          // 合成：パスを追加
+          // 実際には、重なり合う部分を適切に処理する必要がある
+          result = result; // 簡易実装
+          break;
+        case 'intersect':
+          // 交差：共通部分のみ残す
+          // 実際には、重なり合う部分を適切に処理する必要がある
+          result = result; // 簡易実装
+          break;
+        case 'subtract':
+          // 差分：パスを引く
+          // 実際には、重なり合う部分を適切に処理する必要がある
+          result = result; // 簡易実装
+          break;
+        case 'exclude':
+          // 排他的論理和：重なり合う部分を除外
+          // 実際には、重なり合う部分を適切に処理する必要がある
+          result = result; // 簡易実装
+          break;
+        case 'divide':
+          // 分割：パスを分割
+          // 実際には、重なり合う部分を適切に処理する必要がある
+          result = result; // 簡易実装
+          break;
+      }
+    }
+    
+    return result;
+  }
+  /**
    * パスの合成（unite）
    */
   static unite(path1: Path, path2: Path): Path {
     // 交点計算とentry/exit分類
-    const intersections = PathBoolean.getIntersections(path1, path2);
+    const intersections = PathBooleanTool.getIntersections(path1, path2);
     
     // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = PathBoolean.tracePaths(path1, path2, intersections, 'unite');
+    const resultPaths = this.tracePaths(path1, path2, intersections, 'unite');
     
     // 結果パスを結合
     return PathBoolean.createResult(resultPaths, 'unite');
@@ -319,10 +224,10 @@ export class PathBoolean {
    */
   static intersect(path1: Path, path2: Path): Path {
     // 交点計算とentry/exit分類
-    const intersections = PathBoolean.getIntersections(path1, path2);
+    const intersections = PathBooleanTool.getIntersections(path1, path2);
     
     // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = PathBoolean.tracePaths(path1, path2, intersections, 'intersect');
+    const resultPaths = this.tracePaths(path1, path2, intersections, 'intersect');
     
     // 結果パスを結合
     return PathBoolean.createResult(resultPaths, 'intersect');
@@ -333,10 +238,10 @@ export class PathBoolean {
    */
   static subtract(path1: Path, path2: Path): Path {
     // 交点計算とentry/exit分類
-    const intersections = PathBoolean.getIntersections(path1, path2);
+    const intersections = PathBooleanTool.getIntersections(path1, path2);
     
     // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = PathBoolean.tracePaths(path1, path2, intersections, 'subtract');
+    const resultPaths = this.tracePaths(path1, path2, intersections, 'subtract');
     
     // 結果パスを結合
     return PathBoolean.createResult(resultPaths, 'subtract');
@@ -347,10 +252,10 @@ export class PathBoolean {
    */
   static exclude(path1: Path, path2: Path): Path {
     // 交点計算とentry/exit分類
-    const intersections = PathBoolean.getIntersections(path1, path2);
+    const intersections = PathBooleanTool.getIntersections(path1, path2);
     
     // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = PathBoolean.tracePaths(path1, path2, intersections, 'exclude');
+    const resultPaths = this.tracePaths(path1, path2, intersections, 'exclude');
     
     // 結果パスを結合
     return PathBoolean.createResult(resultPaths, 'exclude');
@@ -361,10 +266,10 @@ export class PathBoolean {
    */
   static divide(path1: Path, path2: Path): Path {
     // 交点計算とentry/exit分類
-    const intersections = PathBoolean.getIntersections(path1, path2);
+    const intersections = PathBooleanTool.getIntersections(path1, path2);
     
     // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = PathBoolean.tracePaths(path1, path2, intersections, 'divide');
+    const resultPaths = this.tracePaths(path1, path2, intersections, 'divide');
     
     // 結果パスを結合
     return PathBoolean.createResult(resultPaths, 'divide');
