@@ -676,8 +676,8 @@ export class Curve {
    * paper.jsのCurve.getIntersections実装を移植
    */
   static getIntersections(
-    curves1: Curve[],
-    curves2: Curve[] | null,
+    curves1: Curve[] | number[],
+    curves2: Curve[] | number[] | null,
     include?: (loc: CurveLocation) => boolean,
     matrix1?: Matrix,
     matrix2?: Matrix,
@@ -685,18 +685,46 @@ export class Curve {
   ): CurveLocation[] {
     const epsilon = Numerical.GEOMETRIC_EPSILON;
     const self = !curves2;
+    
+    // paper.jsと同様に、数値配列が渡された場合はCurveオブジェクトに変換
+    // 参照: paper.js/src/path/Curve.js の getIntersections メソッド (2314-2318行)
+    if (Array.isArray(curves1) && typeof curves1[0] === 'number') {
+      // 数値配列の場合、Curveオブジェクトに変換
+      const v1 = curves1 as number[];
+      const v2 = curves2 as number[] | null;
+      
+      if (v2 && typeof v2[0] === 'number') {
+        // 両方数値配列の場合
+        const curve1 = Curve.fromValues(v1);
+        const curve2 = Curve.fromValues(v2);
+        const locations: CurveLocation[] = [];
+        
+        // paper.jsと同様に、直接getCurveIntersectionsを呼び出す
+        return getCurveIntersections(v1, v2, curve1, curve2, locations, include);
+      } else if (!v2) {
+        // 自己交差チェックの場合
+        const curve = Curve.fromValues(v1);
+        const locations: CurveLocation[] = [];
+        return getSelfIntersection(v1, curve, locations, include);
+      }
+    }
+    
     if (self) {
       curves2 = curves1;
     }
-    const length1 = curves1.length;
-    const length2 = curves2!.length;
+    
+    const curveArray1 = curves1 as Curve[];
+    const curveArray2 = curves2 as Curve[];
+    
+    const length1 = curveArray1.length;
+    const length2 = curveArray2!.length;
     const values1: number[][] = new Array(length1);
     const values2 = self ? values1 : new Array(length2);
     const locations: CurveLocation[] = [];
     
     // 各曲線の値を取得（行列変換を適用）
     for (let i = 0; i < length1; i++) {
-      values1[i] = curves1[i].getValues();
+      values1[i] = curveArray1[i].getValues();
       if (matrix1) {
         // 行列変換を適用
         for (let j = 0; j < 8; j += 2) {
@@ -710,7 +738,7 @@ export class Curve {
     
     if (!self) {
       for (let i = 0; i < length2; i++) {
-        values2[i] = curves2![i].getValues();
+        values2[i] = curveArray2![i].getValues();
         if (matrix2) {
           // 行列変換を適用
           for (let j = 0; j < 8; j += 2) {
@@ -730,7 +758,7 @@ export class Curve {
     
     // 各曲線の交点を計算
     for (let index1 = 0; index1 < length1; index1++) {
-      const curve1 = curves1[index1];
+      const curve1 = curveArray1[index1];
       const v1 = values1[index1];
       
       if (self) {
@@ -750,7 +778,7 @@ export class Curve {
           const index2 = collisions1[j];
           // 自己交差の場合は、重複チェックを避けるために index2 > index1 の場合のみ処理
           if (!self || index2 > index1) {
-            const curve2 = curves2![index2];
+            const curve2 = curveArray2![index2];
             const v2 = values2[index2];
             
             // 曲線の交点を計算

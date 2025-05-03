@@ -443,9 +443,12 @@ function addLineIntersection(
   if (pt) {
     // paper.jsと同様に、交点の座標を使用せず、
     // 単にaddLocationを呼び出す
+    const t1 = Curve.getTimeOf(v1, pt);
+    const t2 = Curve.getTimeOf(v2, pt);
+    
     addLocation(locations, include,
-      flip ? c2 : c1, null,
-      flip ? c1 : c2, null,
+      flip ? c2 : c1, flip ? t2 : t1,
+      flip ? c1 : c2, flip ? t1 : t2,
       true);
   }
   
