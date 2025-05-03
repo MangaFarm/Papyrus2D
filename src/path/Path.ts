@@ -129,7 +129,8 @@ export class Path implements PathItem {
 
       // 新しいカーブの挿入
       for (let i = insert; i < end; i++) {
-        curves.splice(i, 0, new Curve(this._segments[i], this._segments[i + 1] || this._segments[0]));
+        // paper.jsと同様に、カーブを作成する際にセグメントを指定せず、後で_adjustCurvesで設定する
+        curves.splice(i, 0, new Curve(null as any, null as any));
       }
       
       // カーブのセグメントを調整
@@ -269,7 +270,7 @@ export class Path implements PathItem {
         ));
       }
       
-      this._area = area; // Paper.jsと同じく絶対値を取らない
+      this._area = Math.abs(area); // Paper.jsでは絶対値を取る
     }
     
     return this._area!;
@@ -516,6 +517,13 @@ export class Path implements PathItem {
     // ジオメトリが変更されたことを記録
     this._length = this._area = undefined;
     this._bounds = undefined;
+    
+    // カーブのキャッシュもクリア
+    if (this._curves) {
+      for (let i = 0, l = this._curves.length; i < l; i++) {
+        this._curves[i]._changed();
+      }
+    }
     return this;
   }
 
