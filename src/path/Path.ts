@@ -15,7 +15,18 @@ import { PathItem } from './PathItem';
 import { ChangeFlag } from './ChangeFlag';
 import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
 
+// PathConstructorsからメソッドをインポート
+import { PathConstructors } from './PathConstructors';
+
 export class Path implements PathItem {
+  // 静的メソッド
+  static Line = PathConstructors.Line;
+  static Circle = PathConstructors.Circle;
+  static Rectangle = PathConstructors.Rectangle;
+  static Ellipse = PathConstructors.Ellipse;
+  static Arc = PathConstructors.Arc;
+  static RegularPolygon = PathConstructors.RegularPolygon;
+  static Star = PathConstructors.Star;
   _segments: Segment[];
   _closed: boolean;
 
