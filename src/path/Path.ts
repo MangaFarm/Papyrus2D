@@ -1,6 +1,6 @@
 /**
  * Path クラス
- * Paper.js の Path (src/path/Path.js) を参考にしたイミュータブルなパス表現。
+ * Paper.js の Path (src/path/Path.js) を参考にしたミュータブルなパス表現。
  * segments 配列と closed フラグを持ち、PathItem インターフェースを実装する。
  */
 
@@ -11,33 +11,295 @@ import { Curve, CurveLocation } from './Curve';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
 import { PathItem } from './PathItem';
+import { ChangeFlag } from './ChangeFlag';
 
 export class Path implements PathItem {
-  readonly segments: Segment[];
-  readonly closed: boolean;
+  _segments: Segment[];
+  _closed: boolean;
 
   // PathItemインターフェースの実装
   _matrix?: Matrix;
   _matrixDirty: boolean = false;
+  _curves?: Curve[];
+  _version: number = 0;
+  _length?: number;
+  _area?: number;
+  _bounds?: Rectangle;
+  _segmentSelection: number = 0;
 
   constructor(segments: Segment[] = [], closed: boolean = false) {
-    // セグメント配列はコピーして保持（イミュータブル設計）
-    this.segments = segments.slice();
-    this.closed = closed;
+    this._segments = [];
+    this._closed = false;
+    this._curves = undefined;
+    this._segmentSelection = 0;
+    
+    // セグメントがある場合は追加
+    if (segments.length > 0) {
+      this.setSegments(segments);
+    }
+    
+    // 閉じたパスの場合は設定
+    if (closed) {
+      this._closed = closed;
+    }
   }
 
+  /**
+   * セグメントの数を取得
+   */
   get segmentCount(): number {
-    return this.segments.length;
+    return this._segments.length;
+  }
+
+  /**
+   * セグメント配列を取得
+   */
+  getSegments(): Segment[] {
+    return this._segments;
+  }
+
+  /**
+   * セグメント配列を設定
+   * @param segments 新しいセグメント配列
+   */
+  setSegments(segments: Segment[]): void {
+    this._segments.length = 0;
+    this._segmentSelection = 0;
+    this._curves = undefined;
+    
+    if (segments && segments.length) {
+      this._add(segments);
+    }
+  }
+
+  /**
+   * 複数のセグメントを追加
+   * @param segments 追加するセグメント配列
+   */
+  /**
+   * セグメントを追加する内部メソッド
+   * @param segs 追加するセグメント配列
+   * @param index 挿入位置（省略時は末尾に追加）
+   */
+  _add(segs: Segment[], index?: number): Segment[] {
+    const segments = this._segments;
+    const curves = this._curves;
+    const amount = segs.length;
+    const append = index === undefined;
+    index = append ? segments.length : index!;
+
+    // セグメントの設定
+    for (let i = 0; i < amount; i++) {
+      const segment = segs[i];
+      // 他のパスに属している場合はクローン
+      if (segment._path) {
+        segs[i] = segment.clone();
+      }
+      segs[i]._path = this;
+      segs[i]._index = index + i;
+      
+      // セグメントの選択状態を更新
+      if (segment._selection) {
+        this._updateSelection(segment, 0, segment._selection);
+      }
+    }
+
+    // セグメントの挿入
+    if (append) {
+      segments.push(...segs);
+    } else {
+      segments.splice(index, 0, ...segs);
+      // インデックスの更新
+      for (let i = index + amount, l = segments.length; i < l; i++) {
+        segments[i]._index = i;
+      }
+    }
+
+    // カーブの更新
+    if (curves) {
+      const total = this._countCurves();
+      const start = index > 0 && index + amount - 1 === total ? index - 1 : index;
+      let insert = start;
+      const end = Math.min(start + amount, total);
+
+      // 新しいカーブの挿入
+      for (let i = insert; i < end; i++) {
+        curves.splice(i, 0, new Curve(this, null, null));
+      }
+      
+      // カーブのセグメントを調整
+      this._adjustCurves(start, end);
+    }
+
+    this._changed(ChangeFlag.SEGMENTS);
+    return segs;
+  }
+
+  /**
+   * カーブのセグメントを調整する内部メソッド
+   */
+  _adjustCurves(start: number, end: number): void {
+    const segments = this._segments;
+    const curves = this._curves;
+    
+    if (!curves) return;
+
+    for (let i = start; i < end; i++) {
+      const curve = curves[i];
+      curve._path = this;
+      curve._segment1 = segments[i];
+      curve._segment2 = segments[i + 1] || segments[0];
+      curve._changed();
+    }
+
+    // 最初のセグメントの場合、閉じたパスの最後のセグメントも修正
+    if (start > 0 && (!start || this._closed)) {
+      const curve = curves[this._closed && !start ? segments.length - 1 : start - 1];
+      if (curve) {
+        curve._segment2 = segments[start] || segments[0];
+        curve._changed();
+      }
+    }
+
+    // 修正範囲の後のセグメントがある場合も修正
+    if (end < curves.length) {
+      const curve = curves[end];
+      if (curve) {
+        curve._segment1 = segments[end];
+        curve._changed();
+      }
+    }
+  }
+
+  /**
+   * セグメントの選択状態を更新する内部メソッド
+   */
+  _updateSelection(segment: Segment, oldSelection: number, newSelection: number): void {
+    segment._selection = newSelection;
+    this._segmentSelection += newSelection - oldSelection;
+  }
+
+  /**
+   * 複数のセグメントを追加
+   * @param segments 追加するセグメント配列
+   */
+  addSegments(segments: Segment[]): Segment[] {
+    return this._add(segments);
+  }
+
+  /**
+   * 最初のセグメントを取得
+   */
+  getFirstSegment(): Segment | undefined {
+    return this._segments[0];
+  }
+
+  /**
+   * 最後のセグメントを取得
+   */
+  getLastSegment(): Segment | undefined {
+    return this._segments[this._segments.length - 1];
+  }
+
+  /**
+   * パスが閉じているかどうかを取得
+   */
+  isClosed(): boolean {
+    return this._closed;
+  }
+
+  /**
+   * パスを閉じるかどうかを設定
+   */
+  setClosed(closed: boolean): void {
+    if (this._closed != (closed = !!closed)) {
+      this._closed = closed;
+      // カーブの更新
+      if (this._curves) {
+        const length = this._curves.length = this._countCurves();
+        if (closed) {
+          this._curves[length - 1] = new Curve(
+            this._segments[length - 1],
+            this._segments[0]
+          );
+        }
+      }
+      this._changed(ChangeFlag.SEGMENTS);
+    }
+  }
+  
+  /**
+   * PathItemインターフェースの実装のためのgetter
+   */
+  get closed(): boolean {
+    return this._closed;
   }
 
   getLength(): number {
-    // Curve を全て取得し、合計長を返す
-    return this.getCurves().reduce((sum, curve) => sum + curve.getLength(), 0);
+    if (this._length == null) {
+      const curves = this.getCurves();
+      let length = 0;
+      for (let i = 0, l = curves.length; i < l; i++) {
+        length += curves[i].getLength();
+      }
+      this._length = length;
+    }
+    return this._length!;
+  }
+
+  /**
+   * パスの面積を計算します。自己交差するパスの場合、
+   * 互いに打ち消し合うサブエリアが含まれる場合があります。
+   *
+   * @return {number} パスの面積
+   */
+  getArea(): number {
+    if (this._area == null) {
+      const segments = this._segments;
+      const closed = this._closed;
+      let area = 0;
+      
+      for (let i = 0, l = segments.length; i < l; i++) {
+        const last = i + 1 === l;
+        
+        // Paper.jsと完全に同じ処理
+        area += Curve.getArea(Curve.getValues(
+          segments[i],
+          segments[last ? 0 : i + 1],
+          null,
+          last && !closed
+        ));
+      }
+      
+      this._area = area; // Paper.jsと同じく絶対値を取らない
+    }
+    
+    return this._area!;
+  }
+
+  /**
+   * 変更通知メソッド
+   * @param flags 変更フラグ
+   */
+  _changed(flags: number): void {
+    if (flags & ChangeFlag.GEOMETRY) {
+      this._length = this._area = undefined;
+      if (flags & ChangeFlag.SEGMENTS) {
+        this._version++; // CurveLocationのキャッシュ更新用
+      } else if (this._curves) {
+        // セグメントの変更でない場合は、すべての曲線に変更を通知
+        for (let i = 0, l = this._curves.length; i < l; i++) {
+          this._curves[i]._changed();
+        }
+      }
+    } else if (flags & ChangeFlag.STROKE) {
+      // ストロークの変更時は境界ボックスのキャッシュをクリア
+      this._bounds = undefined;
+    }
   }
 
   /**
    * パスの境界ボックスを取得
-   * paper.jsのItem.getBoundsメソッドに相当
    * @param matrix 変換行列（オプション）
    * @returns 境界ボックス
    */
@@ -54,7 +316,7 @@ export class Path implements PathItem {
   }
 
   /**
-   * paper.jsそっくりのストローク境界計算
+   * ストローク境界計算
    * @param strokeWidth 線幅
    * @param matrix 変換行列（オプション）
    */
@@ -74,7 +336,7 @@ export class Path implements PathItem {
    * 内部: paddingを加味したAABB計算
    */
   private _computeBounds(padding: number): Rectangle {
-    if (this.segments.length === 0) {
+    if (this._segments.length === 0) {
       return new Rectangle(new Point(0, 0), new Point(0, 0));
     }
     let minX = Infinity,
@@ -90,9 +352,9 @@ export class Path implements PathItem {
     };
 
     // 各カーブ区間ごとにBézierの極値もAABBに含める
-    for (let i = 0; i < this.segments.length - (this.closed ? 0 : 1); i++) {
-      const seg0 = this.segments[i];
-      const seg1 = this.segments[(i + 1) % this.segments.length];
+    for (let i = 0; i < this._segments.length - (this._closed ? 0 : 1); i++) {
+      const seg0 = this._segments[i];
+      const seg1 = this._segments[(i + 1) % this._segments.length];
       // 4点: p0, handleOut, handleIn, p1
       const p0 = seg0.point;
       const p1 = seg1.point;
@@ -167,48 +429,88 @@ export class Path implements PathItem {
     return new Rectangle(new Point(minX, minY), new Point(maxX, maxY));
   }
 
+  /**
+   * 指定されたパラメータ位置のパス上の点を取得
+   * @param t パラメータ位置（0〜1）
+   * @returns パス上の点
+   */
   getPointAt(t: number): Point {
-    // t: 0〜1 のパラメータでパス上の点を取得
-    const curves = this.getCurves();
-    if (curves.length === 0) return new Point(0, 0);
-    const total = this.getLength();
-    let acc = 0;
-    for (const curve of curves) {
-      const len = curve.getLength();
-      if (total === 0) return curve.getPointAt(0);
-      const next = acc + len;
-      if (t * total <= next) {
-        const localT = (t * total - acc) / len;
-        return curve.getPointAt(localT);
-      }
-      acc = next;
-    }
-    // 端の場合
-    return curves[curves.length - 1].getPointAt(1);
-  }
-
-  getTangentAt(t: number): Point {
-    // t: 0〜1 のパラメータでパス上の接線ベクトルを取得
-    const curves = this.getCurves();
-    if (curves.length === 0) return new Point(0, 0);
-    const total = this.getLength();
-    let acc = 0;
-    for (const curve of curves) {
-      const len = curve.getLength();
-      if (total === 0) return curve.getTangentAt(0);
-      const next = acc + len;
-      if (t * total <= next) {
-        const localT = (t * total - acc) / len;
-        return curve.getTangentAt(localT);
-      }
-      acc = next;
-    }
-    return curves[curves.length - 1].getTangentAt(1);
+    const loc = this.getLocationAt(t);
+    return loc ? loc.point : new Point(0, 0);
   }
 
   /**
-   * paper.jsそっくりの点包含判定
+   * 指定された点がパス上にある場合、その位置情報を取得
+   * @param point パス上の点
+   * @returns 曲線位置情報
    */
+  getLocationOf(point: Point): CurveLocation | null {
+    const curves = this.getCurves();
+    for (let i = 0, l = curves.length; i < l; i++) {
+      const loc = curves[i].getLocationOf(point);
+      if (loc) {
+        return loc;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * 指定された点までのパスの長さを取得
+   * @param point パス上の点
+   * @returns パスの長さ
+   */
+  getOffsetOf(point: Point): number | null {
+    const loc = this.getLocationOf(point);
+    return loc ? loc.getOffset() : null;
+  }
+
+  /**
+   * 指定されたオフセット位置のパス上の位置情報を取得
+   * @param offset オフセット位置（0〜getLength()）
+   * @returns 曲線位置情報
+   */
+  getLocationAt(offset: number): CurveLocation | null {
+    if (typeof offset === 'number') {
+      const curves = this.getCurves();
+      const length = curves.length;
+      if (!length) return null;
+      
+      let curLength = 0;
+      
+      for (let i = 0; i < length; i++) {
+        const start = curLength;
+        const curve = curves[i];
+        curLength += curve.getLength();
+        
+        if (curLength > offset) {
+          // この曲線上の位置を計算
+          return curve.getLocationAt(offset - start);
+        }
+      }
+      
+      // 誤差により最後の曲線が見逃された場合、offsetが全長以下であれば最後の曲線の終点を返す
+      if (curves.length > 0 && offset <= this.getLength()) {
+        return new CurveLocation(curves[length - 1], 1);
+      }
+    } else if (offset && (offset as any).getPath && (offset as any).getPath() === this) {
+      // offsetがすでにCurveLocationの場合はそのまま返す
+      return offset as unknown as CurveLocation;
+    }
+    
+    return null;
+  }
+
+  /**
+   * 指定されたパラメータ位置のパス上の接線ベクトルを取得
+   * @param offset オフセット位置（0〜getLength()）
+   * @returns 接線ベクトル
+   */
+  getTangentAt(offset: number): Point {
+    const loc = this.getLocationAt(offset);
+    return loc && loc.curve ? loc.curve.getTangentAt(loc.time!) : new Point(0, 0);
+  }
+
   /**
    * 点がパス内部にあるかどうかを判定（paper.js完全版）
    * @param point 判定する点
@@ -264,7 +566,7 @@ export class Path implements PathItem {
     const curves = this.getCurves();
 
     // 頂点判定
-    for (const seg of this.segments) {
+    for (const seg of this._segments) {
       if (seg.point.subtract(point).getLength() <= epsilon) {
         return true;
       }
@@ -320,7 +622,6 @@ export class Path implements PathItem {
         const p3 = new Point(v[6], v[7]);
 
         // 端点が十分近い場合は早期リターン
-        // paper.jsと同じEPSILON値を使用
         const geomEpsilon = /*#=*/ Numerical.GEOMETRIC_EPSILON;
 
         if (point.isClose(p0, geomEpsilon) || point.isClose(p3, geomEpsilon)) {
@@ -441,6 +742,9 @@ export class Path implements PathItem {
   transform(matrix: Matrix): Path {
     this._matrix = matrix;
     this._matrixDirty = true;
+    // ジオメトリが変更されたことを記録
+    this._length = this._area = undefined;
+    this._bounds = undefined;
     return this;
   }
 
@@ -455,6 +759,9 @@ export class Path implements PathItem {
     }
     this._matrix = this._matrix.translate(dx, dy);
     this._matrixDirty = true;
+    // ジオメトリが変更されたことを記録
+    this._length = this._area = undefined;
+    this._bounds = undefined;
     return this;
   }
 
@@ -469,6 +776,9 @@ export class Path implements PathItem {
     }
     this._matrix = this._matrix.rotate(angle, center);
     this._matrixDirty = true;
+    // ジオメトリが変更されたことを記録
+    this._length = this._area = undefined;
+    this._bounds = undefined;
     return this;
   }
 
@@ -484,52 +794,146 @@ export class Path implements PathItem {
     }
     this._matrix = this._matrix.scale(sx, sy, center);
     this._matrixDirty = true;
+    // ジオメトリが変更されたことを記録
+    this._length = this._area = undefined;
+    this._bounds = undefined;
     return this;
   }
 
+  /**
+   * パスのカーブの数を計算する
+   * セグメント数と閉じているかどうかに基づいて計算
+   */
+  private _countCurves(): number {
+    const length = this._segments.length;
+    // 開いたパスの場合は長さを1減らす
+    return !this._closed && length > 0 ? length - 1 : length;
+  }
+
   getCurves(): Curve[] {
-    // セグメント配列から Curve 配列を生成
+    // paper.jsと同様にキャッシュを使用する
+    if (this._curves) {
+      return this._curves;
+    }
+    
     const curves: Curve[] = [];
-    for (let i = 0; i < this.segments.length - 1; i++) {
-      curves.push(new Curve(this.segments[i], this.segments[i + 1]));
+    const segments = this._segments;
+    const length = this._countCurves();
+    
+    for (let i = 0; i < length; i++) {
+      curves.push(new Curve(segments[i], segments[i + 1] || segments[0]));
     }
-    if (this.closed && this.segments.length > 1) {
-      curves.push(new Curve(this.segments[this.segments.length - 1], this.segments[0]));
-    }
+    
+    this._curves = curves;
     return curves;
   }
 
-  // --- セグメント操作（イミュータブル: 新しいPathを返す） ---
-
-  add(segment: Segment): Path {
-    return new Path([...this.segments, segment], this.closed);
+  /**
+   * パスの最初の曲線を取得
+   * @returns 最初の曲線
+   */
+  getFirstCurve(): Curve | undefined {
+    const curves = this.getCurves();
+    return curves.length > 0 ? curves[0] : undefined;
   }
 
-  insert(index: number, segment: Segment): Path {
-    const newSegments = this.segments.slice();
-    newSegments.splice(index, 0, segment);
-    return new Path(newSegments, this.closed);
+  /**
+   * パスの最後の曲線を取得
+   * @returns 最後の曲線
+   */
+  getLastCurve(): Curve | undefined {
+    const curves = this.getCurves();
+    return curves.length > 0 ? curves[curves.length - 1] : undefined;
   }
 
-  removeSegment(index: number): Path {
-    const newSegments = this.segments.slice();
-    newSegments.splice(index, 1);
-    return new Path(newSegments, this.closed);
+  // --- セグメント操作（ミュータブル: thisを返す） ---
+
+  /**
+   * セグメントを追加
+   * @param segment 追加するセグメント
+   */
+  add(segment: Segment): Segment {
+    return this._add([segment])[0];
+  }
+
+  /**
+   * 指定位置にセグメントを挿入
+   * @param index 挿入位置
+   * @param segment 挿入するセグメント
+   */
+  insert(index: number, segment: Segment): Segment {
+    return this._add([segment], index)[0];
+  }
+
+  /**
+   * セグメントを削除
+   * @param index 削除するセグメントのインデックス
+   */
+  removeSegment(index: number): Segment | null {
+    return this.removeSegments(index, index + 1)[0] || null;
+  }
+
+  /**
+   * 複数のセグメントを削除
+   * @param from 開始インデックス
+   * @param to 終了インデックス（省略時は最後まで）
+   */
+  removeSegments(from: number = 0, to?: number): Segment[] {
+    from = from || 0;
+    to = to !== undefined ? to : this._segments.length;
+    
+    const segments = this._segments;
+    const curves = this._curves;
+    const removed = segments.splice(from, to - from);
+    
+    if (removed.length === 0) {
+      return removed;
+    }
+    
+    // インデックスの更新
+    for (let i = from, l = segments.length; i < l; i++) {
+      segments[i]._index = i;
+    }
+    
+    // カーブの更新
+    if (curves) {
+      const index = from > 0 && to === segments.length + removed.length ? from - 1 : from;
+      this._curves!.splice(index, removed.length);
+      this._adjustCurves(index, index);
+    }
+    
+    this._changed(ChangeFlag.SEGMENTS);
+    return removed;
+  }
+
+  /**
+   * すべてのセグメントを削除
+   */
+  clear(): Segment[] {
+    return this.removeSegments();
   }
 
   // --- サブパス操作 ---
 
+  /**
+   * 新しい位置にパスを移動（既存のセグメントをクリアして新しいセグメントを追加）
+   * @param point 移動先の点
+   */
   moveTo(point: Point): Path {
-    // 新しいサブパスを開始（既存セグメントをクリアし、1点のみのPathを返す）
-    return new Path([new Segment(point)], false);
+    this._segments.length = 0;
+    this._curves = undefined;
+    this._segmentSelection = 0;
+    this.add(new Segment(point));
+    return this;
   }
 
+  /**
+   * 直線セグメントを追加
+   * @param point 線の終点
+   */
   lineTo(point: Point): Path {
-    // 最後の点から直線セグメントを追加
-    if (this.segments.length === 0) {
-      return this.add(new Segment(point));
-    }
-    return this.add(new Segment(point));
+    this.add(new Segment(point));
+    return this;
   }
 
   /**
@@ -540,67 +944,122 @@ export class Path implements PathItem {
    * @param options.smoothHandles: 連続ノードのハンドルを平滑化
    * @param options.selfClosing: 始点と終点が一致していれば自動的にclose
    */
+  /**
+   * 3次ベジェ曲線セグメントを追加
+   * @param handle1 制御点1
+   * @param handle2 制御点2
+   * @param to 終点
+   * @param options オプション
+   */
   cubicCurveTo(
     handle1: Point,
     handle2: Point,
     to: Point,
     options?: { smoothHandles?: boolean; selfClosing?: boolean }
   ): Path {
-    if (this.segments.length === 0) {
-      return this.add(new Segment(to));
+    if (this._segments.length === 0) {
+      this.add(new Segment(to));
+      return this;
     }
-    const newSegments = this.segments.slice();
-    const lastIdx = newSegments.length - 1;
-    const lastSeg = newSegments[lastIdx];
+    
+    const lastIdx = this._segments.length - 1;
+    const lastSeg = this._segments[lastIdx];
+    
     // handleOut: handle1 - last.point
     let relHandleOut = handle1.subtract(lastSeg.point);
     let relHandleIn = handle2.subtract(to);
 
     // smoothHandles: 連続ノードのハンドルを平滑化
     if (options?.smoothHandles && lastIdx > 0) {
-      const prev = newSegments[lastIdx - 1].point;
+      const prev = this._segments[lastIdx - 1].point;
       const curr = lastSeg.point;
       // Catmull-Rom的な平滑化
       relHandleOut = curr.subtract(prev).multiply(1 / 3);
       relHandleIn = to.subtract(lastSeg.point).multiply(-1 / 3);
     }
 
-    const last = lastSeg.withHandleOut(relHandleOut);
-    newSegments[lastIdx] = last;
-    newSegments.push(new Segment(to, relHandleIn, new Point(0, 0)));
+    // 最後のセグメントのハンドルを設定
+    lastSeg._handleOut = new Point(relHandleOut.x, relHandleOut.y);
+    
+    // 新しいセグメントを追加
+    this.add(new Segment(to, relHandleIn, new Point(0, 0)));
 
     // selfClosing: 始点と終点が一致していれば自動的にclose
-    let closed = this.closed;
     if (options?.selfClosing) {
-      const firstPt = newSegments[0].point;
+      const firstPt = this._segments[0].point;
       const lastPt = to;
       if (firstPt.equals(lastPt)) {
-        closed = true;
+        this._closed = true;
       }
     }
-    return new Path(newSegments, closed);
+    
+    return this;
   }
 
   /**
    * 全セグメントのハンドルを自動補正（paper.jsのsmooth相当, Catmull-Rom的）
    */
+  /**
+   * 全セグメントのハンドルを自動補正（paper.jsのsmooth相当, Catmull-Rom的）
+   */
   smooth(): Path {
-    if (this.segments.length < 3) return this;
-    const newSegments = this.segments.slice();
-    for (let i = 1; i < this.segments.length - 1; i++) {
-      const prev = this.segments[i - 1].point;
-      const curr = this.segments[i].point;
-      const next = this.segments[i + 1].point;
+    if (this._segments.length < 3) return this;
+    
+    for (let i = 1; i < this._segments.length - 1; i++) {
+      const prev = this._segments[i - 1].point;
+      const curr = this._segments[i].point;
+      const next = this._segments[i + 1].point;
       // ハンドルは前後点の差分を1/6ずつ
       const handleIn = prev.subtract(next).multiply(-1 / 6);
       const handleOut = next.subtract(prev).multiply(1 / 6);
-      newSegments[i] = new Segment(newSegments[i].point, handleIn, handleOut);
+      this._segments[i]._handleIn = new Point(handleIn.x, handleIn.y);
+      this._segments[i]._handleOut = new Point(handleOut.x, handleOut.y);
     }
-    return new Path(newSegments, this.closed);
+    
+    this._changed(ChangeFlag.GEOMETRY);
+    return this;
   }
+  
+  /**
+   * パスを閉じる
+   */
   close(): Path {
-    return new Path(this.segments, true);
+    this._closed = true;
+    this._changed(ChangeFlag.SEGMENTS);
+    return this;
   }
+
+  /**
+   * パスのセグメントにハンドルが設定されているかどうかを確認
+   * @returns ハンドルが設定されていればtrue
+   */
+  hasHandles(): boolean {
+    const segments = this._segments;
+    for (let i = 0, l = segments.length; i < l; i++) {
+      if (segments[i].hasHandles()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * パスのすべてのハンドルをクリア
+   * @returns 新しいパス
+   */
+  /**
+   * パスのすべてのハンドルをクリア
+   */
+  clearHandles(): Path {
+    const segments = this._segments;
+    for (let i = 0, l = segments.length; i < l; i++) {
+      segments[i]._handleIn = new Point(0, 0);
+      segments[i]._handleOut = new Point(0, 0);
+    }
+    this._changed(ChangeFlag.GEOMETRY);
+    return this;
+  }
+  
   // Boolean演算API（unite, intersect, subtract, exclude, divide）
   /**
    * パスの合成（unite）
@@ -664,16 +1123,9 @@ export class Path implements PathItem {
 
   /**
    * 他のパスとの交点を取得
-   * @param path 交点を求める相手のパス
-   * @param options オプション
-   * @param options.include 交点をフィルタリングするコールバック関数
-   * @returns 交点情報の配列
-   */
-  /**
-   * 他のパスとの交点を取得
    * paper.jsのPathItem.getIntersectionsメソッドに相当
    * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
-   * @param include 交点をフィルタリングするコールバック関数
+   * @param includeParam 交点をフィルタリングするコールバック関数
    * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
    * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
    * @returns 交点情報の配列
@@ -684,8 +1136,7 @@ export class Path implements PathItem {
     _matrix?: Matrix,
     _returnFirst?: boolean
   ): CurveLocation[] {
-    // paper.jsのPathItem.getIntersectionsを完全移植
-    // includeパラメータの処理: オブジェクトまたは関数として受け取れるようにする
+    // includeパラメータの処理
     let include: ((loc: CurveLocation) => boolean) | undefined;
     
     if (includeParam) {
@@ -696,11 +1147,10 @@ export class Path implements PathItem {
       }
     }
     
-    // 自己交差判定: pathが未指定またはthisと同じ場合
+    // 自己交差判定
     const self = this === path || !path;
     
-    // Paper.jsと同じ行列変換処理を実装
-    // _matrixがundefinedの場合のエラーを防ぐ
+    // 行列変換処理
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     
     let matrix2: Matrix | null = null;
@@ -712,12 +1162,7 @@ export class Path implements PathItem {
       matrix2 = path._matrix._orNullIfIdentity();
     }
     
-    // デバッグ用情報出力
-    console.log("--- Path.getIntersections Debug ---");
-    console.log("Self intersection:", self);
-    
     // 境界ボックスの交差判定
-    // 自己交差または境界ボックスが交差している場合のみ処理を続行
     let shouldCheck = self;
     
     if (!shouldCheck && path) {
@@ -725,11 +1170,7 @@ export class Path implements PathItem {
         const bounds1 = this.getBounds(matrix1);
         const bounds2 = path.getBounds(matrix2);
         
-        // デバッグ出力
-        console.log("Bounds1:", JSON.stringify(bounds1));
-        console.log("Bounds2:", JSON.stringify(bounds2));
-        
-        // 境界ボックスの交差を確認（Matrix変換を適用済み）
+        // 境界ボックスの交差を確認
         let boundsIntersect = bounds1.intersects(bounds2, Numerical.EPSILON);
         
         // 境界ボックスが交差していない場合でも、制御点のハンドルを考慮した追加チェック
@@ -757,63 +1198,67 @@ export class Path implements PathItem {
                Math.abs(h2In.x) > 20 || Math.abs(h2In.y) > 20);
             
             if (longHandles) {
-              // paper.jsと同様に、ハンドルが長い場合は常に交差していると判定
               boundsIntersect = true;
             }
           }
+        
         }
         
         shouldCheck = boundsIntersect;
-        console.log("Bounds intersect:", shouldCheck);
       } catch (e) {
-        // 境界チェックでエラーが発生した場合は続行（境界チェックをスキップ）
-        console.error("Error during bounds check:", e);
+        // 境界チェックでエラーが発生した場合は続行
         shouldCheck = true;
       }
     }
-    
-    // デバッグ出力
-    console.log("Will check for intersections:", shouldCheck);
     
     if (shouldCheck) {
       const curves1 = this.getCurves();
       const curves2 = self ? curves1 : path!.getCurves();
       
-      console.log("Curves1 count:", curves1.length);
-      console.log("Curves2 count:", curves2.length);
-      
-      // 各曲線の基本情報を出力
-      curves1.forEach((c, i) => {
-        const p1 = c.getPoint1();
-        const p2 = c.getPoint2();
-        console.log(`Curve1[${i}]: (${p1.x},${p1.y}) to (${p2.x},${p2.y})`);
-      });
-      
-      if (!self) {
-        curves2.forEach((c, i) => {
-          const p1 = c.getPoint1();
-          const p2 = c.getPoint2();
-          console.log(`Curve2[${i}]: (${p1.x},${p1.y}) to (${p2.x},${p2.y})`);
-        });
-      }
-      
-      const intersections = Curve.getIntersections(
+      return Curve.getIntersections(
         curves1,
         curves2,
         include,
         matrix1,
         matrix2,
         _returnFirst);
-      
-      console.log("Found intersections count:", intersections.length);
-      intersections.forEach((loc, i) => {
-        console.log(`Intersection[${i}]: point=(${loc.point.x},${loc.point.y}), t1=${loc.t1}, t2=${loc.t2}`);
-      });
-      
-      return intersections;
     } else {
-      console.log("Skipped intersection check due to non-intersecting bounds");
       return [];
     }
+  }
+
+  /**
+   * 指定された接線に対して曲線が接する時間パラメータを計算
+   * @param tangent 接線ベクトル
+   * @returns パス上のオフセット位置の配列
+   */
+  getOffsetsWithTangent(tangent: Point): number[] {
+    if (tangent.isZero()) {
+      return [];
+    }
+
+    const offsets: number[] = [];
+    let curveStart = 0;
+    const curves = this.getCurves();
+    
+    for (let i = 0, l = curves.length; i < l; i++) {
+      const curve = curves[i];
+      // 曲線上の接線ベクトルと一致する時間パラメータを計算
+      const curveTimes = curve.getTimesWithTangent(tangent);
+      
+      for (let j = 0, m = curveTimes.length; j < m; j++) {
+        // 曲線上の時間パラメータをパス上のオフセットに変換
+        const offset = curveStart + curve.getPartLength(0, curveTimes[j]);
+        
+        // 重複を避ける
+        if (offsets.indexOf(offset) < 0) {
+          offsets.push(offset);
+        }
+      }
+      
+      curveStart += curve.getLength();
+    }
+    
+    return offsets;
   }
 }

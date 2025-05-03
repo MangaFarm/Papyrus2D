@@ -1,18 +1,20 @@
 /**
  * Segmentクラス（Papyrus2D版）
  * Paper.jsのSegmentクラスを参考に実装。
- * 内部ではSegmentPointを使用してmutableな操作を行うが、
- * 外部からはイミュータブルに見えるようにする。
+ * Paper.jsと同様にミュータブルな設計。
  */
 
 import { Point } from '../basic/Point';
 import { SegmentPoint } from './SegmentPoint';
 
 export class Segment {
-  // 内部プロパティ（SegmentPoint）
-  private _point: SegmentPoint;
-  private _handleIn: SegmentPoint;
-  private _handleOut: SegmentPoint;
+  _point: SegmentPoint;
+  _handleIn: SegmentPoint;
+  _handleOut: SegmentPoint;
+  
+  // パスとの関連付け
+  _path: any; // Path型を参照するとcircular dependencyになるため、any型を使用
+  _index: number;
 
   /**
    * Segmentのコンストラクタ
@@ -65,34 +67,57 @@ export class Segment {
    * @param point 変更されたSegmentPoint
    */
   _changed(point?: SegmentPoint): void {
-    // Papyrus2Dでは外部からイミュータブルに見せるため、
-    // 内部変更通知は最小限にする
+    const path = this._path;
+    if (!path) return;
+
+    // 関連するカーブに変更を通知
+    const curves = path._curves;
+    const index = this._index;
+    let curve;
+
+    if (curves) {
+      // 変更されたポイントに応じて、影響を受けるカーブに通知
+      if ((!point || point === this._point || point === this._handleIn)
+          && (curve = index > 0 ? curves[index - 1] : path._closed
+              ? curves[curves.length - 1] : null))
+        curve._changed();
+
+      // 出力ハンドルが変更された場合は、次のカーブに通知
+      if ((!point || point === this._point || point === this._handleOut)
+          && (curve = curves[index]))
+        curve._changed();
+    }
+
+    // パスに変更を通知
+    if (path._changed) {
+      path._changed(1); // ChangeFlag.SEGMENTSに相当
+    }
   }
 
-  /**
-   * アンカーポイントを取得
-   */
-  get point(): Point {
-    return new Point(this._point.getX(), this._point.getY());
+  getPoint(): Point {
+    return this._point.toPoint();
   }
 
-  /**
-   * 入力ハンドルを取得
-   */
-  get handleIn(): Point {
-    return new Point(this._handleIn.getX(), this._handleIn.getY());
+  setPoint(point: Point | number[] | any): void {
+    this._point.setPoint(new Point(point));
   }
 
-  /**
-   * 出力ハンドルを取得
-   */
-  get handleOut(): Point {
-    return new Point(this._handleOut.getX(), this._handleOut.getY());
+  getHandleIn(): Point {
+    return this._handleIn.toPoint();
   }
 
-  /**
-   * ハンドルを持っているかどうか
-   */
+  setHandleIn(point: Point | number[] | any): void {
+    this._handleIn.setPoint(new Point(point));
+  }
+
+  getHandleOut(): Point {
+    return this._handleOut.toPoint();
+  }
+
+  setHandleOut(point: Point | number[] | any): void {
+    this._handleOut.setPoint(new Point(point));
+  }
+
   hasHandles(): boolean {
     return !this._handleIn.isZero() || !this._handleOut.isZero();
   }
@@ -109,73 +134,89 @@ export class Segment {
       );
   }
 
-  /**
-   * Segmentを複製する（イミュータブル）
-   */
   clone(): Segment {
-    return new Segment(this.point, this.handleIn, this.handleOut);
+    return new Segment(this.getPoint(), this.getHandleIn(), this.getHandleOut());
+  }
+
+  /**
+   * ハンドルを反転する
+   */
+  reverse(): void {
+    const handleIn = this._handleIn;
+    const handleOut = this._handleOut;
+    const tmp = handleIn.clone();
+    handleIn._set(handleOut._x, handleOut._y);
+    handleOut._set(tmp._x, tmp._y);
   }
 
   /**
    * ハンドルを反転した新しいSegmentを返す
    */
   reversed(): Segment {
-    return new Segment(this.point, this.handleOut, this.handleIn);
+    return new Segment(this.getPoint(), this.getHandleOut(), this.getHandleIn());
   }
 
-  /**
-   * toString
-   */
   toString(): string {
-    const parts = ['point: ' + this.point];
+    const parts = ['point: ' + this.getPoint()];
     if (!this._handleIn.isZero())
-      parts.push('handleIn: ' + this.handleIn);
+      parts.push('handleIn: ' + this.getHandleIn());
     if (!this._handleOut.isZero())
-      parts.push('handleOut: ' + this.handleOut);
+      parts.push('handleOut: ' + this.getHandleOut());
     return '{ ' + parts.join(', ') + ' }';
   }
 
-  /**
-   * 等価判定
-   */
   equals(other: Segment): boolean {
     return other === this || (
       other instanceof Segment &&
-      this.point.equals(other.point) &&
-      this.handleIn.equals(other.handleIn) &&
-      this.handleOut.equals(other.handleOut)
+      this.getPoint().equals(other.getPoint()) &&
+      this.getHandleIn().equals(other.getHandleIn()) &&
+      this.getHandleOut().equals(other.getHandleOut())
     );
   }
 
+  getIndex(): number | null {
+    return this._index !== undefined ? this._index : null;
+  }
+
+  getPath(): any {
+    return this._path || null;
+  }
+
   /**
-   * Segment を平行移動した新しいインスタンスを返す
+   * Segment を平行移動する
    * @param offset 移動量（Point もしくは number）。number の場合は dx とみなす
    * @param dy offset が number の場合の y 方向移動量（省略時は 0）
    */
   translate(offset: Point | number, dy: number = 0): Segment {
     const delta = offset instanceof Point ? offset : new Point(offset, dy);
-    return new Segment(
-      this.point.add(delta),
-      this.handleIn,
-      this.handleOut
+    this._point._set(
+      this._point._x + delta.x,
+      this._point._y + delta.y
     );
+    this._changed();
+    return this;
   }
 
   /**
-   * Segment を回転させた新しいインスタンスを返す
+   * Segment を回転させる
    * @param angle 角度（度数法）
    * @param center 回転中心（デフォルトは原点）
    */
   rotate(angle: number, center: Point = new Point(0, 0)): Segment {
-    const newPoint = this.point.rotate(angle, center);
+    const newPoint = this.getPoint().rotate(angle, center);
     // ハンドルは point からの相対ベクトルなので原点中心で回転
-    const newHandleIn = this.handleIn.rotate(angle);
-    const newHandleOut = this.handleOut.rotate(angle);
-    return new Segment(newPoint, newHandleIn, newHandleOut);
+    const newHandleIn = this.getHandleIn().rotate(angle);
+    const newHandleOut = this.getHandleOut().rotate(angle);
+    
+    this.setPoint(newPoint);
+    this.setHandleIn(newHandleIn);
+    this.setHandleOut(newHandleOut);
+    
+    return this;
   }
 
   /**
-   * Segment をスケール変換した新しいインスタンスを返す
+   * Segment をスケール変換する
    * @param scale スケール係数（Point もしくは number）。number の場合は等方スケール
    * @param sy scale が number の場合の y 方向スケール（省略時は scale と同値）
    * @param center スケール中心（デフォルトは原点）
@@ -192,31 +233,31 @@ export class Segment {
     }
 
     // point は center からのベクトルにスケールを掛けて戻す
-    const shifted = this.point.subtract(center).multiply(new Point(sx, syVal));
+    const point = this.getPoint();
+    const shifted = point.subtract(center).multiply(new Point(sx, syVal));
     const newPoint = shifted.add(center);
 
     // ハンドルは相対ベクトルなのでそのままスケール
-    const newHandleIn = this.handleIn.multiply(new Point(sx, syVal));
-    const newHandleOut = this.handleOut.multiply(new Point(sx, syVal));
+    const newHandleIn = this.getHandleIn().multiply(new Point(sx, syVal));
+    const newHandleOut = this.getHandleOut().multiply(new Point(sx, syVal));
 
-    return new Segment(newPoint, newHandleIn, newHandleOut);
+    this.setPoint(newPoint);
+    this.setHandleIn(newHandleIn);
+    this.setHandleOut(newHandleOut);
+
+    return this;
   }
 
   /**
-   * 行列変換した新しいSegmentを返す
+   * 行列変換する
    * @param matrix 変換行列
    */
   transform(matrix: any): Segment {
     // 座標配列を作成
     const coords = new Array(6);
-    this._transformCoordinates(matrix, coords, false);
-    
-    // 変換後の座標から新しいSegmentを作成
-    const point = new Point(coords[0], coords[1]);
-    const handleIn = new Point(coords[2] - coords[0], coords[3] - coords[1]);
-    const handleOut = new Point(coords[4] - coords[0], coords[5] - coords[1]);
-    
-    return new Segment(point, handleIn, handleOut);
+    this._transformCoordinates(matrix, coords, true);
+    this._changed();
+    return this;
   }
 
   /**
@@ -249,17 +290,65 @@ export class Segment {
     if (matrix) {
       matrix._transformCoordinates(coords, coords, i / 2);
       
-      if (!handleIn) {
-        coords[2] = coords[0];
-        coords[3] = coords[1];
-      }
-      if (!handleOut) {
-        coords[4] = coords[0];
-        coords[5] = coords[1];
+      if (change) {
+        // 変更フラグがtrueの場合、新しい値を設定
+        point._x = coords[0];
+        point._y = coords[1];
+        i = 2;
+        if (handleIn) {
+          handleIn._x = coords[i++] - coords[0];
+          handleIn._y = coords[i++] - coords[1];
+        }
+        if (handleOut) {
+          handleOut._x = coords[i++] - coords[0];
+          handleOut._y = coords[i++] - coords[1];
+        }
+      } else {
+        // 変更フラグがfalseの場合、ハンドルがnullでも座標を設定
+        if (!handleIn) {
+          coords[2] = coords[0];
+          coords[3] = coords[1];
+        }
+        if (!handleOut) {
+          coords[4] = coords[0];
+          coords[5] = coords[1];
+        }
       }
     }
 
     return coords;
+  }
+
+  /**
+   * 2つのセグメント間を補間する
+   * @param from 開始セグメント
+   * @param to 終了セグメント
+   * @param factor 補間係数（0〜1）
+   */
+  interpolate(from: Segment, to: Segment, factor: number): void {
+    const u = 1 - factor;
+    const v = factor;
+    const point1 = from.getPoint();
+    const point2 = to.getPoint();
+    const handleIn1 = from.getHandleIn();
+    const handleIn2 = to.getHandleIn();
+    const handleOut1 = from.getHandleOut();
+    const handleOut2 = to.getHandleOut();
+
+    this._point._set(
+      u * point1.x + v * point2.x,
+      u * point1.y + v * point2.y
+    );
+    this._handleIn._set(
+      u * handleIn1.x + v * handleIn2.x,
+      u * handleIn1.y + v * handleIn2.y
+    );
+    this._handleOut._set(
+      u * handleOut1.x + v * handleOut2.x,
+      u * handleOut1.y + v * handleOut2.y
+    );
+    
+    this._changed();
   }
 
   /**
@@ -269,29 +358,9 @@ export class Segment {
    * @param factor 補間係数（0〜1）
    */
   static interpolate(from: Segment, to: Segment, factor: number): Segment {
-    const u = 1 - factor;
-    const v = factor;
-    const point1 = from.point;
-    const point2 = to.point;
-    const handleIn1 = from.handleIn;
-    const handleIn2 = to.handleIn;
-    const handleOut1 = from.handleOut;
-    const handleOut2 = to.handleOut;
-
-    const newPoint = new Point(
-      u * point1.x + v * point2.x,
-      u * point1.y + v * point2.y
-    );
-    const newHandleIn = new Point(
-      u * handleIn1.x + v * handleIn2.x,
-      u * handleIn1.y + v * handleIn2.y
-    );
-    const newHandleOut = new Point(
-      u * handleOut1.x + v * handleOut2.x,
-      u * handleOut1.y + v * handleOut2.y
-    );
-
-    return new Segment(newPoint, newHandleIn, newHandleOut);
+    const segment = new Segment();
+    segment.interpolate(from, to, factor);
+    return segment;
   }
 
   /**
@@ -300,28 +369,24 @@ export class Segment {
    * @param _first 最初のセグメントフラグ（内部用）
    * @param _last 最後のセグメントフラグ（内部用）
    */
-  smooth(options: any = {}, _first?: boolean, _last?: boolean): Segment {
+  smooth(options: any = {}, _first?: boolean, _last?: boolean): void {
     const type = options.type;
     const factor = options.factor;
     
-    // 前後のセグメントが必要だが、Papyrus2Dではパスとの関連付けがないため
-    // 外部から提供する必要がある。ここでは新しいSegmentを返す設計にする
-    const prev = options.previous;
-    const next = options.next;
+    // パスとの関連付けがある場合は前後のセグメントを取得
+    const prev = options.previous || this.getPrevious();
+    const next = options.next || this.getNext();
     
     if (!prev || !next) {
-      return this.clone(); // 前後のセグメントがなければ変更なし
+      return; // 前後のセグメントがなければ変更なし
     }
 
     // 計算用の点を取得
-    const p0 = prev.point;
-    const p1 = this.point;
-    const p2 = next.point;
+    const p0 = prev.getPoint();
+    const p1 = this.getPoint();
+    const p2 = next.getPoint();
     const d1 = p0.getDistance(p1);
     const d2 = p1.getDistance(p2);
-
-    let newHandleIn = this.handleIn;
-    let newHandleOut = this.handleOut;
 
     if (!type || type === 'catmull-rom') {
       // Catmull-Romスプライン
@@ -335,12 +400,12 @@ export class Segment {
         const A = 2 * d2_2a + 3 * d2_a * d1_a + d1_2a;
         const N = 3 * d2_a * (d2_a + d1_a);
         if (N !== 0) {
-          newHandleIn = new Point(
+          this.setHandleIn(new Point(
             (d2_2a * p0.x + A * p1.x - d1_2a * p2.x) / N - p1.x,
             (d2_2a * p0.y + A * p1.y - d1_2a * p2.y) / N - p1.y
-          );
+          ));
         } else {
-          newHandleIn = new Point(0, 0);
+          this.setHandleIn(new Point(0, 0));
         }
       }
 
@@ -348,12 +413,12 @@ export class Segment {
         const A = 2 * d1_2a + 3 * d1_a * d2_a + d2_2a;
         const N = 3 * d1_a * (d1_a + d2_a);
         if (N !== 0) {
-          newHandleOut = new Point(
+          this.setHandleOut(new Point(
             (d1_2a * p2.x + A * p1.x - d2_2a * p0.x) / N - p1.x,
             (d1_2a * p2.y + A * p1.y - d2_2a * p0.y) / N - p1.y
-          );
+          ));
         } else {
-          newHandleOut = new Point(0, 0);
+          this.setHandleOut(new Point(0, 0));
         }
       }
     } else if (type === 'geometric') {
@@ -364,40 +429,41 @@ export class Segment {
         const k = t * d1 / (d1 + d2);
         
         if (!_first) {
-          newHandleIn = vector.multiply(k);
+          this.setHandleIn(vector.multiply(k));
         }
         if (!_last) {
-          newHandleOut = vector.multiply(k - t);
+          this.setHandleOut(vector.multiply(k - t));
         }
       }
     } else {
       throw new Error(`Smoothing method '${type}' not supported.`);
     }
-
-    return new Segment(this.point, newHandleIn, newHandleOut);
   }
 
-  /**
-   * handleIn のみを変更した新しい Segment を返す
-   * @param handleIn 新しい handleIn
-   */
-  withHandleIn(handleIn: Point): Segment {
-    return new Segment(this.point, handleIn, this.handleOut);
+  getPrevious(): Segment | null {
+    const segments = this._path && this._path._segments;
+    return segments && (segments[this._index - 1]
+            || this._path._closed && segments[segments.length - 1]) || null;
   }
 
-  /**
-   * handleOut のみを変更した新しい Segment を返す
-   * @param handleOut 新しい handleOut
-   */
-  withHandleOut(handleOut: Point): Segment {
-    return new Segment(this.point, this.handleIn, handleOut);
+  getNext(): Segment | null {
+    const segments = this._path && this._path._segments;
+    return segments && (segments[this._index + 1]
+            || this._path._closed && segments[0]) || null;
   }
 
-  /**
-   * point のみを変更した新しい Segment を返す
-   * @param point 新しい point
-   */
-  withPoint(point: Point): Segment {
-    return new Segment(point, this.handleIn, this.handleOut);
+  isFirst(): boolean {
+    return !this._index;
+  }
+
+  isLast(): boolean {
+    const path = this._path;
+    return path && this._index === path._segments.length - 1 || false;
+  }
+
+  clearHandles(): Segment {
+    this._handleIn._set(0, 0);
+    this._handleOut._set(0, 0);
+    return this;
   }
 }

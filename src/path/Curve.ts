@@ -1,6 +1,7 @@
 /**
- * CurveLocation: 曲線上の位置情報（交点、端点など）
- * paper.jsのCurveLocationクラスに相当
+ * Curve: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
+ * paper.jsのCurveクラスAPIを参考に設計
+ * イミュータブル設計
  */
 
 import { Segment } from './Segment';
@@ -9,94 +10,31 @@ import { Matrix } from '../basic/Matrix';
 import { Numerical } from '../util/Numerical';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { getSelfIntersection, getCurveIntersections } from './CurveIntersections';
+import { CurveCalculation } from './CurveCalculation';
+import { CurveGeometry } from './CurveGeometry';
+import { CurveSubdivision } from './CurveSubdivision';
+import { CurveLocationUtils } from './CurveLocationUtils';
+import { CurveLocation } from './CurveLocation';
 
-export class CurveLocation {
-  // 基本情報
-  curve1Index: number = -1;  // 曲線1のインデックス
-  curve2Index: number = -1;  // 曲線2のインデックス
-  curve: Curve | null;       // 曲線オブジェクト（paper.js互換）
-  curve1: Curve | null;      // 曲線1オブジェクト（Papyrus2D拡張）
-  curve2: Curve | null;      // 曲線2オブジェクト（Papyrus2D拡張）
-  time: number | null;       // 曲線上のパラメータ（paper.js互換）
-  t1: number | null;         // 曲線1上のパラメータ（Papyrus2D拡張）
-  t2: number | null;         // 曲線2上のパラメータ（Papyrus2D拡張）
-  point: Point;              // 交点の座標
-  
-  // 追加情報（重複判定・端点マージ用）
-  overlap: boolean;          // 重複フラグ
-  distance?: number;         // 距離（近接判定用）
-  tangent?: boolean;         // 接線共有フラグ
-  onPath?: boolean;          // パス上フラグ
-  
-  // Paper.jsと同様のプロパティ（交点の相互参照用）
-  _intersection?: CurveLocation; // 対応する交点
-  _next?: CurveLocation;         // 連結リスト用
-  _previous?: CurveLocation;     // 連結リスト用
-
-  /**
-   * Paper.js互換のコンストラクタ
-   * @param curve 曲線
-   * @param time 曲線上のパラメータ
-   * @param point 交点の座標（nullの場合は自動計算）
-   * @param overlap 重複フラグ
-   * @param distance 距離
-   */
-  constructor(
-    curve: Curve | null,
-    time: number | null,
-    point?: Point | null,
-    overlap: boolean = false,
-    distance?: number
-  ) {
-    // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
-    if (time !== null && time >= (1 - Numerical.CURVETIME_EPSILON) && curve) {
-      const next = curve.getNext();
-      if (next) {
-        time = 0;
-        curve = next;
-      }
-    }
-    
-    this.curve = curve;
-    this.curve1 = curve;  // 互換性のため
-    this.curve2 = null;   // 互換性のため
-    this.time = time;
-    this.t1 = time;       // 互換性のため
-    this.t2 = null;       // 互換性のため
-    
-    // paper.jsと同様に、pointがnullの場合は自動的に計算
-    if (point) {
-      this.point = point;
-    } else if (time !== null && curve) {
-      this.point = curve.getPointAt(time);
-    } else {
-      this.point = new Point(0, 0);
-    }
-    
-    this.overlap = overlap;
-    if (distance !== undefined) {
-      this.distance = distance;
-    }
-  }
-}
-
-/**
- * Curveクラス: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
- * - paper.jsのCurveクラスAPIを参考に設計
- * - イミュータブル設計
- */
 export class Curve {
   readonly segment1: Segment;
   readonly segment2: Segment;
+  
+  // Path.tsとの互換性のためのエイリアス
+  get _segment1(): Segment { return this.segment1; }
+  set _segment1(value: Segment) { (this as any).segment1 = value; }
+  
+  get _segment2(): Segment { return this.segment2; }
+  set _segment2(value: Segment) { (this as any).segment2 = value; }
+  
+  // Path.tsとの互換性のためのプロパティ
+  _path: any;
 
   constructor(segment1: Segment, segment2: Segment) {
     this.segment1 = segment1;
     this.segment2 = segment2;
   }
 
-  /**
-   * 前のカーブを取得（paper.js互換）
-   */
   getPrevious(): Curve | null {
     const path = (this as any)._path;
     return path ? (path._closed && this.getIndex() === 0
@@ -104,9 +42,6 @@ export class Curve {
             : path._curves[this.getIndex() - 1]) || null : null;
   }
 
-  /**
-   * 次のカーブを取得（paper.js互換）
-   */
   getNext(): Curve | null {
     const path = (this as any)._path;
     return path ? (path._closed && this.getIndex() === path._curves.length - 1
@@ -115,21 +50,20 @@ export class Curve {
   }
 
   /**
-   * 曲線の始点を取得（paper.js互換）
+   * 曲線の始点を取得
    */
   getPoint1(): Point {
-    return this.segment1.point;
+    return this.segment1.getPoint();
   }
 
   /**
-   * 曲線の終点を取得（paper.js互換）
+   * 曲線の終点を取得
    */
   getPoint2(): Point {
-    return this.segment2.point;
+    return this.segment2.getPoint();
   }
 
   /**
-   * カーブのインデックスを取得（paper.js互換）
    * パス内でのこのカーブの位置を返す
    */
   getIndex(): number {
@@ -137,59 +71,30 @@ export class Curve {
   }
 
   /**
-   * 曲線がハンドルを持っているかチェック（paper.js互換）
+   * 曲線がハンドルを持っているかチェック
    */
   hasHandles(): boolean {
-    return !this.segment1.handleOut.isZero() || !this.segment2.handleIn.isZero();
+    return !this.segment1.getHandleOut().isZero() || !this.segment2.getHandleIn().isZero();
   }
 
   /**
    * 曲線長を返す
    */
-  /**
-   * 曲線長を返す（paper.jsそっくり）
-   */
   getLength(): number {
     if ((this as any)._length == null) {
-      (this as any)._length = Curve.getLength(this.getValues(), 0, 1);
+      (this as any)._length = CurveGeometry.getLength(this.getValues(), 0, 1);
     }
     return (this as any)._length;
   }
 
   /**
-   * static: paper.jsそっくりの曲線長計算
-   */
-  static getLength(v: number[], a?: number, b?: number, ds?: (t: number) => number): number {
-    if (a === undefined) a = 0;
-    if (b === undefined) b = 1;
-    if (Curve.isStraight(v)) {
-      // Sub-divide the linear curve at a and b, so we can simply
-      // calculate the Pythagorean Theorem to get the range's length.
-      let c = v;
-      if (b < 1) {
-        c = Curve.subdivide(c, b)[0]; // left
-        a /= b; // Scale parameter to new sub-curve.
-      }
-      if (a > 0) {
-        c = Curve.subdivide(c, a)[1]; // right
-      }
-      // The length of straight curves can be calculated more easily.
-      const dx = c[6] - c[0];
-      const dy = c[7] - c[1];
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-    return Numerical.integrate(ds || Curve.getLengthIntegrand(v), a, b, Curve.getIterations(a, b));
-  }
-
-  /**
    * ベジェ制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2] を返す
-   * paper.jsと同様に行列変換をサポート
    */
   getValues(matrix?: Matrix): number[] {
-    const p1 = this.segment1.point;
-    const h1 = p1.add(this.segment1.handleOut);
-    const h2 = this.segment2.point.add(this.segment2.handleIn);
-    const p2 = this.segment2.point;
+    const p1 = this.segment1.getPoint();
+    const h1 = p1.add(this.segment1.getHandleOut());
+    const h2 = this.segment2.getPoint().add(this.segment2.getHandleIn());
+    const p2 = this.segment2.getPoint();
     const values = [p1.x, p1.y, h1.x, h1.y, h2.x, h2.y, p2.x, p2.y];
     
     if (matrix) {
@@ -200,290 +105,84 @@ export class Curve {
   }
 
   /**
-   * 直線判定
-   */
-  /**
-   * 直線判定 - paper.jsの実装と完全に同じ
-   */
-  static isStraight(v: number[]): boolean {
-    // ハンドルがゼロ or 全てcollinear
-    const p1 = new Point(v[0], v[1]);
-    const h1 = new Point(v[2] - v[0], v[3] - v[1]);
-    const h2 = new Point(v[4] - v[6], v[5] - v[7]);
-    const p2 = new Point(v[6], v[7]);
-    
-    // ハンドルがゼロの場合
-    if (h1.isZero() && h2.isZero()) return true;
-    
-    // 線分の方向ベクトル
-    const vLine = p2.subtract(p1);
-    
-    // ゼロ長の線分の場合
-    if (vLine.isZero()) return false;
-    
-    // ハンドルが線分と同一線上にあるかチェック
-    if (vLine.isCollinear(h1) && vLine.isCollinear(h2)) {
-      // paper.jsと同様に、ハンドルが線分上にあるかをより厳密にチェック
-      // 線分からの距離をチェック
-      const line = { point: p1, vector: vLine };
-      const epsilon = Numerical.GEOMETRIC_EPSILON;
-      
-      // 線分からの距離が十分に小さいか
-      const getDistance = (pt: Point): number => {
-        const v2 = pt.subtract(line.point);
-        const vl = line.vector;
-        const vl2 = vl.x * vl.x + vl.y * vl.y;
-        if (vl2 === 0) return v2.getLength();
-        const t = (v2.x * vl.x + v2.y * vl.y) / vl2;
-        const proj = line.point.add(vl.multiply(t));
-        return pt.subtract(proj).getLength();
-      };
-      
-      if (getDistance(p1.add(h1)) < epsilon && getDistance(p2.add(h2)) < epsilon) {
-        // ハンドルが線分の範囲内にあるかチェック
-        const div = vLine.dot(vLine);
-        const s1 = vLine.dot(h1) / div;
-        const s2 = vLine.dot(h2) / div;
-        return s1 >= 0 && s1 <= 1 && s2 <= 0 && s2 >= -1;
-      }
-    }
-    
-    return false;
-  }
-
-  /**
-   * 曲線長積分用の関数
-   */
-  /**
-   * paper.jsそっくりの曲線長積分用関数
-   */
-  static getLengthIntegrand(v: number[]): (t: number) => number {
-    // Calculate the coefficients of a Bezier derivative.
-    const x0 = v[0], y0 = v[1],
-      x1 = v[2], y1 = v[3],
-      x2 = v[4], y2 = v[5],
-      x3 = v[6], y3 = v[7];
-
-    const ax = 9 * (x1 - x2) + 3 * (x3 - x0),
-      bx = 6 * (x0 + x2) - 12 * x1,
-      cx = 3 * (x1 - x0),
-      ay = 9 * (y1 - y2) + 3 * (y3 - y0),
-      by = 6 * (y0 + y2) - 12 * y1,
-      cy = 3 * (y1 - y0);
-
-    return function (t: number) {
-      // Calculate quadratic equations of derivatives for x and y
-      const dx = (ax * t + bx) * t + cx,
-        dy = (ay * t + by) * t + cy;
-      return Math.sqrt(dx * dx + dy * dy);
-    };
-  }
-
-  /**
-   * 積分分割数
-   */
-  /**
-   * paper.jsそっくりの分割数推定
-   */
-  static getIterations(a: number, b: number): number {
-    // Guess required precision based and size of range...
-    // TODO: There should be much better educated guesses for this. Also, what does this depend on? Required precision?
-    return Math.max(2, Math.min(16, Math.ceil(Math.abs(b - a) * 32)));
-  }
-
-  /**
    * t(0-1)で指定した位置のPointを返す
    */
   getPointAt(t: number): Point {
     const v = this.getValues();
-    return Curve.evaluate(v, t, 0, false);
-  }
-
-  /**
-   * 三次ベジェ曲線のt位置の点を返す
-   * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
-   */
-  static evaluate(v: number[], t: number, type: number = 0, normalized: boolean = false): Point {
-    // Do not produce results if parameter is out of range or invalid.
-    if (t == null || t < 0 || t > 1)
-      throw new Error('t must be in [0,1]');
-    
-    const x0 = v[0], y0 = v[1],
-          x1 = v[2], y1 = v[3],
-          x2 = v[4], y2 = v[5],
-          x3 = v[6], y3 = v[7];
-    
-    // If the curve handles are almost zero, reset the control points to the anchors.
-    const isZero = Numerical.isZero;
-    
-    let cx1 = x1, cy1 = y1, cx2 = x2, cy2 = y2;
-    
-    if (isZero(x1 - x0) && isZero(y1 - y0)) {
-      cx1 = x0;
-      cy1 = y0;
-    }
-    if (isZero(x2 - x3) && isZero(y2 - y3)) {
-      cx2 = x3;
-      cy2 = y3;
-    }
-    
-    if (type === 0) {
-      // type === 0: getPoint()
-      // Calculate the curve point at parameter value t
-      // Use special handling at t === 0 / 1, to avoid imprecisions.
-      if (t === 0) return new Point(x0, y0);
-      if (t === 1) return new Point(x3, y3);
-      
-      const mt = 1 - t;
-      const mt2 = mt * mt;
-      const t2 = t * t;
-      const a = mt2 * mt;
-      const b = 3 * mt2 * t;
-      const c = 3 * mt * t2;
-      const d = t * t2;
-      const x = a * x0 + b * cx1 + c * cx2 + d * x3;
-      const y = a * y0 + b * cy1 + c * cy2 + d * y3;
-      return new Point(x, y);
-    } else {
-      // type === 1: getTangent()
-      // type === 2: getNormal()
-      // type === 3: getCurvature()
-      const tMin = Numerical.CURVETIME_EPSILON,
-            tMax = 1 - tMin;
-      let x, y;
-      
-      // Prevent tangents and normals of length 0:
-      if (t < tMin) {
-        x = cx1 - x0;
-        y = cy1 - y0;
-      } else if (t > tMax) {
-        x = x3 - cx2;
-        y = y3 - cy2;
-      } else {
-        // Calculate the polynomial coefficients.
-        const cx = 3 * (cx1 - x0),
-              bx = 3 * (cx2 - cx1) - cx,
-              ax = x3 - x0 - cx - bx,
-              cy = 3 * (cy1 - y0),
-              by = 3 * (cy2 - cy1) - cy,
-              ay = y3 - y0 - cy - by;
-              
-        x = (3 * ax * t + 2 * bx) * t + cx;
-        y = (3 * ay * t + 2 * by) * t + cy;
-      }
-      
-      if (normalized) {
-        // When the tangent at t is zero and we're at the beginning
-        // or the end, we can use the vector between the handles,
-        // but only when normalizing as its weighted length is 0.
-        if (x === 0 && y === 0 && (t < tMin || t > tMax)) {
-          x = cx2 - cx1;
-          y = cy2 - cy1;
-        }
-        // Now normalize x & y
-        const len = Math.sqrt(x * x + y * y);
-        if (len) {
-          x /= len;
-          y /= len;
-        }
-      }
-      
-      if (type === 3) {
-        // Calculate 2nd derivative, and curvature from there:
-        // k = |dx * d2y - dy * d2x| / (( dx^2 + dy^2 )^(3/2))
-        const cx = 3 * (cx1 - x0),
-              bx = 3 * (cx2 - cx1) - cx,
-              ax = x3 - x0 - cx - bx,
-              cy = 3 * (cy1 - y0),
-              by = 3 * (cy2 - cy1) - cy,
-              ay = y3 - y0 - cy - by;
-              
-        const x2 = 6 * ax * t + 2 * bx,
-              y2 = 6 * ay * t + 2 * by,
-              d = Math.pow(x * x + y * y, 3 / 2);
-        // For JS optimizations we always return a Point, although
-        // curvature is just a numeric value, stored in x:
-        x = d !== 0 ? (x * y2 - y * x2) / d : 0;
-        y = 0;
-      }
-      
-      // The normal is simply the rotated tangent:
-      return type === 2 ? new Point(y, -x) : new Point(x, y);
-    }
+    return CurveCalculation.getPoint(v, t);
   }
 
   /**
    * t(0-1)で指定した位置の接線ベクトルを返す
    */
   getTangentAt(t: number): Point {
-    return Curve.getTangent(this.getValues(), t);
+    return CurveCalculation.getTangent(this.getValues(), t);
   }
   
   /**
    * t(0-1)で指定した位置の法線ベクトルを返す
    */
   getNormalAt(t: number): Point {
-    return Curve.getNormal(this.getValues(), t);
+    return CurveCalculation.getNormal(this.getValues(), t);
   }
   
   /**
    * t(0-1)で指定した位置の重み付き接線ベクトルを返す
    */
   getWeightedTangentAt(t: number): Point {
-    return Curve.getWeightedTangent(this.getValues(), t);
+    return CurveCalculation.getWeightedTangent(this.getValues(), t);
   }
   
   /**
    * t(0-1)で指定した位置の重み付き法線ベクトルを返す
    */
   getWeightedNormalAt(t: number): Point {
-    return Curve.getWeightedNormal(this.getValues(), t);
+    return CurveCalculation.getWeightedNormal(this.getValues(), t);
   }
   
   /**
    * t(0-1)で指定した位置の曲率を返す
    */
   getCurvatureAt(t: number): number {
-    return Curve.getCurvature(this.getValues(), t);
+    return CurveCalculation.getCurvature(this.getValues(), t);
   }
   
   /**
    * 指定された接線に対して曲線が接する時間パラメータを計算
    */
   getTimesWithTangent(tangent: Point): number[] {
-    return Curve.getTimesWithTangent(this.getValues(), tangent);
+    return CurveCalculation.getTimesWithTangent(this.getValues(), tangent);
   }
 
   /**
    * 曲線をtで分割し、2つのCurveに分ける
-   * paper.jsのde CasteljauアルゴリズムをTypeScriptで実装
    */
   divide(t: number): [Curve, Curve] {
     if (t < 0 || t > 1) throw new Error('t must be in [0,1]');
     const v = this.getValues();
-    const [left, right] = Curve.subdivide(v, t);
+    const [left, right] = CurveSubdivision.subdivide(v, t);
 
     // left: [x0, y0, x4, y4, x7, y7, x9, y9]
     // right: [x9, y9, x8, y8, x6, y6, x3, y3]
     const seg1_left = new Segment(
       new Point(left[0], left[1]),
-      new Point(left[2] - left[0], left[3] - left[1]), // handleOut
-      new Point(0, 0) // handleIn
+      new Point(0, 0), // handleIn
+      new Point(left[2] - left[0], left[3] - left[1]) // handleOut
     );
     const seg2_left = new Segment(
       new Point(left[6], left[7]),
-      new Point(0, 0), // handleOut
-      new Point(left[4] - left[6], left[5] - left[7]) // handleIn
+      new Point(left[4] - left[6], left[5] - left[7]), // handleIn
+      new Point(0, 0) // handleOut
     );
     const seg1_right = new Segment(
       new Point(right[0], right[1]),
-      new Point(right[2] - right[0], right[3] - right[1]), // handleOut
-      new Point(0, 0) // handleIn
+      new Point(0, 0), // handleIn
+      new Point(right[2] - right[0], right[3] - right[1]) // handleOut
     );
     const seg2_right = new Segment(
       new Point(right[6], right[7]),
-      new Point(0, 0), // handleOut
-      new Point(right[4] - right[6], right[5] - right[7]) // handleIn
+      new Point(right[4] - right[6], right[5] - right[7]), // handleIn
+      new Point(0, 0) // handleOut
     );
     return [
       new Curve(seg1_left, seg2_left),
@@ -496,490 +195,113 @@ export class Curve {
    */
   split(t: number): Curve {
     return this.divide(t)[0];
-    }
-  
-    /**
-      * 指定した区間[from, to]の部分曲線を返す（paper.jsのgetPart相当）
-      */
-    static getPart(v: number[], from: number, to: number): number[] {
-      const flip = from > to;
-      if (flip) {
-        const tmp = from;
-        from = to;
-        to = tmp;
-      }
-      let vv = v;
-      if (from > 0) {
-        vv = Curve.subdivide(vv, from)[1]; // [1] right
-      }
-      // Interpolate the parameter at 'to' in the new curve and cut there.
-      if (to < 1) {
-        vv = Curve.subdivide(vv, (to - from) / (1 - from))[0]; // [0] left
-      }
-      // Return reversed curve if from / to were flipped:
-      return flip
-        ? [vv[6], vv[7], vv[4], vv[5], vv[2], vv[3], vv[0], vv[1]]
-        : vv;
-    }
+  }
+
   /**
-   * 動的再帰深度の計算
-   * paper.jsのgetDepthを完全移植
+   * 曲線上の点の位置情報を取得
+   * @param point 曲線上の点
+   * @returns 曲線位置情報
    */
-  private static getDepth(v: number[]): number {
-    // paper.jsと同じLUTベースの実装
-    const p1 = new Point(v[0], v[1]);
-    const p2 = new Point(v[6], v[7]);
-    const c1 = new Point(v[2], v[3]);
-    const c2 = new Point(v[4], v[5]);
+  getLocationOf(point: Point): CurveLocation | null {
+    const time = CurveLocationUtils.getTimeOf(this.getValues(), point);
+    return time !== null ? new CurveLocation(this, time, point) : null;
+  }
+
+  /**
+   * 曲線上の指定されたオフセット位置の位置情報を取得
+   */
+  getLocationAt(offset: number): CurveLocation {
+    if (offset <= 0) {
+      return new CurveLocation(this, 0);
+    }
+    if (offset >= this.getLength()) {
+      return new CurveLocation(this, 1);
+    }
     
-    // 制御点から直線への距離を計算
-    const d1 = this.getDistanceFromLine(p1, p2, c1);
-    const d2 = this.getDistanceFromLine(p1, p2, c2);
-    
-    // 最大距離
-    const maxDist = Math.max(d1, d2);
-    
-    // paper.jsと同じLUT（Look-Up Table）を使用
-    const LUT_SIZE = 16;
-    const lookupTable = [
-      [0.0150, 4], // 0
-      [0.0205, 5], // 1
-      [0.0260, 5], // 2
-      [0.0315, 6], // 3
-      [0.0370, 6], // 4
-      [0.0425, 7], // 5
-      [0.0480, 7], // 6
-      [0.0540, 8], // 7
-      [0.0600, 8], // 8
-      [0.0665, 9], // 9
-      [0.0730, 9], // 10
-      [0.0795, 10], // 11
-      [0.0860, 10], // 12
-      [0.0930, 11], // 13
-      [0.1000, 11], // 14
-      [0.1075, 12]  // 15
-    ];
-    
-    // 曲線が直線に近い場合は再帰深度を小さく
-    if (maxDist < Numerical.EPSILON) {
+    const t = this.getTimeAt(offset);
+    return new CurveLocation(this, t);
+  }
+  
+  /**
+   * 曲線上の指定されたオフセット位置のパラメータを取得
+   */
+  getTimeAt(offset: number): number {
+    if (offset <= 0) {
+      return 0;
+    }
+    if (offset >= this.getLength()) {
       return 1;
     }
     
-    // LUTを使用して再帰深度を決定
-    for (let i = 0; i < LUT_SIZE; i++) {
-      if (maxDist <= lookupTable[i][0]) {
-        return lookupTable[i][1];
-      }
-    }
+    // 二分探索で近似
+    let start = 0;
+    let end = 1;
+    let epsilon = Numerical.CURVETIME_EPSILON;
     
-    // LUTの範囲外の場合は最大値を返す
-    return 12;
-  }
-  
-  /**
-   * 点から直線への距離を計算
-   */
-  private static getDistanceFromLine(p1: Point, p2: Point, point: Point): number {
-    const line = p2.subtract(p1);
-    const lineLength = line.getLength();
-    
-    if (lineLength < Numerical.EPSILON) {
-      return point.subtract(p1).getLength();
-    }
-    
-    // 直線上の最近接点を計算
-    // paper.jsと同じ計算方法を使用
-    const t = point.subtract(p1).dot(line) / (lineLength * lineLength);
-    const projection = p1.add(line.multiply(t));
-    
-    // 点から直線への距離
-    return point.subtract(projection).getLength();
-  }
-
-  /**
-   * 2つの三次ベジェ曲線の交点を列挙（paper.js完全版）
-   * @param v1 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
-   * @param v2 制御点配列
-   * @param locations 交点を格納する配列
-   * @param t1s t1開始
-   * @param t1e t1終了
-   * @param t2s t2開始
-   * @param t2e t2終了
-   * @param depth 再帰深さ
-   * @param maxDepth 最大再帰深さ
-   */
-  
-  /**
-   * 曲線と直線の交点を計算
-   * paper.jsのgetCurveLineIntersections実装を移植
-   */
-  /**
-   * 曲線上の点のtパラメータを取得
-   * paper.jsのgetTimeOf実装を移植
-   */
-  static getTimeOf(v: number[], point: Point): number | null {
-    // paper.jsの完全実装に合わせる
-    // まず端点との距離をチェック
-    const p0 = new Point(v[0], v[1]);
-    const p3 = new Point(v[6], v[7]);
-    const epsilon = Numerical.EPSILON;
-    const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
-    
-    // 端点が十分近い場合は早期リターン
-    if (point.isClose(p0, epsilon)) return 0;
-    if (point.isClose(p3, epsilon)) return 1;
-    
-    // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
-    // 最小になる t を求める
-    const coords = [point.x, point.y];
-    const roots: number[] = [];
-    
-    for (let c = 0; c < 2; c++) {
-      // 三次方程式を解く
-      const count = Numerical.solveCubic(
-        3 * (-v[c] + 3 * v[c + 2] - 3 * v[c + 4] + v[c + 6]),
-        6 * (v[c] - 2 * v[c + 2] + v[c + 4]),
-        3 * (-v[c] + v[c + 2]),
-        v[c] - coords[c],
-        roots, { min: 0, max: 1 }
-      );
-      
-      // 各解について、曲線上の点と与えられた点の距離をチェック
-      for (let i = 0; i < count; i++) {
-        const t = roots[i];
-        const p = Curve.evaluate(v, t);
-        if (point.isClose(p, geomEpsilon)) {
-          return t;
-        }
-      }
-    }
-    
-    // 端点が十分近い場合は幾何学的イプシロンでも確認
-    if (point.isClose(p0, geomEpsilon)) return 0;
-    if (point.isClose(p3, geomEpsilon)) return 1;
-    
-    return null;
-  }
-  
-  /**
-   * 三次方程式を解く
-   * paper.jsのsolveCubic実装を移植
-   */
-  static solveCubic(a: number, b: number, c: number, d: number, roots: number[], min?: number, max?: number): number {
-    // Numerical.solveCubicを使用
-    return Numerical.solveCubic(a, b, c, d, roots, min !== undefined && max !== undefined ? { min, max } : undefined);
-  }
-  
-  /**
-   * 曲線上の最も近い点のtパラメータを取得
-   * paper.jsのgetNearestTime実装を移植
-   */
-  static getNearestTime(v: number[], point: Point): number {
-    if (Curve.isStraight(v)) {
-      const x0 = v[0], y0 = v[1];
-      const x3 = v[6], y3 = v[7];
-      const vx = x3 - x0, vy = y3 - y0;
-      const det = vx * vx + vy * vy;
-      
-      // ゼロ除算を避ける
-      if (det === 0) return 0;
-      
-      // 点を線上に投影し、線形パラメータuを計算: u = (point - p1).dot(v) / v.dot(v)
-      const u = ((point.x - x0) * vx + (point.y - y0) * vy) / det;
-      
-      if (u < Numerical.EPSILON) return 0;
-      if (u > (1 - Numerical.EPSILON)) return 1;
-      
-      const timeOf = Curve.getTimeOf(v, new Point(x0 + u * vx, y0 + u * vy));
-      return timeOf !== null ? timeOf : 0;
-    }
-    
-    const count = 100;
-    let minDist = Infinity;
-    let minT = 0;
-    
-    function refine(t: number): boolean {
-      if (t >= 0 && t <= 1) {
-        const p = Curve.evaluate(v, t);
-        const dist = point.getDistance(p, true);
-        if (dist < minDist) {
-          minDist = dist;
-          minT = t;
-          return true;
-        }
-      }
-      return false;
-    }
-    
-    for (let i = 0; i <= count; i++) {
-      refine(i / count);
-    }
-    
-    // 解を反復的に精製して所望の精度に達するまで
-    let step = 1 / (count * 2);
-    while (step > Numerical.CURVETIME_EPSILON) {
-      if (!refine(minT - step) && !refine(minT + step)) {
-        step /= 2;
-      }
-    }
-    
-    return minT;
-  }
-  
-  /**
-   * 曲線上の点を計算
-   * paper.jsのgetPoint実装を移植
-   */
-  static getPoint(v: number[], t: number): Point {
-    return Curve.evaluate(v, t, 0, false);
-  }
-  
-  /**
-   * 曲線上の正規化された接線ベクトルを計算
-   * paper.jsのgetTangent実装を移植
-   */
-  static getTangent(v: number[], t: number): Point {
-    return Curve.evaluate(v, t, 1, true);
-  }
-  
-  /**
-   * 曲線上の法線ベクトルを計算
-   * paper.jsのgetNormal実装を移植
-   */
-  static getNormal(v: number[], t: number): Point {
-    return Curve.evaluate(v, t, 2, true);
-  }
-  
-  /**
-   * 曲線上の重み付き接線ベクトルを計算
-   * paper.jsのgetWeightedTangent実装を移植
-   */
-  static getWeightedTangent(v: number[], t: number): Point {
-    return Curve.evaluate(v, t, 1, false);
-  }
-  
-  /**
-   * 曲線上の重み付き法線ベクトルを計算
-   * paper.jsのgetWeightedNormal実装を移植
-   */
-  static getWeightedNormal(v: number[], t: number): Point {
-    return Curve.evaluate(v, t, 2, false);
-  }
-  
-  /**
-   * 曲線上の曲率を計算
-   * paper.jsのgetCurvature実装を移植
-   */
-  static getCurvature(v: number[], t: number): number {
-    return Curve.evaluate(v, t, 3, false).x;
-  }
-  
-  /**
-   * 指定された接線に対して曲線が接する時間パラメータを計算
-   * paper.jsのgetTimesWithTangent実装を移植
-   */
-  static getTimesWithTangent(v: number[], tangent: Point): number[] {
-    if (tangent.isZero()) {
-      return [];
-    }
-    
-    const x0 = v[0], y0 = v[1],
-          x1 = v[2], y1 = v[3],
-          x2 = v[4], y2 = v[5],
-          x3 = v[6], y3 = v[7];
-          
-    const normalized = tangent.normalize();
-    const tx = normalized.x;
-    const ty = normalized.y;
-    
-    const ax = 3 * x3 - 9 * x2 + 9 * x1 - 3 * x0;
-    const ay = 3 * y3 - 9 * y2 + 9 * y1 - 3 * y0;
-    const bx = 6 * x2 - 12 * x1 + 6 * x0;
-    const by = 6 * y2 - 12 * y1 + 6 * y0;
-    const cx = 3 * x1 - 3 * x0;
-    const cy = 3 * y1 - 3 * y0;
-    
-    const den = 2 * ax * ty - 2 * ay * tx;
-    const times: number[] = [];
-    
-    if (Math.abs(den) < Numerical.CURVETIME_EPSILON) {
-      const num = ax * cy - ay * cx;
-      const den2 = ax * by - ay * bx;
-      if (den2 !== 0) {
-        const t = -num / den2;
-        if (t >= 0 && t <= 1) {
-          times.push(t);
-        }
-      }
-    } else {
-      const delta = (bx * bx - 4 * ax * cx) * ty * ty +
-                   (-2 * bx * by + 4 * ay * cx + 4 * ax * cy) * tx * ty +
-                   (by * by - 4 * ay * cy) * tx * tx;
-      const k = bx * ty - by * tx;
-      
-      if (delta >= 0 && den !== 0) {
-        const d = Math.sqrt(delta);
-        const t0 = -(k + d) / den;
-        const t1 = (-k + d) / den;
-        
-        if (t0 >= 0 && t0 <= 1) {
-          times.push(t0);
-        }
-        if (t1 >= 0 && t1 <= 1) {
-          times.push(t1);
-        }
-      }
-    }
-    
-    return times;
-  }
-  
-  /**
-   * 制御点配列からCurveを生成
-   */
-    static fromValues(v: number[]): Curve {
-      const p0 = new Point(v[0], v[1]);
-      const h0 = new Point(v[2], v[3]).subtract(p0);
-      const h1 = new Point(v[4], v[5]).subtract(new Point(v[6], v[7]));
-      const p1 = new Point(v[6], v[7]);
-      return new Curve(
-        new Segment(p0, new Point(0, 0), h0),
-        new Segment(p1, h1, new Point(0, 0))
-      );
-    }
-  
-    /**
-     * de Casteljau アルゴリズムによる分割
-     * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
-     * t: 分割位置 (0-1)
-     * 戻り値: [左側の制御点配列, 右側の制御点配列]
-     */
-    static subdivide(v: number[], t: number): [number[], number[]] {
-      const x0 = v[0], y0 = v[1];
-      const x1 = v[2], y1 = v[3];
-      const x2 = v[4], y2 = v[5];
-      const x3 = v[6], y3 = v[7];
-      const u = 1 - t;
-      // 1次補間
-      const x4 = u * x0 + t * x1, y4 = u * y0 + t * y1;
-      const x5 = u * x1 + t * x2, y5 = u * y1 + t * y2;
-      const x6 = u * x2 + t * x3, y6 = u * y2 + t * y3;
-      // 2次補間
-      const x7 = u * x4 + t * x5, y7 = u * y4 + t * y5;
-      const x8 = u * x5 + t * x6, y8 = u * y5 + t * y6;
-      // 3次補間
-      const x9 = u * x7 + t * x8, y9 = u * y7 + t * y8;
-      // 左右の制御点配列
-      return [
-        [x0, y0, x4, y4, x7, y7, x9, y9],
-        [x9, y9, x8, y8, x6, y6, x3, y3]
-      ];
-    }
-  /**
-   * モノトーン分割: 曲線をx方向またはy方向に単調な部分曲線に分割
-   * paper.jsのCurve.getMonoCurves()を移植
-   * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
-   * @param dir 方向（falseならx方向、trueならy方向）
-   * @returns 分割された制御点配列の配列
-   */
-  static getMonoCurves(v: number[], dir = false): number[][] {
-    const curves: number[][] = [];
-    // paper.jsと同じ方法でインデックスを決定
-    const io = dir ? 0 : 1;
-    const o0 = v[io + 0];
-    const o1 = v[io + 2];
-    const o2 = v[io + 4];
-    const o3 = v[io + 6];
-    
-    // 曲線が既に単調であるか直線である場合
-    if ((o0 >= o1) === (o1 >= o2) && (o1 >= o2) === (o2 >= o3) || Curve.isStraight(v)) {
-      // 直線または単調な曲線はそのまま返す
-      curves.push(v);
-    } else {
-      // 単調でない場合は分割
-      const a = 3 * (o1 - o2) - o0 + o3;
-      const b = 2 * (o0 + o2) - 4 * o1;
-      const c = o1 - o0;
-      const tMin = Numerical.CURVETIME_EPSILON;
-      const tMax = 1 - tMin;
-      const roots: number[] = [];
-      
-      // 二次方程式を解いて単調性が変わる点を見つける
-      const n = Numerical.solveQuadratic(a, b, c, roots, { min: tMin, max: tMax });
-      
-      if (!n) {
-        // 解がない場合は単調
-        curves.push(v);
+    while (end - start > epsilon) {
+      const mid = (start + end) / 2;
+      const length = this.getPartLength(0, mid);
+      if (length < offset) {
+        start = mid;
       } else {
-        // 解がある場合は分割
-        roots.sort();
-        let t = roots[0];
-        let parts = Curve.subdivide(v, t);
-        curves.push(parts[0]);
-        
-        if (n > 1) {
-          // 2つの解がある場合はさらに分割
-          t = (roots[1] - t) / (1 - t);
-          parts = Curve.subdivide(parts[1], t);
-          curves.push(parts[0]);
-        }
-        
-        curves.push(parts[1]);
+        end = mid;
       }
     }
     
-    return curves;
+    return start;
   }
+  
   /**
-   * Fat-line 上下限計算: 曲線の上下限境界を計算
-   * paper.jsのCurve._getFatLineBounds相当
-   * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
-   * @param point 基準点
-   * @param dir 方向（falseならx方向、trueならy方向）
-   * @returns {min, max} 上下限値
+   * 曲線の一部の長さを計算
    */
-  static _getFatLineBounds(v: number[], point: Point, dir = false): { min: number, max: number } {
-    const p0 = new Point(v[0], v[1]);
-    const p1 = new Point(v[6], v[7]);
-    
-    // 基準点から線分への距離を計算
-    const fromPoint = point[dir ? 'y' : 'x'];
-    const px = fromPoint - p0[dir ? 'y' : 'x'];
-    const py = p1[dir ? 'y' : 'x'] - p0[dir ? 'y' : 'x'];
-    
-    // 線分の長さが0の場合は特別処理
-    if (Math.abs(py) < Numerical.EPSILON) {
-      return { min: px, max: px };
+  getPartLength(from: number, to: number): number {
+    if (from === 0 && to === 1) {
+      return this.getLength();
     }
-    
-    // 制御点から線分への距離を計算
-    const vx = p0[dir ? 'x' : 'y'];
-    const vy = p1[dir ? 'x' : 'y'];
-    const c1 = new Point(v[2], v[3]);
-    const c2 = new Point(v[4], v[5]);
-    
-    // 3次ベジェ曲線の制御点から線分への距離
-    const f1 = (c1[dir ? 'y' : 'x'] - p0[dir ? 'y' : 'x']) / py;
-    const f2 = (c2[dir ? 'y' : 'x'] - p0[dir ? 'y' : 'x']) / py;
-    
-    // 制御点の直交方向の距離
-    const d1 = c1[dir ? 'x' : 'y'] - (vx + f1 * (vy - vx));
-    const d2 = c2[dir ? 'x' : 'y'] - (vx + f2 * (vy - vx));
-    
-    // 上下限を計算 - paper.jsと同じ係数を使用
-    const min = Math.min(0, 3 * d1, 3 * d2, d1 + d2);
-    const max = Math.max(0, 3 * d1, 3 * d2, d1 + d2);
-    
-    return { min, max };
+    return CurveGeometry.getLength(this.getValues(), from, to);
+  }
+
+  /**
+   * 変更通知メソッド
+   */
+  _changed(): void {
+    // キャッシュをクリア
+    (this as any)._length = undefined;
+  }
+
+  /**
+   * 直線判定
+   */
+  static isStraight(v: number[]): boolean {
+    return CurveGeometry.isStraight(v);
+  }
+
+  /**
+   * 三次ベジェ曲線のt位置の点を返す
+   */
+  static evaluate(v: number[], t: number, type: number = 0, normalized: boolean = false): Point {
+    return CurveCalculation.evaluate(v, t, type, normalized);
+  }
+
+  /**
+   * ベジェ曲線の面積を計算
+   */
+  static getArea(v: number[]): number {
+    return CurveGeometry.getArea(v);
+  }
+
+  /**
+   * 静的なgetValues関数 - 制御点を配列として返す
+   */
+  static getValues(
+    segment1: any, segment2: any,
+    matrix?: Matrix | null, straight?: boolean | null
+  ): number[] {
+    return CurveSubdivision.getValues(segment1, segment2, matrix, straight);
   }
 
   /**
    * 2つの曲線の交点を計算
-   * paper.jsのCurve.getIntersections実装を移植
-   */
-  /**
-   * 2つの曲線の交点を計算
-   * paper.jsのCurve.getIntersections実装を移植
    */
   static getIntersections(
     curves1: Curve[] | number[],
@@ -992,8 +314,6 @@ export class Curve {
     const epsilon = Numerical.GEOMETRIC_EPSILON;
     const self = !curves2;
     
-    // paper.jsと同様に、数値配列が渡された場合はCurveオブジェクトに変換
-    // 参照: paper.js/src/path/Curve.js の getIntersections メソッド (2314-2318行)
     if (Array.isArray(curves1) && typeof curves1[0] === 'number') {
       // 数値配列の場合、Curveオブジェクトに変換
       const v1 = curves1 as number[];
@@ -1001,15 +321,14 @@ export class Curve {
       
       if (v2 && typeof v2[0] === 'number') {
         // 両方数値配列の場合
-        const curve1 = Curve.fromValues(v1);
-        const curve2 = Curve.fromValues(v2);
+        const curve1 = CurveSubdivision.fromValues(v1);
+        const curve2 = CurveSubdivision.fromValues(v2);
         const locations: CurveLocation[] = [];
         
-        // paper.jsと同様に、直接getCurveIntersectionsを呼び出す
         return getCurveIntersections(v1, v2, curve1, curve2, locations, include);
       } else if (!v2) {
         // 自己交差チェックの場合
-        const curve = Curve.fromValues(v1);
+        const curve = CurveSubdivision.fromValues(v1);
         const locations: CurveLocation[] = [];
         return getSelfIntersection(v1, curve, locations, include);
       }
@@ -1057,8 +376,6 @@ export class Curve {
       }
     }
     
-    // CollisionDetection.findCurveBoundsCollisionsを呼び出す
-    // bothAxisパラメータを指定していないので、戻り値はnumber[][]型
     const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
       values1, self ? values1 : values2, epsilon
     );
@@ -1114,90 +431,5 @@ export class Curve {
     }
     
     return locations;
-  }
-
-  /**
-   * 曲線の分類（直線、二次曲線、蛇行曲線、尖点、ループ、アーチ）
-   * paper.jsのCurve.classify実装を移植
-   */
-  static classify(v: number[]): { type: string; roots?: number[] } {
-    // paper.jsのCurve.classify実装を移植
-    // 参考: Loop and Blinn, 2005, Resolution Independent Curve Rendering
-    // using Programmable Graphics Hardware, GPU Gems 3 chapter 25
-    //
-    // 可能な分類:
-    //   'line'       (d1 == d2 == d3 == 0)
-    //   'quadratic'  (d1 == d2 == 0)
-    //   'serpentine' (d > 0)
-    //   'cusp'       (d == 0)
-    //   'loop'       (d < 0)
-    //   'arch'       (serpentine, cusp or loop with roots outside 0..1)
-    
-    const x0 = v[0], y0 = v[1],
-          x1 = v[2], y1 = v[3],
-          x2 = v[4], y2 = v[5],
-          x3 = v[6], y3 = v[7];
-    
-    // I(s, t)の係数を計算（変曲点）
-    const a1 = x0 * (y3 - y2) + y0 * (x2 - x3) + x3 * y2 - y3 * x2;
-    const a2 = x1 * (y0 - y3) + y1 * (x3 - x0) + x0 * y3 - y0 * x3;
-    const a3 = x2 * (y1 - y0) + y2 * (x0 - x1) + x1 * y0 - y1 * x0;
-    let d3 = 3 * a3;
-    let d2 = d3 - a2;
-    let d1 = d2 - a2 + a1;
-    
-    // ベクトル(d1, d2, d3)を正規化して誤差を一定に保つ
-    const l = Math.sqrt(d1 * d1 + d2 * d2 + d3 * d3);
-    const s = l !== 0 ? 1 / l : 0;
-    // Paper.jsと完全に同じ精度で計算するために、
-    // isZero関数の代わりにNumerical.EPSILONを直接使用
-    const isZero = (val: number): boolean => Math.abs(val) < Numerical.EPSILON;
-    
-    d1 *= s;
-    d2 *= s;
-    d3 *= s;
-    
-    // 分類関数
-    function type(type: string, t1?: number, t2?: number): { type: string; roots?: number[] } {
-      const hasRoots = t1 !== undefined;
-      let t1Ok = hasRoots && t1 > 0 && t1 < 1;
-      let t2Ok = hasRoots && t2! > 0 && t2! < 1;
-      
-      // 0..1の範囲内に解がない場合はarchに格下げ
-      // loopは2つの解が必要
-      if (hasRoots && (!(t1Ok || t2Ok) || type === 'loop' && !(t1Ok && t2Ok))) {
-        type = 'arch';
-        t1Ok = t2Ok = false;
-      }
-      
-      return {
-        type: type,
-        roots: t1Ok || t2Ok
-          ? t1Ok && t2Ok
-            ? t1! < t2! ? [t1!, t2!] : [t2!, t1!] // 2つの解
-            : [t1Ok ? t1! : t2!] // 1つの解
-          : undefined
-      };
-    }
-    
-    if (isZero(d1)) {
-      return isZero(d2)
-        ? type(isZero(d3) ? 'line' : 'quadratic') // 5. / 4.
-        : type('serpentine', d3 / (3 * d2));      // 3b.
-    }
-    
-    const d = 3 * d2 * d2 - 4 * d1 * d3;
-    if (isZero(d)) {
-      return type('cusp', d2 / (2 * d1));         // 3a.
-    }
-    
-    // Paper.jsと同じ精度で計算するために、
-    // 数値計算の安定性を向上させる
-    
-    const f1 = d > 0 ? Math.sqrt(d / 3) : Math.sqrt(-d);
-    const f2 = 2 * d1;
-    return type(d > 0 ? 'serpentine' : 'loop',    // 1. / 2.
-      (d2 + f1) / f2,
-      (d2 - f1) / f2);
   }
 }
