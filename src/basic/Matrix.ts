@@ -389,6 +389,24 @@ export class Matrix {
   }
 
   /**
+   * 座標配列を変換する
+   * paper.jsの_transformCoordinatesメソッドに相当
+   * @param src 変換元の座標配列
+   * @param dst 変換先の座標配列
+   * @param count 変換する点の数
+   * @returns 変換された座標配列
+   */
+  _transformCoordinates(src: number[], dst: number[], count: number): number[] {
+    for (let i = 0, max = 2 * count; i < max; i += 2) {
+      const x = src[i];
+      const y = src[i + 1];
+      dst[i] = x * this.a + y * this.c + this.tx;
+      dst[i + 1] = x * this.b + y * this.d + this.ty;
+    }
+    return dst;
+  }
+
+  /**
    * 単位行列の場合はundefinedを返し、そうでない場合は行列自身を返す
    * paper.jsの_orNullIfIdentity()メソッドに相当
    */

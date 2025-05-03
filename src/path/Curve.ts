@@ -96,18 +96,22 @@ export class Curve {
 
   /**
    * 前のカーブを取得（paper.js互換）
-   * 現在は常にnullを返す
    */
   getPrevious(): Curve | null {
-    return null;
+    const path = (this as any)._path;
+    return path ? (path._closed && this.getIndex() === 0
+            ? path._curves[path._curves.length - 1]
+            : path._curves[this.getIndex() - 1]) || null : null;
   }
 
   /**
    * 次のカーブを取得（paper.js互換）
-   * 現在は常にnullを返す
    */
   getNext(): Curve | null {
-    return null;
+    const path = (this as any)._path;
+    return path ? (path._closed && this.getIndex() === path._curves.length - 1
+            ? path._curves[0]
+            : path._curves[this.getIndex() + 1]) || null : null;
   }
 
   /**
@@ -122,6 +126,21 @@ export class Curve {
    */
   getPoint2(): Point {
     return this.segment2.point;
+  }
+
+  /**
+   * カーブのインデックスを取得（paper.js互換）
+   * パス内でのこのカーブの位置を返す
+   */
+  getIndex(): number {
+    return (this.segment1 as any)._index;
+  }
+
+  /**
+   * 曲線がハンドルを持っているかチェック（paper.js互換）
+   */
+  hasHandles(): boolean {
+    return !this.segment1.handleOut.isZero() || !this.segment2.handleIn.isZero();
   }
 
   /**
@@ -164,13 +183,20 @@ export class Curve {
 
   /**
    * ベジェ制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2] を返す
+   * paper.jsと同様に行列変換をサポート
    */
-  private getValues(): number[] {
+  getValues(matrix?: Matrix): number[] {
     const p1 = this.segment1.point;
     const h1 = p1.add(this.segment1.handleOut);
     const h2 = this.segment2.point.add(this.segment2.handleIn);
     const p2 = this.segment2.point;
-    return [p1.x, p1.y, h1.x, h1.y, h2.x, h2.y, p2.x, p2.y];
+    const values = [p1.x, p1.y, h1.x, h1.y, h2.x, h2.y, p2.x, p2.y];
+    
+    if (matrix) {
+      matrix._transformCoordinates(values, values, 4);
+    }
+    
+    return values;
   }
 
   /**
@@ -288,7 +314,7 @@ export class Curve {
           x3 = v[6], y3 = v[7];
     
     // If the curve handles are almost zero, reset the control points to the anchors.
-    const isZero = (val: number): boolean => Math.abs(val) < Numerical.EPSILON;
+    const isZero = Numerical.isZero;
     
     let cx1 = x1, cy1 = y1, cx2 = x2, cy2 = y2;
     
