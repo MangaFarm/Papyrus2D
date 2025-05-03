@@ -84,14 +84,31 @@ export class Rectangle {
   }
 
   /**
-   * 指定点が矩形内に含まれるか判定
+   * 指定点または矩形が矩形内に含まれるか判定
    */
-  contains(point: Point): boolean {
+  contains(arg: Point | Rectangle): boolean {
+    if (arg instanceof Rectangle) {
+      return this._containsRectangle(arg);
+    } else {
+      return this._containsPoint(arg);
+    }
+  }
+
+  private _containsPoint(point: Point): boolean {
     return (
       point.x >= this.x &&
       point.x <= this.x + this.width &&
       point.y >= this.y &&
       point.y <= this.y + this.height
+    );
+  }
+
+  private _containsRectangle(rect: Rectangle): boolean {
+    return (
+      rect.x >= this.x &&
+      rect.y >= this.y &&
+      rect.x + rect.width <= this.x + this.width &&
+      rect.y + rect.height <= this.y + this.height
     );
   }
 
@@ -112,12 +129,10 @@ export class Rectangle {
     // rectがnullまたはundefinedの場合は常にfalseを返す
     if (!rect) return false;
     
-    return !(
-      rect.x > this.x + this.width + epsilon ||
-      rect.x + rect.width < this.x - epsilon ||
-      rect.y > this.y + this.height + epsilon ||
-      rect.y + rect.height < this.y - epsilon
-    );
+    return rect.x + rect.width > this.x - epsilon
+        && rect.y + rect.height > this.y - epsilon
+        && rect.x < this.x + this.width + epsilon
+        && rect.y < this.y + this.height + epsilon;
   }
 
   /**
@@ -128,6 +143,28 @@ export class Rectangle {
     const y1 = Math.min(this.y, rect.y);
     const x2 = Math.max(this.x + this.width, rect.x + rect.width);
     const y2 = Math.max(this.y + this.height, rect.y + rect.height);
+    return new Rectangle(x1, y1, x2 - x1, y2 - y1);
+  }
+
+  /**
+   * 他の矩形との交差部分を表す新しい矩形を返す
+   */
+  intersect(rect: Rectangle): Rectangle {
+    const x1 = Math.max(this.x, rect.x);
+    const y1 = Math.max(this.y, rect.y);
+    const x2 = Math.min(this.x + this.width, rect.x + rect.width);
+    const y2 = Math.min(this.y + this.height, rect.y + rect.height);
+    return new Rectangle(x1, y1, x2 - x1, y2 - y1);
+  }
+
+  /**
+   * 指定した点を含む最小の矩形を返す
+   */
+  include(point: Point): Rectangle {
+    const x1 = Math.min(this.x, point.x);
+    const y1 = Math.min(this.y, point.y);
+    const x2 = Math.max(this.x + this.width, point.x);
+    const y2 = Math.max(this.y + this.height, point.y);
     return new Rectangle(x1, y1, x2 - x1, y2 - y1);
   }
 
@@ -152,5 +189,48 @@ export class Rectangle {
     
     // 新しい矩形を作成して返す
     return new Rectangle(x1, y1, x2 - x1, y2 - y1);
+  }
+
+  /**
+   * 指定した量だけ拡大した新しい矩形を返す
+   */
+  expand(amount: Size | number): Rectangle {
+    let hor: number, ver: number;
+    if (typeof amount === 'number') {
+      hor = ver = amount;
+    } else {
+      hor = amount.width;
+      ver = amount.height;
+    }
+    return new Rectangle(
+      this.x - hor / 2,
+      this.y - ver / 2,
+      this.width + hor,
+      this.height + ver
+    );
+  }
+
+  /**
+   * 中心から指定した量だけスケーリングした新しい矩形を返す
+   */
+  scale(hor: number, ver?: number): Rectangle {
+    return this.expand(new Size(
+      this.width * hor - this.width,
+      this.height * (ver === undefined ? hor : ver) - this.height
+    ));
+  }
+
+  /**
+   * 矩形の面積を返す
+   */
+  getArea(): number {
+    return this.width * this.height;
+  }
+
+  /**
+   * 矩形が空かどうかを判定
+   */
+  isEmpty(): boolean {
+    return this.width === 0 || this.height === 0;
   }
 }
