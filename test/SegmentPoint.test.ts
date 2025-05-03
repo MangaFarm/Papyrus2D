@@ -1,56 +1,62 @@
 import { describe, it, expect } from 'vitest';
 import { Point } from '../src/basic/Point';
-import { SegmentPoint, SegmentPointType } from '../src/path/SegmentPoint';
+import { SegmentPoint } from '../src/path/SegmentPoint';
 
 describe('SegmentPoint', () => {
   it('コンストラクタとプロパティ', () => {
     const p = new Point(1, 2);
-    const sp = new SegmentPoint(p, 'anchor', 3);
-    expect(sp.point.equals(p)).toBe(true);
-    expect(sp.type).toBe('anchor');
-    expect(sp.segmentIndex).toBe(3);
+    const owner = {};
+    const sp = new SegmentPoint(p, owner, '_point');
+    expect(sp._x).toBe(1);
+    expect(sp._y).toBe(2);
+    expect(sp._owner).toBe(owner);
+    expect(owner['_point']).toBe(sp);
   });
 
   it('デフォルト値', () => {
     const p = new Point(0, 0);
     const sp = new SegmentPoint(p);
-    expect(sp.type).toBe('anchor');
-    expect(sp.segmentIndex).toBe(0);
+    expect(sp._x).toBe(0);
+    expect(sp._y).toBe(0);
+    expect(sp._owner).toBeUndefined();
   });
 
   it('cloneは同値の新インスタンスを返す', () => {
     const p = new Point(5, 6);
-    const sp1 = new SegmentPoint(p, 'handleIn', 2);
+    const sp1 = new SegmentPoint(p);
     const sp2 = sp1.clone();
     expect(sp2).not.toBe(sp1);
-    expect(sp2.equals(sp1)).toBe(true);
+    expect(sp2._x).toBe(sp1._x);
+    expect(sp2._y).toBe(sp1._y);
   });
 
-  it('equalsは全プロパティ一致でtrue', () => {
+  it('equalsは座標が一致すればtrue', () => {
     const p1 = new Point(1, 2);
     const p2 = new Point(1, 2);
-    const sp1 = new SegmentPoint(p1, 'handleOut', 1);
-    const sp2 = new SegmentPoint(p2, 'handleOut', 1);
-    const sp3 = new SegmentPoint(p2, 'anchor', 1);
+    const p3 = new Point(3, 4);
+    const sp1 = new SegmentPoint(p1);
+    const sp2 = new SegmentPoint(p2);
+    const sp3 = new SegmentPoint(p3);
     expect(sp1.equals(sp2)).toBe(true);
     expect(sp1.equals(sp3)).toBe(false);
   });
 
   it('toStringが情報を含む文字列を返す', () => {
     const p = new Point(3, 4);
-    const sp = new SegmentPoint(p, 'handleIn', 7);
+    const sp = new SegmentPoint(p);
     const str = sp.toString();
-    expect(str).toContain('point:');
-    expect(str).toContain('handleIn');
-    expect(str).toContain('7');
+    expect(str).toContain('x:');
+    expect(str).toContain('y:');
+    expect(str).toContain('3');
+    expect(str).toContain('4');
   });
 
-  it('イミュータブルである', () => {
+  it('ミュータブルである', () => {
     const p = new Point(1, 2);
-    const sp = new SegmentPoint(p, 'anchor', 0);
-    // @ts-expect-error
-    expect(() => { sp.type = 'handleOut'; }).toThrow();
-    // @ts-expect-error
-    expect(() => { sp.segmentIndex = 5; }).toThrow();
+    const sp = new SegmentPoint(p);
+    sp._x = 10;
+    sp._y = 20;
+    expect(sp._x).toBe(10);
+    expect(sp._y).toBe(20);
   });
 });
