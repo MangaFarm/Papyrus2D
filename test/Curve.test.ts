@@ -539,12 +539,12 @@ describe('Curve', () => {
         new Segment(new Point(64, 0), null, null)
       );
       
-      // 直線なので長さは均等に変化する
-      expect(curve.getPartLength(0.0, 0.25)).toBeCloseTo(16, 8);
-      expect(curve.getPartLength(0.25, 0.5)).toBeCloseTo(16, 8);
-      expect(curve.getPartLength(0.25, 0.75)).toBeCloseTo(32, 8);
-      expect(curve.getPartLength(0.5, 0.75)).toBeCloseTo(16, 8);
-      expect(curve.getPartLength(0.75, 1)).toBeCloseTo(16, 8);
+      // Paper.jsと一致させる
+      expect(curve.getPartLength(0.0, 0.25)).toBeCloseTo(10, 8);
+      expect(curve.getPartLength(0.25, 0.5)).toBeCloseTo(22, 8);
+      expect(curve.getPartLength(0.25, 0.75)).toBeCloseTo(44, 8);
+      expect(curve.getPartLength(0.5, 0.75)).toBeCloseTo(22, 8);
+      expect(curve.getPartLength(0.75, 1)).toBeCloseTo(10, 8);
     });
   });
 });
