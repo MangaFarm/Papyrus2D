@@ -5,71 +5,82 @@
 
 export class CollisionDetection {
   /**
-   * 曲線の境界ボックス同士の衝突を検出
+   * 曲線の境界ボックス同士の衝突を検出（単一方向）
    * paper.jsのCollisionDetection.findCurveBoundsCollisions実装を移植
    * @param curves1 曲線の配列1
    * @param curves2 曲線の配列2（nullの場合は自己衝突チェック）
    * @param tolerance 許容誤差
-   * @param bothAxis 両軸でチェックするかどうか
    * @returns 衝突インデックスの配列
    */
   /**
-   * 曲線の境界ボックス同士の衝突を検出
+   * 曲線の境界ボックスを計算
+   * @param curves 曲線の配列
+   * @returns 境界ボックスの配列
+   */
+  private static calculateCurveBounds(curves: number[][]): number[][] {
+    const min = Math.min;
+    const max = Math.max;
+    const bounds = new Array(curves.length);
+    
+    for (let i = 0; i < curves.length; i++) {
+      const v = curves[i];
+      bounds[i] = [
+        min(v[0], v[2], v[4], v[6]),
+        min(v[1], v[3], v[5], v[7]),
+        max(v[0], v[2], v[4], v[6]),
+        max(v[1], v[3], v[5], v[7])
+      ];
+    }
+    
+    return bounds;
+  }
+
+  static findCurveBoundsCollisions(
+    curves1: number[][],
+    curves2: number[][] | null,
+    tolerance: number
+  ): (number[] | null)[] {
+    // 境界ボックスを計算
+    const bounds1 = this.calculateCurveBounds(curves1);
+    const bounds2 = !curves2 || curves2 === curves1
+      ? bounds1
+      : this.calculateCurveBounds(curves2);
+    
+    // 単一方向でチェック
+    return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
+  }
+
+  /**
+   * 曲線の境界ボックス同士の衝突を検出（水平・垂直両方向）
    * paper.jsのCollisionDetection.findCurveBoundsCollisions実装を移植
    * @param curves1 曲線の配列1
    * @param curves2 曲線の配列2（nullの場合は自己衝突チェック）
    * @param tolerance 許容誤差
-   * @param bothAxis 両軸でチェックするかどうか
-   * @returns 衝突インデックスの配列
+   * @returns 水平・垂直方向の衝突インデックスの配列
    */
-  static findCurveBoundsCollisions(
+  static findCurveBoundsCollisionsWithBothAxis(
     curves1: number[][],
     curves2: number[][] | null,
-    tolerance: number,
-    bothAxis?: boolean
-  ): any {
-    // paper.jsのfindCurveBoundsCollisions実装を忠実に移植
-    function getBounds(curves: number[][]): number[][] {
-      const min = Math.min;
-      const max = Math.max;
-      const bounds = new Array(curves.length);
-      
-      for (let i = 0; i < curves.length; i++) {
-        const v = curves[i];
-        bounds[i] = [
-          min(v[0], v[2], v[4], v[6]),
-          min(v[1], v[3], v[5], v[7]),
-          max(v[0], v[2], v[4], v[6]),
-          max(v[1], v[3], v[5], v[7])
-        ];
-      }
-      
-      return bounds;
-    }
-
+    tolerance: number
+  ): { hor: number[] | null; ver: number[] | null }[] {
     // 境界ボックスを計算
-    const bounds1 = getBounds(curves1);
+    const bounds1 = this.calculateCurveBounds(curves1);
     const bounds2 = !curves2 || curves2 === curves1
       ? bounds1
-      : getBounds(curves2);
+      : this.calculateCurveBounds(curves2);
     
-    if (bothAxis) {
-      // 水平方向と垂直方向の両方でチェック
-      const hor = this.findBoundsCollisions(
-        bounds1, bounds2, tolerance || 0, false, true);
-      const ver = this.findBoundsCollisions(
-        bounds1, bounds2, tolerance || 0, true, true);
-      
-      // 結果を組み合わせる
-      const list: { hor: number[]; ver: number[] }[] = [];
-      for (let i = 0, l = hor.length; i < l; i++) {
-        list[i] = { hor: hor[i], ver: ver[i] };
-      }
-      return list;
+    // 水平方向と垂直方向の両方でチェック
+    const hor = this.findBoundsCollisions(
+      bounds1, bounds2, tolerance || 0, false, true);
+    const ver = this.findBoundsCollisions(
+      bounds1, bounds2, tolerance || 0, true, true);
+    
+    // 結果を組み合わせる
+    const list: { hor: number[] | null; ver: number[] | null }[] = [];
+    for (let i = 0, l = hor.length; i < l; i++) {
+      list[i] = { hor: hor[i], ver: ver[i] };
     }
-    
-    // 単一方向でチェック
-    return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
+    return list;
   }
 
   /**
@@ -82,7 +93,7 @@ export class CollisionDetection {
     tolerance: number,
     sweepVertical?: boolean,
     onlySweepAxisCollisions?: boolean
-  ): number[][] {
+  ): (number[] | null)[] {
     const self = !boundsB || boundsA === boundsB;
     const allBounds = self ? boundsA : boundsA.concat(boundsB!);
     const lengthA = boundsA.length;
@@ -142,12 +153,12 @@ export class CollisionDetection {
         // 現在のインデックスの衝突を追加
         if (self && onlySweepAxisCollisions) {
           // すべてのアクティブインデックスを追加、追加チェック不要
-          if (curCollisions) {
-            curCollisions = curCollisions.concat(activeIndicesByPri1);
-          }
+          curCollisions = curCollisions!.concat(activeIndicesByPri1);
           // 現在のインデックスをすべてのアクティブインデックスの衝突に追加
           for (let j = 0; j < activeIndicesByPri1.length; j++) {
             const activeIndex = activeIndicesByPri1[j];
+            // TypeScriptの型安全性のためのnullチェック
+            // Paper.jsではこのチェックはありませんが、TypeScriptでは必要
             if (allCollisions[activeIndex]) {
               allCollisions[activeIndex].push(origIndex);
             }
@@ -218,13 +229,8 @@ export class CollisionDetection {
       }
     }
     
-    // nullを空配列に変換して返す
-    const result: number[][] = [];
-    for (let i = 0; i < allCollisions.length; i++) {
-      result[i] = allCollisions[i] || [];
-    }
-    
-    return result;
+    // paper.jsの実装に合わせて、nullを含む配列をそのまま返す
+    return allCollisions;
   }
   
   /**
@@ -239,7 +245,7 @@ export class CollisionDetection {
     items1: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
     items2: { getBounds(): { left: number; top: number; right: number; bottom: number } }[] | null,
     tolerance: number
-  ): number[][] {
+  ): (number[] | null)[] {
     function getBounds(items: { getBounds(): { left: number; top: number; right: number; bottom: number } }[]): number[][] {
       const bounds = new Array(items.length);
       for (let i = 0; i < items.length; i++) {

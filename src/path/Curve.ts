@@ -789,6 +789,7 @@ export class Curve {
     }
     
     // CollisionDetection.findCurveBoundsCollisionsを呼び出す
+    // bothAxisパラメータを指定していないので、戻り値はnumber[][]型
     const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
       values1, self ? values1 : values2, epsilon
     );
