@@ -21,10 +21,10 @@ export function getSelfIntersection(
   const info = Curve.classify(v1);
   
   // ループ型の曲線の場合のみ交点を検出（paper.jsと同様）
-  if (info.type === 'loop' && info.roots) {
+  if (info.type === 'loop') {
     addLocation(locations, include,
-      c1, info.roots[0],
-      c1, info.roots[1]);
+      c1, info.roots![0],
+      c1, info.roots![1]);
   }
   
   return locations;
@@ -76,7 +76,7 @@ export function addLocation(
       // includeコールバックがなければ、または条件を満たせば追加
       if (!include || include(loc1)) {
         // Paper.jsと同様に、insertLocationを使用
-        insertLocation(locations, loc1);
+        insertLocation(locations, loc1, true);
       }
     }
   }
