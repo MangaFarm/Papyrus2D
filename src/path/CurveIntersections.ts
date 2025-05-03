@@ -203,7 +203,7 @@ export function getCurveIntersections(
   const min = Math.min;
   const max = Math.max;
 
-  // Paper.jsと同様の境界ボックスチェック
+  // Paper.jsと同様の境界ボックスチェック - 正確に同じ条件判定を使用
   const v1xMin = min(v1[0], v1[2], v1[4], v1[6]);
   const v1xMax = max(v1[0], v1[2], v1[4], v1[6]);
   const v1yMin = min(v1[1], v1[3], v1[5], v1[7]);
@@ -342,10 +342,10 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   }
 
   const v = [v1, v2];
-  let pairs: [number, number][] | null = [];
+  let pairs: [number, number][] = [];
   
   // すべての端点を反復処理
-  for (let i = 0; i < 4 && pairs && pairs.length < 2; i++) {
+  for (let i = 0; i < 4 && pairs.length < 2; i++) {
     const i1 = i & 1;  // 0, 1, 0, 1
     const i2 = i1 ^ 1; // 1, 0, 1, 0
     const t1 = i >> 1; // 0, 0, 1, 1
@@ -370,9 +370,9 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   }
   
   // Paper.jsと同様に、ペアの数をチェック
-  if (pairs && pairs.length !== 2) {
-    pairs = null;
-  } else if (pairs && !straightBoth) {
+  if (pairs.length !== 2) {
+    return null;
+  } else if (!straightBoth) {
     // 直線ペアはさらなるチェックが不要
     // 2つのペアが見つかった場合、v1とv2の端点は同じはず
     const o1 = Curve.getPart(v1, pairs[0][0], pairs[1][0]);
@@ -382,7 +382,7 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
         abs(o2[3] - o1[3]) > geomEpsilon ||
         abs(o2[4] - o1[4]) > geomEpsilon ||
         abs(o2[5] - o1[5]) > geomEpsilon) {
-      pairs = null;
+      return null;
     }
   }
   
@@ -406,44 +406,37 @@ function addLineIntersection(
     `Line2: (${v2[0]},${v2[1]}) to (${v2[6]},${v2[7]})`
   );
   
-  // クラメルの公式を使用して交点を計算
-  const lineIntersect = (
-    p1x: number, p1y: number, p2x: number, p2y: number,
-    p3x: number, p3y: number, p4x: number, p4y: number
-  ): Point | null => {
-    const d = (p1x - p2x) * (p3y - p4y) - (p1y - p2y) * (p3x - p4x);
+  // paper.jsのLine.intersect関数と同等の実装
+  const pt = (() => {
+    const p1x = v1[0], p1y = v1[1];
+    const v1x = v1[6] - p1x, v1y = v1[7] - p1y;
+    const p2x = v2[0], p2y = v2[1];
+    const v2x = v2[6] - p2x, v2y = v2[7] - p2y;
     
-    if (Math.abs(d) < Numerical.EPSILON) {
-      console.log("Lines are parallel or coincident");
-      return null; // 平行または重なっている
+    const cross = v1x * v2y - v1y * v2x;
+    
+    // Avoid divisions by 0, and errors when getting too close to 0
+    if (!Numerical.isMachineZero(cross)) {
+      const dx = p1x - p2x,
+            dy = p1y - p2y,
+            u1 = (v2x * dy - v2y * dx) / cross,
+            u2 = (v1x * dy - v1y * dx) / cross,
+            // Check the ranges of the u parameters with EPSILON tolerance
+            epsilon = Numerical.EPSILON,
+            uMin = -epsilon,
+            uMax = 1 + epsilon;
+            
+      if (uMin < u1 && u1 < uMax && uMin < u2 && u2 < uMax) {
+        // Address the tolerance at the bounds by clipping
+        const u = u1 <= 0 ? 0 : u1 >= 1 ? 1 : u1;
+        return new Point(
+          p1x + u * v1x,
+          p1y + u * v1y
+        );
+      }
     }
-    
-    const a = p1x * p2y - p1y * p2x;
-    const b = p3x * p4y - p3y * p4x;
-    
-    const x = (a * (p3x - p4x) - (p1x - p2x) * b) / d;
-    const y = (a * (p3y - p4y) - (p1y - p2y) * b) / d;
-    
-    // 交点が線分上にあるかチェック
-    const epsilon = Numerical.EPSILON;
-    const min = Math.min, max = Math.max;
-    
-    if (
-      min(p1x, p2x) - epsilon <= x && x <= max(p1x, p2x) + epsilon &&
-      min(p1y, p2y) - epsilon <= y && y <= max(p1y, p2y) + epsilon &&
-      min(p3x, p4x) - epsilon <= x && x <= max(p3x, p4x) + epsilon &&
-      min(p3y, p4y) - epsilon <= y && y <= max(p3y, p4y) + epsilon
-    ) {
-      return new Point(x, y);
-    }
-    
     return null;
-  };
-  
-  const pt = lineIntersect(
-    v1[0], v1[1], v1[6], v1[7],
-    v2[0], v2[1], v2[6], v2[7]
-  );
+  })();
   
   console.log("Intersection point:", pt);
   
@@ -671,6 +664,27 @@ function addCurveIntersections(
   // 数値計算の安定性を確保するために重要
   const fatLineEpsilon = 1e-9;
   
+  // 数値計算の安定性を向上させるための追加チェック
+  // 両方の曲線が直線の場合は特別処理
+  if (Curve.isStraight(v1) && Curve.isStraight(v2)) {
+    // 直線同士の交点を計算
+    const p1 = new Point(v1[0], v1[1]);
+    const p2 = new Point(v1[6], v1[7]);
+    const p3 = new Point(v2[0], v2[1]);
+    const p4 = new Point(v2[6], v2[7]);
+    
+    // 直線の方向ベクトル
+    const d1 = p2.subtract(p1);
+    const d2 = p4.subtract(p3);
+    
+    // 平行チェック - 外積を計算
+    const cross = d1.x * d2.y - d1.y * d2.x;
+    if (Math.abs(cross) < Numerical.EPSILON) {
+      // 平行な場合はオーバーラップをチェック
+      return calls;
+    }
+  }
+  
   // PをQ（第2曲線）のfat-lineでクリッピング
   const q0x = v2[0], q0y = v2[1], q3x = v2[6], q3y = v2[7];
   
@@ -733,8 +747,8 @@ function addCurveIntersections(
   
   // Paper.jsと完全に同じ条件判定
   // 数値計算の安定性を確保するために、閾値の比較を厳密に行う
-  // 精度の問題を避けるために、浮動小数点の比較を慎重に行う
-  if (Math.max(uMax - uMin, tMaxNew - tMinNew) <= fatLineEpsilon) {
+  // paper.jsと同じ条件判定を使用
+  if (Math.max(uMax - uMin, tMaxNew - tMinNew) < fatLineEpsilon) {
     // 十分な精度で交点を分離した
     const t = (tMinNew + tMaxNew) / 2;
     const u = (uMin + uMax) / 2;

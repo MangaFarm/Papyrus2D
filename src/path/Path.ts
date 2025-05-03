@@ -700,10 +700,10 @@ export class Path implements PathItem {
     const self = this === path || !path;
     
     // Paper.jsと同じ行列変換処理を実装
-    // ただし、null/undefinedチェックを厳格に行う
+    // _matrixがundefinedの場合のエラーを防ぐ
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : undefined;
     
-    let matrix2: Matrix | undefined | null = undefined;
+    let matrix2: Matrix | undefined = undefined;
     if (self) {
       matrix2 = matrix1;
     } else if (_matrix) {
@@ -722,18 +722,16 @@ export class Path implements PathItem {
     
     if (!shouldCheck && path) {
       try {
-        const bounds1 = this.getBounds(matrix1 as Matrix | undefined);
-        const bounds2 = path.getBounds(matrix2 as Matrix | undefined);
+        const bounds1 = this.getBounds(matrix1);
+        const bounds2 = path.getBounds(matrix2);
         
         // デバッグ出力
         console.log("Bounds1:", JSON.stringify(bounds1));
         console.log("Bounds2:", JSON.stringify(bounds2));
         
         // 境界ボックスの交差を確認（Matrix変換を適用済み）
-        if (bounds1 && bounds2) {
-          shouldCheck = bounds1.intersects(bounds2, Numerical.EPSILON);
-          console.log("Bounds intersect:", shouldCheck);
-        }
+        shouldCheck = bounds1.intersects(bounds2, Numerical.EPSILON);
+        console.log("Bounds intersect:", shouldCheck);
       } catch (e) {
         // 境界チェックでエラーが発生した場合は続行（境界チェックをスキップ）
         console.error("Error during bounds check:", e);
@@ -770,8 +768,8 @@ export class Path implements PathItem {
         curves1,
         curves2,
         include,
-        matrix1 as Matrix | undefined,
-        matrix2 as Matrix | undefined,
+        matrix1,
+        matrix2,
         _returnFirst);
       
       console.log("Found intersections count:", intersections.length);

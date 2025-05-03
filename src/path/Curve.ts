@@ -679,8 +679,8 @@ export class Curve {
     curves1: Curve[] | number[],
     curves2: Curve[] | number[] | null,
     include?: (loc: CurveLocation) => boolean,
-    matrix1?: Matrix,
-    matrix2?: Matrix,
+    matrix1?: Matrix | undefined,
+    matrix2?: Matrix | undefined,
     _returnFirst?: boolean
   ): CurveLocation[] {
     const epsilon = Numerical.GEOMETRIC_EPSILON;
