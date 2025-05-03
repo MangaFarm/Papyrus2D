@@ -6,6 +6,7 @@
 import { Curve, CurveLocation } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
+import { Line } from '../basic/Line';
 import { addLocation } from './CurveIntersectionBase';
 import { addLineIntersection, addCurveLineIntersections } from './CurveIntersectionSpecial';
 import { addCurveIntersections } from './CurveIntersectionConvexHull';
@@ -69,31 +70,25 @@ export function getCurveIntersections(
       } else {
         // 両方曲線の場合
         addCurveIntersections(
-          v1, v2, c1, c2, locations, include, false, 0, 0, 0, 1, 0, 1);
+          flip ? v2 : v1, flip ? v1 : v2,
+          flip ? c2 : c1, flip ? c1 : c2,
+          locations, include, flip, 0, 0, 0, 1, 0, 1);
       }
       
       // Paper.jsと同様に、端点が重なる特殊ケースの処理を追加
       // 直線同士の交点が見つからなかった場合や、曲線の場合は端点のチェックを行う
       if (!straight || locations.length === before) {
-        // 各曲線の端点をチェック
-        // paper.jsと同様に、c1.getPoint1()などを使用
-        const c1p1 = c1.getPoint1();
-        const c1p2 = c1.getPoint2();
-        const c2p1 = c2.getPoint1();
-        const c2p2 = c2.getPoint2();
-        
-        // paper.jsと同様に、isClose()メソッドを使用して端点が近接しているかをチェック
-        if (c1p1.isClose(c2p1, epsilon)) {
-          addLocation(locations, include, c1, 0, c2, 0, true);
-        }
-        if (c1p1.isClose(c2p2, epsilon)) {
-          addLocation(locations, include, c1, 0, c2, 1, true);
-        }
-        if (c1p2.isClose(c2p1, epsilon)) {
-          addLocation(locations, include, c1, 1, c2, 0, true);
-        }
-        if (c1p2.isClose(c2p2, epsilon)) {
-          addLocation(locations, include, c1, 1, c2, 1, true);
+        // 各曲線の端点をチェック - paper.jsと同じループ実装を使用
+        for (let i = 0; i < 4; i++) {
+          const t1 = i >> 1, // 0, 0, 1, 1
+                t2 = i & 1,  // 0, 1, 0, 1
+                i1 = t1 * 6,
+                i2 = t2 * 6,
+                p1 = new Point(v1[i1], v1[i1 + 1]),
+                p2 = new Point(v2[i2], v2[i2 + 1]);
+          if (p1.isClose(p2, epsilon)) {
+            addLocation(locations, include, c1, t1, c2, t2, true);
+          }
         }
       }
     }
@@ -116,17 +111,8 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
 
   const abs = Math.abs;
   // paper.jsと完全に同じgetSignedDistance実装
-  const getSignedDistance = (px: number, py: number, vx: number, vy: number, x: number, y: number): number => {
-    // paper.jsの実装に合わせて修正
-    // 参照: paper.js/src/basic/Line.js の getSignedDistance 関数
-    return vx === 0 ? (vy > 0 ? x - px : px - x)
-      : vy === 0 ? (vx < 0 ? y - py : py - y)
-      : ((x - px) * vy - (y - py) * vx) / (
-          vy > vx
-            ? vy * Math.sqrt(1 + (vx * vx) / (vy * vy))
-            : vx * Math.sqrt(1 + (vy * vy) / (vx * vx))
-        );
-  };
+  // paper.jsと同様にLine.getDistanceを使用
+  const getDistance = Line.getDistance;
   
   const timeEpsilon = Numerical.CURVETIME_EPSILON;
   const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
@@ -145,14 +131,14 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
   
   // 曲線2の始点と終点がl1に十分近いかチェック
   // paper.jsと同じgetSignedDistanceを使用
-  if (Math.abs(getSignedDistance(px, py, vx, vy, l2[0], l2[1])) < geomEpsilon &&
-      Math.abs(getSignedDistance(px, py, vx, vy, l2[6], l2[7])) < geomEpsilon) {
+  if (getDistance(px, py, vx, vy, l2[0], l2[1], true) < geomEpsilon &&
+      getDistance(px, py, vx, vy, l2[6], l2[7], true) < geomEpsilon) {
     // 両方の曲線が直線でない場合、ハンドルもチェック
     if (!straightBoth &&
-        Math.abs(getSignedDistance(px, py, vx, vy, l1[2], l1[3])) < geomEpsilon &&
-        Math.abs(getSignedDistance(px, py, vx, vy, l1[4], l1[5])) < geomEpsilon &&
-        Math.abs(getSignedDistance(px, py, vx, vy, l2[2], l2[3])) < geomEpsilon &&
-        Math.abs(getSignedDistance(px, py, vx, vy, l2[4], l2[5])) < geomEpsilon) {
+        getDistance(px, py, vx, vy, l1[2], l1[3], true) < geomEpsilon &&
+        getDistance(px, py, vx, vy, l1[4], l1[5], true) < geomEpsilon &&
+        getDistance(px, py, vx, vy, l2[2], l2[3], true) < geomEpsilon &&
+        getDistance(px, py, vx, vy, l2[4], l2[5], true) < geomEpsilon) {
       straight1 = straight2 = straightBoth = true;
     }
   } else if (straightBoth) {
@@ -189,7 +175,7 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
       }
     }
     // Paper.jsと同様に、3点をチェックしたが一致が見つからない場合は早期終了
-    if (i > 2 && pairs.length === 0)
+    if (i > 2 && !pairs.length)
       break;
   }
   
