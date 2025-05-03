@@ -553,7 +553,7 @@ function addCurveLineIntersections(
         3 * (v[2] - 2 * v[4] + v[6]),
         3 * (v[4] - v[6]),
         v[6] - px,
-        txs, 0, 1
+        txs, { min: 0, max: 1 }
       );
       
       // 有効な解のみを追加
@@ -575,7 +575,7 @@ function addCurveLineIntersections(
         3 * (v[3] - 2 * v[5] + v[7]),
         3 * (v[5] - v[7]),
         v[7] - py,
-        tys, 0, 1
+        tys, { min: 0, max: 1 }
       );
       
       // 有効な解のみを追加
@@ -598,7 +598,7 @@ function addCurveLineIntersections(
         3 * (dy * (v[2] - 2 * v[4] + v[6]) - dx * (v[3] - 2 * v[5] + v[7])),
         3 * (dy * (v[4] - v[6]) - dx * (v[5] - v[7])),
         dy * (v[6] - px) - dx * (v[7] - py),
-        tempRoots, 0, 1
+        tempRoots, { min: 0, max: 1 }
       );
       
       // 有効な解のみを追加

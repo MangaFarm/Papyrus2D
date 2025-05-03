@@ -6,6 +6,14 @@
  * paper.jsのsrc/util/Numerical.jsをTypeScript化・イミュータブル設計で移植
  */
 
+/**
+ * 範囲の境界を表すインターフェース
+ */
+export interface Bounds {
+    min: number;
+    max: number;
+}
+
 const abs = Math.abs;
 const sqrt = Math.sqrt;
 const pow = Math.pow;
@@ -19,10 +27,12 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function getDiscriminant(a: number, b: number, c: number): number {
+    // d = b^2 - a * c  computed accurately enough by a tricky scheme.
+    // Ported from @hkrish's polysolve.c
     function split(v: number): [number, number] {
         const x = v * 134217729;
         const y = v - x;
-        const hi = y + x;
+        const hi = y + x; // Don't optimize y away!
         const lo = v - hi;
         return [hi, lo];
     }
@@ -37,13 +47,18 @@ function getDiscriminant(a: number, b: number, c: number): number {
         const dp = (bd[0] * bd[0] - p + 2 * bd[0] * bd[1]) + bd[1] * bd[1];
         const q = a * c;
         const dq = (ad[0] * cd[0] - q + ad[0] * cd[1] + ad[1] * cd[0]) + ad[1] * cd[1];
-        D = (p - q) + (dp - dq);
+        D = (p - q) + (dp - dq); // Don't omit parentheses!
     }
     return D;
 }
 
 function getNormalizationFactor(...args: number[]): number {
-    const norm = Math.max(...args);
+    // Normalize coefficients à la Jenkins & Traub's RPOLY.
+    // Normalization is done by scaling coefficients with a power of 2, so
+    // that all the bits in the mantissa remain unchanged.
+    // Use the infinity norm (max(sum(abs(a)…)) to determine the appropriate
+    // scale factor. See @hkrish in #1087#issuecomment-231526156
+    const norm = Math.max.apply(Math, args);
     return norm && (norm < 1e-8 || norm > 1e8)
         ? pow(2, -Math.round(log2(norm)))
         : 0;
@@ -75,7 +90,9 @@ export const Numerical = {
      * Gauss-Legendre Numerical Integration.
      */
     integrate(f: (x: number) => number, a: number, b: number, n: number): number {
-        // abscissas, weightsはpaper.jsのまま
+        // Lookup tables for abscissas and weights with values for n = 2 .. 16.
+        // As values are symmetric, only store half of them and adapt algorithm
+        // to factor in symmetry.
         n = Math.min(n, 16); // 配列長に合わせて上限を16に制限
         const abscissas = [
             [0.5773502691896257],
@@ -158,18 +175,24 @@ export const Numerical = {
     },
 
     /**
-     * Solve a quadratic equation in a numerically robust manner.
+     * Solve a quadratic equation in a numerically robust manner;
+     * given a quadratic equation ax² + bx + c = 0, find the values of x.
+     *
+     * References:
+     *  Kahan W. - "To Solve a Real Cubic Equation"
+     *  http://www.cs.berkeley.edu/~wkahan/Math128/Cubic.pdf
+     *  Blinn J. - "How to solve a Quadratic Equation"
+     *  Harikrishnan G.
+     *  https://gist.github.com/hkrish/9e0de1f121971ee0fbab281f5c986de9
      */
     solveQuadratic(
         a: number,
         b: number,
         c: number,
         roots: number[],
-        min?: number,
-        max?: number
+        bounds?: Bounds
     ): number {
-        let x1: number | undefined = undefined;
-        let x2: number | undefined = undefined;
+        let x1: number = 0, x2: number = Infinity;
         if (abs(a) < EPSILON) {
             if (abs(b) < EPSILON)
                 return abs(c) < EPSILON ? -1 : 0;
@@ -199,23 +222,30 @@ export const Numerical = {
             }
         }
         let count = 0;
-        const boundless = min == null;
-        const minB = (min ?? 0) - EPSILON;
-        const maxB = (max ?? 0) + EPSILON;
-        if (x1 !== undefined && isFinite(x1) && (boundless || (x1 > minB && x1 < maxB)))
-            roots[count++] = boundless ? x1 : clamp(x1, min!, max!);
-        if (
-            x2 !== undefined &&
-            x2 !== x1 &&
-            isFinite(x2) &&
-            (boundless || (x2 > minB && x2 < maxB))
-        )
-            roots[count++] = boundless ? x2 : clamp(x2, min!, max!);
+        const boundless = bounds == null;
+        if (isFinite(x1) && (boundless || (x1 > bounds.min - EPSILON && x1 < bounds.max + EPSILON)))
+            roots[count++] = boundless ? x1 : clamp(x1, bounds.min, bounds.max);
+        if (x2 !== x1
+                && isFinite(x2) && (boundless || (x2 > bounds.min - EPSILON && x2 < bounds.max + EPSILON)))
+            roots[count++] = boundless ? x2 : clamp(x2, bounds.min, bounds.max);
         return count;
     },
 
     /**
-     * Solve a cubic equation, using numerically stable methods.
+     * Solve a cubic equation, using numerically stable methods,
+     * given an equation of the form ax³ + bx² + cx + d = 0.
+     *
+     * This algorithm avoids the trigonometric/inverse trigonometric
+     * calculations required by the "Italins"' formula. Cardano's method
+     * works well enough for exact computations, this method takes a
+     * numerical approach where the double precision error bound is kept
+     * very low.
+     *
+     * References:
+     *  Kahan W. - "To Solve a Real Cubic Equation"
+     *   http://www.cs.berkeley.edu/~wkahan/Math128/Cubic.pdf
+     *  Harikrishnan G.
+     *  https://gist.github.com/hkrish/9e0de1f121971ee0fbab281f5c986de9
      */
     solveCubic(
         a: number,
@@ -223,15 +253,11 @@ export const Numerical = {
         c: number,
         d: number,
         roots: number[],
-        min?: number,
-        max?: number
+        bounds?: Bounds
     ): number {
         const f = getNormalizationFactor(abs(a), abs(b), abs(c), abs(d));
-        let x: number | undefined = undefined;
-        let b1: number | undefined = undefined;
-        let c2: number | undefined = undefined;
-        let qd: number | undefined = undefined;
-        let q: number | undefined = undefined;
+        // TypeScriptでは初期値を設定する必要がある
+        let x: number = 0, b1: number = 0, c2: number = 0, qd: number = 0, q: number = 0;
         let _a = a, _b = b, _c = c, _d = d;
         if (f) {
             _a *= f;
@@ -242,6 +268,7 @@ export const Numerical = {
 
         function evaluate(x0: number) {
             x = x0;
+            // Evaluate q, q', b1 and c2 at x
             const tmp = _a * x;
             b1 = tmp + _b;
             c2 = b1 * x + _c;
@@ -259,42 +286,39 @@ export const Numerical = {
             c2 = _c;
             x = 0;
         } else {
+            // Here onwards we iterate for the leftmost root. Proceed to
+            // deflate the cubic into a quadratic (as a side effect to the
+            // iteration) and solve the quadratic.
             evaluate(-(_b / _a) / 3);
-            if (q === undefined || qd === undefined || x === undefined) {
-                // 異常系
-                return 0;
-            }
+            // Get a good initial approximation.
             const t = q / _a;
             const r = pow(abs(t), 1 / 3);
             const s = t < 0 ? -1 : 1;
             const td = -qd / _a;
+            // See Kahan's notes on why 1.324718*... works.
             const rd = td > 0 ? 1.324717957244746 * Math.max(r, sqrt(td)) : r;
             let x0 = x - s * rd;
             if (x0 !== x) {
                 do {
                     evaluate(x0);
-                    if (qd === undefined || q === undefined || x === undefined) break;
+                    // Newton's. Divide by 1 + MACHINE_EPSILON (1.000...002)
+                    // to avoid x0 crossing over a root.
                     x0 = qd === 0 ? x : x - q / qd / (1 + MACHINE_EPSILON);
-                } while (s * x0 > s * (x as number));
-                if (
-                    x !== undefined &&
-                    abs(_a) * x * x > abs(_d / x)
-                ) {
+                } while (s * x0 > s * x);
+                // Adjust the coefficients for the quadratic.
+                if (abs(_a) * x * x > abs(_d / x)) {
                     c2 = -_d / x;
                     b1 = (c2 - _c) / x;
                 }
             }
         }
-        if (b1 === undefined || c2 === undefined) return 0;
-        let count = Numerical.solveQuadratic(_a, b1, c2, roots, min, max);
-        const boundless = min == null;
-        if (
-            x !== undefined &&
-            isFinite(x) &&
-            (count === 0 || (count > 0 && x !== roots[0] && x !== roots[1])) &&
-            (boundless || (x > (min ?? 0) - EPSILON && x < (max ?? 0) + EPSILON))
-        ) {
-            roots[count++] = boundless ? x : clamp(x, min!, max!);
+        // The cubic has been deflated to a quadratic.
+        let count = Numerical.solveQuadratic(_a, b1, c2, roots, bounds);
+        const boundless = bounds == null;
+        if (isFinite(x) && (count === 0
+                || count > 0 && x !== roots[0] && x !== roots[1])
+                && (boundless || (x > bounds.min - EPSILON && x < bounds.max + EPSILON))) {
+            roots[count++] = boundless ? x : clamp(x, bounds.min, bounds.max);
         }
         return count;
     }

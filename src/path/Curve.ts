@@ -494,7 +494,7 @@ export class Curve {
         6 * (v[c] - 2 * v[c + 2] + v[c + 4]),
         3 * (-v[c] + v[c + 2]),
         v[c] - coords[c],
-        allRoots, 0, 1
+        allRoots, { min: 0, max: 1 }
       );
       
       // 各解について、曲線上の点と与えられた点の距離をチェック
@@ -559,7 +559,7 @@ export class Curve {
    */
   static solveCubic(a: number, b: number, c: number, d: number, roots: number[], min?: number, max?: number): number {
     // Numerical.solveCubicを使用
-    return Numerical.solveCubic(a, b, c, d, roots, min, max);
+    return Numerical.solveCubic(a, b, c, d, roots, min !== undefined && max !== undefined ? { min, max } : undefined);
   }
   
   
@@ -644,7 +644,7 @@ export class Curve {
 
     // 二次導関数の根を求める（変曲点）
     // 三次ベジェの二次導関数は一次式
-    const inflections = Numerical.solveQuadratic(3 * a3, 2 * a2, a1, roots);
+    const inflections = Numerical.solveQuadratic(3 * a3, 2 * a2, a1, roots, undefined);
     
     // 単調性が変わる点で分割
     for (let i = 0; i < inflections; i++) {

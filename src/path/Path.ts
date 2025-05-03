@@ -341,7 +341,7 @@ export class Path implements PathItem {
           const d = v[c] - coords[c];
 
           // 三次方程式を解く
-          const count = Numerical.solveCubic(a, b, c2, d, tempRoots, 0, 1);
+          const count = Numerical.solveCubic(a, b, c2, d, tempRoots, { min: 0, max: 1 });
 
           // 重複を排除しながらrootsに追加
           for (let i = 0; i < count; i++) {
@@ -402,7 +402,7 @@ export class Path implements PathItem {
       const c = -3 * v[1] + 3 * v[3];
       const d = v[1] - y;
 
-      Numerical.solveCubic(a, b, c, d, roots, 0, 1);
+      Numerical.solveCubic(a, b, c, d, roots, { min: 0, max: 1 });
 
       for (const t of roots) {
         if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
