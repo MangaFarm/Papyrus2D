@@ -3,9 +3,11 @@
  * 曲線交点計算の基本関数を提供するユーティリティ
  */
 
-import { Curve, CurveLocation } from './Curve';
+import { Curve } from './Curve';
+import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
+import { CurveGeometry } from './CurveGeometry';
 
 /**
  * 自己交差チェック
@@ -18,7 +20,7 @@ export function getSelfIntersection(
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
   // paper.jsと同様の実装に修正
-  const info = Curve.classify(v1);
+  const info = CurveGeometry.classify(v1);
   
   // ループ型の曲線の場合のみ交点を検出（paper.jsと同様）
   if (info.type === 'loop') {
