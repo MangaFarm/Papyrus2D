@@ -1,7 +1,7 @@
 /**
  * Curve: 2つのSegment（またはSegmentPoint）で定義される三次ベジェ曲線
  * paper.jsのCurveクラスAPIを参考に設計
- * イミュータブル設計
+ * ミュータブル設計
  */
 
 import { Segment } from './Segment';
@@ -17,33 +17,30 @@ import { CurveLocationUtils } from './CurveLocationUtils';
 import { CurveLocation } from './CurveLocation';
 
 export class Curve {
-  readonly segment1: Segment;
-  readonly segment2: Segment;
-  
-  // Path.tsとの互換性のためのエイリアス
-  get _segment1(): Segment { return this.segment1; }
-  set _segment1(value: Segment) { (this as any).segment1 = value; }
-  
-  get _segment2(): Segment { return this.segment2; }
-  set _segment2(value: Segment) { (this as any).segment2 = value; }
+  _segment1: Segment;
+  _segment2: Segment;
   
   // Path.tsとの互換性のためのプロパティ
   _path: any;
+  
+  // キャッシュ用プロパティ
+  _length: number | undefined;
+  _bounds: any;
 
   constructor(segment1: Segment, segment2: Segment) {
-    this.segment1 = segment1;
-    this.segment2 = segment2;
+    this._segment1 = segment1;
+    this._segment2 = segment2;
   }
 
   getPrevious(): Curve | null {
-    const path = (this as any)._path;
+    const path = this._path;
     return path ? (path._closed && this.getIndex() === 0
             ? path._curves[path._curves.length - 1]
             : path._curves[this.getIndex() - 1]) || null : null;
   }
 
   getNext(): Curve | null {
-    const path = (this as any)._path;
+    const path = this._path;
     return path ? (path._closed && this.getIndex() === path._curves.length - 1
             ? path._curves[0]
             : path._curves[this.getIndex() + 1]) || null : null;
@@ -53,21 +50,21 @@ export class Curve {
    * 曲線の始点を取得
    */
   getPoint1(): Point {
-    return this.segment1.getPoint();
+    return this._segment1.getPoint();
   }
 
   /**
    * 曲線の終点を取得
    */
   getPoint2(): Point {
-    return this.segment2.getPoint();
+    return this._segment2.getPoint();
   }
 
   /**
    * パス内でのこのカーブの位置を返す
    */
   getIndex(): number {
-    return (this.segment1 as any)._index;
+    return this._segment1._index;
   }
 
   /**
@@ -81,17 +78,17 @@ export class Curve {
    * 曲線長を返す
    */
   getLength(): number {
-    if ((this as any)._length == null) {
-      (this as any)._length = Curve.getLength(this.getValues(), 0, 1);
+    if (this._length == null) {
+      this._length = Curve.getLength(this.getValues(), 0, 1);
     }
-    return (this as any)._length;
+    return this._length;
   }
 
   /**
    * ベジェ制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2] を返す
    */
   getValues(matrix?: Matrix): number[] {
-    return Curve.getValues(this.segment1, this.segment2, matrix);
+    return Curve.getValues(this._segment1, this._segment2, matrix);
   }
 
   /**
@@ -276,8 +273,8 @@ export class Curve {
    */
   _changed(): void {
     // キャッシュをクリア
-    (this as any)._length = undefined;
-    (this as any)._bounds = undefined;
+    this._length = undefined;
+    this._bounds = undefined;
   }
 
   /**

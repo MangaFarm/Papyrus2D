@@ -207,7 +207,7 @@ export class CurveSubdivision {
     // right: [x9, y9, x8, y8, x6, y6, x3, y3]
     
     // 左側のセグメント
-    const seg1 = curve.segment1;
+    const seg1 = curve._segment1;
     const seg2Left = new Segment(
       new Point(left[6], left[7]),
       hasHandles ? new Point(left[4] - left[6], left[5] - left[7]) : new Point(0, 0),
@@ -220,7 +220,7 @@ export class CurveSubdivision {
       new Point(0, 0),
       hasHandles ? new Point(right[2] - right[0], right[3] - right[1]) : new Point(0, 0)
     );
-    const seg2 = curve.segment2;
+    const seg2 = curve._segment2;
     
     // ハンドルを調整
     if (hasHandles) {

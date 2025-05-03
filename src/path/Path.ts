@@ -562,18 +562,18 @@ export class Path implements PathItem {
       // 直線の場合は簡易判定
       if (
         Curve.isStraight([
-          curve.segment1.point.x,
-          curve.segment1.point.y,
-          curve.segment1.point.x + curve.segment1.handleOut.x,
-          curve.segment1.point.y + curve.segment1.handleOut.y,
-          curve.segment2.point.x + curve.segment2.handleIn.x,
-          curve.segment2.point.y + curve.segment2.handleIn.y,
-          curve.segment2.point.x,
-          curve.segment2.point.y,
+          curve._segment1.point.x,
+          curve._segment1.point.y,
+          curve._segment1.point.x + curve._segment1.handleOut.x,
+          curve._segment1.point.y + curve._segment1.handleOut.y,
+          curve._segment2.point.x + curve._segment2.handleIn.x,
+          curve._segment2.point.y + curve._segment2.handleIn.y,
+          curve._segment2.point.x,
+          curve._segment2.point.y,
         ])
       ) {
-        const p1 = curve.segment1.point;
-        const p2 = curve.segment2.point;
+        const p1 = curve._segment1.point;
+        const p2 = curve._segment2.point;
         const dx = p2.x - p1.x;
         const dy = p2.y - p1.y;
         const len2 = dx * dx + dy * dy;
@@ -591,14 +591,14 @@ export class Path implements PathItem {
         // 曲線の場合は最近接点を求める
         // paper.jsのCurve.getTimeOf()実装を使用
         const v = [
-          curve.segment1.point.x,
-          curve.segment1.point.y,
-          curve.segment1.point.x + curve.segment1.handleOut.x,
-          curve.segment1.point.y + curve.segment1.handleOut.y,
-          curve.segment2.point.x + curve.segment2.handleIn.x,
-          curve.segment2.point.y + curve.segment2.handleIn.y,
-          curve.segment2.point.x,
-          curve.segment2.point.y,
+          curve._segment1.point.x,
+          curve._segment1.point.y,
+          curve._segment1.point.x + curve._segment1.handleOut.x,
+          curve._segment1.point.y + curve._segment1.handleOut.y,
+          curve._segment2.point.x + curve._segment2.handleIn.x,
+          curve._segment2.point.y + curve._segment2.handleIn.y,
+          curve._segment2.point.x,
+          curve._segment2.point.y,
         ];
 
         // Curve.getTimeOf()相当の実装
@@ -662,14 +662,14 @@ export class Path implements PathItem {
 
     for (const curve of curves) {
       const v = [
-        curve.segment1.point.x,
-        curve.segment1.point.y,
-        curve.segment1.point.x + curve.segment1.handleOut.x,
-        curve.segment1.point.y + curve.segment1.handleOut.y,
-        curve.segment2.point.x + curve.segment2.handleIn.x,
-        curve.segment2.point.y + curve.segment2.handleIn.y,
-        curve.segment2.point.x,
-        curve.segment2.point.y,
+        curve._segment1.point.x,
+        curve._segment1.point.y,
+        curve._segment1.point.x + curve._segment1.handleOut.x,
+        curve._segment1.point.y + curve._segment1.handleOut.y,
+        curve._segment2.point.x + curve._segment2.handleIn.x,
+        curve._segment2.point.y + curve._segment2.handleIn.y,
+        curve._segment2.point.x,
+        curve._segment2.point.y,
       ];
 
       // y成分の範囲外ならスキップ
@@ -1169,10 +1169,10 @@ export class Path implements PathItem {
             const c2 = curves2[0];
             
             // 制御点のハンドルの長さをチェック
-            const h1Out = c1.segment1.handleOut;
-            const h1In = c1.segment2.handleIn;
-            const h2Out = c2.segment1.handleOut;
-            const h2In = c2.segment2.handleIn;
+            const h1Out = c1._segment1.handleOut;
+            const h1In = c1._segment2.handleIn;
+            const h2Out = c2._segment1.handleOut;
+            const h2In = c2._segment2.handleIn;
             
             // ハンドルが長い場合は、境界ボックスが交差していなくても交点が存在する可能性がある
             const longHandles =
