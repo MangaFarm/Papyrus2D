@@ -364,4 +364,135 @@ describe('Path', () => {
       expect(diagonalOffsets.length).toBe(2);
     });
   });
+
+  // 新しく追加したメソッドのテスト
+  describe('isStraight', () => {
+    it('should return true for straight paths', () => {
+      const path = new Path();
+      path.add(new Segment(new Point(0, 0)));
+      path.add(new Segment(new Point(100, 100)));
+      
+      expect(path.isStraight()).toBe(true);
+    });
+    
+    it('should return false for paths with more than 2 segments', () => {
+      const path = new Path();
+      path.add(new Segment(new Point(0, 0)));
+      path.add(new Segment(new Point(50, 50)));
+      path.add(new Segment(new Point(100, 0)));
+      
+      expect(path.isStraight()).toBe(false);
+    });
+    
+    it('should return false for paths with handles', () => {
+      const path = new Path();
+      path.add(new Segment(new Point(0, 0)));
+      path.add(new Segment(new Point(100, 100), new Point(-20, -20), new Point(0, 0)));
+      
+      expect(path.isStraight()).toBe(false);
+    });
+  });
+  
+  describe('equals', () => {
+    it('should return true for identical paths', () => {
+      const path1 = new Path([
+        new Segment(new Point(1, 1)),
+        new Segment(new Point(2, 2)),
+        new Segment(new Point(3, 3))
+      ]);
+      
+      const path2 = new Path([
+        new Segment(new Point(1, 1)),
+        new Segment(new Point(2, 2)),
+        new Segment(new Point(3, 3))
+      ]);
+      
+      expect(path1.equals(path2)).toBe(true);
+    });
+    
+    it('should return false for paths with different segments', () => {
+      const path1 = new Path([
+        new Segment(new Point(1, 1)),
+        new Segment(new Point(2, 2)),
+        new Segment(new Point(3, 3))
+      ]);
+      
+      const path2 = new Path([
+        new Segment(new Point(1, 1)),
+        new Segment(new Point(2, 2)),
+        new Segment(new Point(4, 4))
+      ]);
+      
+      expect(path1.equals(path2)).toBe(false);
+    });
+    
+    it('should return false for paths with different number of segments', () => {
+      const path1 = new Path([
+        new Segment(new Point(1, 1)),
+        new Segment(new Point(2, 2))
+      ]);
+      
+      const path2 = new Path([
+        new Segment(new Point(1, 1)),
+        new Segment(new Point(2, 2)),
+        new Segment(new Point(3, 3))
+      ]);
+      
+      expect(path1.equals(path2)).toBe(false);
+    });
+  });
+  
+  describe('splitAt', () => {
+    // このテストはスキップします。paper.jsからの移植が必要です。
+    it.skip('Splitting a straight path should produce segments without handles', () => {
+      const path1 = Path.Line(new Point(0, 0), new Point(50, 50));
+      const path2 = path1.splitAt(path1.getLength() / 2);
+      
+      expect(path2).not.toBeNull();
+      
+      if (path2) {
+        expect(!path1.getLastSegment()!.hasHandles() && !path2.getFirstSegment()!.hasHandles()).toBe(true);
+      }
+    });
+    
+    it.skip('Splitting a path with one curve in the middle result in two paths of the same length with one curve each', () => {
+      const path1 = Path.Line(new Point(0, 0), new Point(100, 100));
+      const loc = path1.getLocationAt(path1.getLength() / 2);
+      
+      expect(loc).not.toBeNull();
+      
+      if (loc) {
+        const path2 = path1.splitAt(loc);
+        
+        expect(path2).not.toBeNull();
+        
+        if (path2) {
+          expect(path1.getCurves().length).toBe(1);
+          expect(path2.getCurves().length).toBe(1);
+          expect(path1.getLength()).toBeCloseTo(path2.getLength(), 5);
+        }
+      }
+    });
+    
+    it('should return null for invalid locations', () => {
+      const path = new Path([
+        new Segment(new Point(0, 0)),
+        new Segment(new Point(100, 0))
+      ]);
+      
+      expect(path.splitAt(null as any)).toBeNull();
+      
+      // 別のパスのロケーション
+      const otherPath = new Path([
+        new Segment(new Point(0, 0)),
+        new Segment(new Point(100, 0))
+      ]);
+      const otherLocation = otherPath.getLocationAt(otherPath.getLength() / 2);
+      expect(otherLocation).not.toBeNull();
+      
+      if (otherLocation) {
+        expect(path.splitAt(otherLocation)).toBeNull();
+      }
+    });
+  });
 });

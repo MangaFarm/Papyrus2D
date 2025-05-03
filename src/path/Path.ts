@@ -963,4 +963,93 @@ export class Path implements PathItem {
     
     return offsets;
   }
+
+  /**
+   * パスが直線かどうかを判定
+   * @returns 直線ならtrue
+   */
+  isStraight(): boolean {
+    if (this._segments.length !== 2) {
+      return false;
+    }
+    return !this.hasHandles();
+  }
+
+  /**
+   * 指定された位置でパスを分割
+   * @param location 分割位置（オフセットまたはCurveLocation）
+   * @returns 分割後の新しいパス（後半部分）
+   */
+  splitAt(location: number | CurveLocation): Path | null {
+    // オフセットの場合はCurveLocationに変換
+    let loc: CurveLocation | null;
+    if (typeof location === 'number') {
+      loc = this.getLocationAt(location);
+    } else {
+      loc = location;
+    }
+
+    if (!loc || !loc.curve || loc.curve._path !== this) {
+      return null;
+    }
+
+    // 分割位置のカーブとパラメータ
+    const curve = loc.curve;
+    const time = loc.time ?? 0;
+    
+    // カーブを分割
+    const [leftCurve, rightCurve] = curve.divide(time);
+    
+    // 新しいパスを作成（後半部分）
+    const path2 = new Path();
+    
+    // 分割点を追加
+    const middleSegment = rightCurve._segment1.clone();
+    
+    // 後半部分のセグメントを追加
+    path2.add(middleSegment);
+    
+    // 残りのセグメントを追加
+    const curveIndex = curve.getIndex();
+    const segments = this._segments;
+    const count = segments.length;
+    
+    for (let i = curveIndex + 1; i < count; i++) {
+      path2.add(segments[i].clone());
+    }
+    
+    // 元のパスが閉じている場合、前半部分のセグメントも追加
+    if (this._closed) {
+      for (let i = 0; i <= curveIndex; i++) {
+        path2.add(segments[i].clone());
+      }
+      path2.setClosed(true);
+    }
+    
+    // 元のパスを前半部分に変更
+    this.removeSegments(curveIndex + 1, count);
+    const newSegment = leftCurve._segment2.clone();
+    this.add(newSegment);
+    
+    return path2;
+  }
+
+  /**
+   * 2つのパスが等しいかどうかを判定
+   * @param path 比較するパス
+   * @returns 等しければtrue
+   */
+  equals(path: Path): boolean {
+    if (!path || path._segments.length !== this._segments.length) {
+      return false;
+    }
+    
+    for (let i = 0, l = this._segments.length; i < l; i++) {
+      if (!this._segments[i].equals(path._segments[i])) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
 }
