@@ -265,7 +265,7 @@ export class Matrix {
    * 新しい行列としてprepend
    */
   prepended(mx: Matrix): Matrix {
-    return this.prepend(mx);
+    return mx.append(this);
   }
 
   /**
