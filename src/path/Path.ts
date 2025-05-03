@@ -405,7 +405,7 @@ export class Path implements PathItem {
    */
   getTangentAt(offset: number): Point {
     const loc = this.getLocationAt(offset);
-    return loc && loc.curve ? loc.curve.getTangentAt(loc.time!) : new Point(0, 0);
+    return loc && loc.curve ? loc.curve.getTangentAt(loc.time!, true) : new Point(0, 0);
   }
 
   /**

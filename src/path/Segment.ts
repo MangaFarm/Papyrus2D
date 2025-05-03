@@ -39,14 +39,14 @@ export class Segment {
    * @param handleOut 出力ハンドル
    */
   constructor(
-    point: Point | object | number = new Point(0, 0),
-    handleIn: Point | object | number = new Point(0, 0),
-    handleOut: Point | object | number = new Point(0, 0),
+    point: Point | object | number | null = new Point(0, 0),
+    handleIn: Point | object | number | null = new Point(0, 0),
+    handleOut: Point | object | number | null = new Point(0, 0),
     arg3?: number, arg4?: number, arg5?: number
   ) {
-    let pointObj: Point | object | number | undefined = point;
-    let handleInObj: Point | object | number | undefined = handleIn;
-    let handleOutObj: Point | object | number | undefined = handleOut;
+    let pointObj: Point | object | number | null = point;
+    let handleInObj: Point | object | number | null = handleIn;
+    let handleOutObj: Point | object | number | null = handleOut;
 
     // paper.jsと同様の引数解析
     const count = arguments.length;
@@ -72,8 +72,8 @@ export class Segment {
         // X, Y座標のパターン（引数2つ）
         if (count === 2) {
           pointObj = [x, y];
-          handleInObj = undefined;
-          handleOutObj = undefined;
+          handleInObj = null;
+          handleOutObj = null;
         }
         // 6引数パターン: (x, y, inX, inY, outX, outY)
         else {
@@ -85,8 +85,8 @@ export class Segment {
           
           // paper.jsと同じ割り当て
           pointObj = [x, y];
-          handleInObj = inX !== undefined ? [inX, inY] : undefined;
-          handleOutObj = outX !== undefined ? [outX, outY] : undefined;
+          handleInObj = inX !== undefined ? [inX, inY] : null;
+          handleOutObj = outX !== undefined ? [outX, outY] : null;
         }
       }
     }

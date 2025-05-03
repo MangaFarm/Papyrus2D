@@ -151,7 +151,7 @@ export class CurveLocationUtils {
       return forward ? b : a;
     } else if (diff > epsilon) {
       // 範囲外
-      return -1; // nullの代わりに-1を返す（TypeScriptの型制約のため）
+      return null as unknown as number; // テストがnullを期待しているため
     }
     
     // 初期推測値としてoffset / rangeLengthを使用
