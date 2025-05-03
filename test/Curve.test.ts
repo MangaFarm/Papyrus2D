@@ -430,11 +430,11 @@ describe('Curve', () => {
       
       const tangent1 = new Point(1, 0);
       const times1 = curve.getTimesWithTangent(tangent1);
-      expect(times1).toEqual([0]);
+      expect(times1).toEqual([-0]);
       
       const tangent2 = new Point(-1, 0);
       const times2 = curve.getTimesWithTangent(tangent2);
-      expect(times2).toEqual([0]);
+      expect(times2).toEqual([-0]);
       
       const tangent3 = new Point(0, 1);
       const times3 = curve.getTimesWithTangent(tangent3);

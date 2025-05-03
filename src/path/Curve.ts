@@ -7,8 +7,6 @@
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Matrix } from '../basic/Matrix';
-import { Numerical } from '../util/Numerical';
-import { CollisionDetection } from '../util/CollisionDetection';
 import { getIntersections } from './CurveIntersectionMain';
 import { CurveCalculation } from './CurveCalculation';
 import { CurveGeometry } from './CurveGeometry';

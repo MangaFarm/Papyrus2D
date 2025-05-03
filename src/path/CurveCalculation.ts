@@ -177,10 +177,6 @@ export class CurveCalculation {
    * paper.jsのgetTimesWithTangent実装を移植
    */
   static getTimesWithTangent(v: number[], tangent: Point): number[] {
-    if (tangent.isZero()) {
-      return [];
-    }
-    
     const x0 = v[0], y0 = v[1],
           x1 = v[2], y1 = v[3],
           x2 = v[4], y2 = v[5],
