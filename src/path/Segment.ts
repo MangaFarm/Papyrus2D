@@ -65,10 +65,29 @@ export class Segment {
           handleOutObj = handleOut;
         }
       } else {
-        // 座標値の引数: (x, y, inX, inY, outX, outY)
-        pointObj = [point as number, handleIn as number];
-        handleInObj = arg3 !== undefined ? [arg3, arg4] : undefined;
-        handleOutObj = arg5 !== undefined ? [arg5, arguments[5]] : undefined;
+        // 座標値の引数処理: 引数の数でケースを分ける
+        const x = point as number;     // arg0
+        const y = handleIn as number;  // arg1
+        
+        // X, Y座標のパターン（引数2つ）
+        if (count === 2) {
+          pointObj = [x, y];
+          handleInObj = undefined;
+          handleOutObj = undefined;
+        }
+        // 6引数パターン: (x, y, inX, inY, outX, outY)
+        else {
+          // 正しい引数の割り当て
+          const inX = handleOut as number; // arg2
+          const inY = arg3;                // arg3
+          const outX = arg4;               // arg4
+          const outY = arg5;               // arg5
+          
+          // paper.jsと同じ割り当て
+          pointObj = [x, y];
+          handleInObj = inX !== undefined ? [inX, inY] : undefined;
+          handleOutObj = outX !== undefined ? [outX, outY] : undefined;
+        }
       }
     }
 
@@ -149,7 +168,12 @@ export class Segment {
   }
 
   clone(): Segment {
-    return new Segment(this._point, this._handleIn, this._handleOut);
+    // 直接SegmentPointを渡すのではなくPointに変換する
+    return new Segment(
+      this.getPoint(),
+      this.getHandleIn(),
+      this.getHandleOut()
+    );
   }
 
   /**
@@ -171,11 +195,20 @@ export class Segment {
   }
 
   toString(): string {
-    const parts = ['point: ' + this.getPoint()];
-    if (!this._handleIn.isZero())
-      parts.push('handleIn: ' + this.getHandleIn());
-    if (!this._handleOut.isZero())
-      parts.push('handleOut: ' + this.getHandleOut());
+    // Pointオブジェクトの文字列表現を直接利用してスタックオーバーフローを回避
+    const point = this.getPoint();
+    const parts = [`point: { x: ${point.x}, y: ${point.y} }`];
+    
+    if (!this._handleIn.isZero()) {
+      const handleIn = this.getHandleIn();
+      parts.push(`handleIn: { x: ${handleIn.x}, y: ${handleIn.y} }`);
+    }
+    
+    if (!this._handleOut.isZero()) {
+      const handleOut = this.getHandleOut();
+      parts.push(`handleOut: { x: ${handleOut.x}, y: ${handleOut.y} }`);
+    }
+    
     return '{ ' + parts.join(', ') + ' }';
   }
 

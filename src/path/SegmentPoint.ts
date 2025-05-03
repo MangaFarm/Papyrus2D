@@ -34,16 +34,21 @@ export class SegmentPoint {
       owner = arguments[2];
       key = arguments[3] as string;
     } else {
-      // Point-likeオブジェクト
+      // Point-likeオブジェクトまたはSizeオブジェクト
       const pt = point;
-      if (pt.x === undefined) {
-        // Point.readに相当する処理（簡略化）
+      if (pt.x !== undefined) {
+        // Pointオブジェクト
+        x = pt.x;
+        y = pt.y;
+      } else if (pt.width !== undefined) {
+        // Sizeオブジェクト
+        x = pt.width;
+        y = pt.height;
+      } else {
+        // その他のケースは通常のPoint作成（これは必要なくなるかもしれないが念のため）
         const p = new Point(arguments[0] as number, arguments[1] as number);
         x = p.x;
         y = p.y;
-      } else {
-        x = pt.x;
-        y = pt.y;
       }
     }
 
