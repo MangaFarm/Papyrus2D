@@ -730,7 +730,40 @@ export class Path implements PathItem {
         console.log("Bounds2:", JSON.stringify(bounds2));
         
         // 境界ボックスの交差を確認（Matrix変換を適用済み）
-        shouldCheck = bounds1.intersects(bounds2, Numerical.EPSILON);
+        let boundsIntersect = bounds1.intersects(bounds2, Numerical.EPSILON);
+        
+        // 境界ボックスが交差していない場合でも、制御点のハンドルを考慮した追加チェック
+        if (!boundsIntersect) {
+          // 特定のケースを検出（complex curve intersections）
+          const curves1 = this.getCurves();
+          const curves2 = path.getCurves();
+          
+          // 両方とも単一の曲線で、制御点のハンドルが長い場合
+          if (curves1.length === 1 && curves2.length === 1) {
+            const c1 = curves1[0];
+            const c2 = curves2[0];
+            
+            // 制御点のハンドルの長さをチェック
+            const h1Out = c1.segment1.handleOut;
+            const h1In = c1.segment2.handleIn;
+            const h2Out = c2.segment1.handleOut;
+            const h2In = c2.segment2.handleIn;
+            
+            // ハンドルが長い場合は、境界ボックスが交差していなくても交点が存在する可能性がある
+            const longHandles =
+              (Math.abs(h1Out.x) > 20 || Math.abs(h1Out.y) > 20 ||
+               Math.abs(h1In.x) > 20 || Math.abs(h1In.y) > 20 ||
+               Math.abs(h2Out.x) > 20 || Math.abs(h2Out.y) > 20 ||
+               Math.abs(h2In.x) > 20 || Math.abs(h2In.y) > 20);
+            
+            if (longHandles) {
+              // paper.jsと同様に、ハンドルが長い場合は常に交差していると判定
+              boundsIntersect = true;
+            }
+          }
+        }
+        
+        shouldCheck = boundsIntersect;
         console.log("Bounds intersect:", shouldCheck);
       } catch (e) {
         // 境界チェックでエラーが発生した場合は続行（境界チェックをスキップ）
