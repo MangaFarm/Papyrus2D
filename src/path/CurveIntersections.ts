@@ -79,7 +79,7 @@ export function addLocation(
       
       // includeコールバックがなければ、または条件を満たせば追加
       if (!include || include(loc1)) {
-        // Paper.jsと同様に、includeOverlapsパラメータを省略（デフォルトはfalse）
+        // Paper.jsと同様に、insertLocationを使用
         insertLocation(locations, loc1);
       }
     }
@@ -204,20 +204,14 @@ export function getCurveIntersections(
   const max = Math.max;
 
   // Paper.jsと同様の境界ボックスチェック - 正確に同じ条件判定を使用
-  const v1xMin = min(v1[0], v1[2], v1[4], v1[6]);
-  const v1xMax = max(v1[0], v1[2], v1[4], v1[6]);
-  const v1yMin = min(v1[1], v1[3], v1[5], v1[7]);
-  const v1yMax = max(v1[1], v1[3], v1[5], v1[7]);
-  
-  const v2xMin = min(v2[0], v2[2], v2[4], v2[6]);
-  const v2xMax = max(v2[0], v2[2], v2[4], v2[6]);
-  const v2yMin = min(v2[1], v2[3], v2[5], v2[7]);
-  const v2yMax = max(v2[1], v2[3], v2[5], v2[7]);
-
-  if (v1xMax + epsilon > v2xMin &&
-      v1xMin - epsilon < v2xMax &&
-      v1yMax + epsilon > v2yMin &&
-      v1yMin - epsilon < v2yMax) {
+  if (max(v1[0], v1[2], v1[4], v1[6]) + epsilon >
+      min(v2[0], v2[2], v2[4], v2[6]) &&
+      min(v1[0], v1[2], v1[4], v1[6]) - epsilon <
+      max(v2[0], v2[2], v2[4], v2[6]) &&
+      max(v1[1], v1[3], v1[5], v1[7]) + epsilon >
+      min(v2[1], v2[3], v2[5], v2[7]) &&
+      min(v1[1], v1[3], v1[5], v1[7]) - epsilon <
+      max(v2[1], v2[3], v2[5], v2[7])) {
     
     // オーバーラップの検出と処理
     const overlaps = getOverlaps(v1, v2);
@@ -406,12 +400,6 @@ function addLineIntersection(
   include?: (loc: CurveLocation) => boolean,
   flip?: boolean
 ): CurveLocation[] {
-  console.log("--- addLineIntersection Debug ---");
-  console.log("Line segments:",
-    `Line1: (${v1[0]},${v1[1]}) to (${v1[6]},${v1[7]})`,
-    `Line2: (${v2[0]},${v2[1]}) to (${v2[6]},${v2[7]})`
-  );
-  
   // paper.jsのLine.intersect関数と同等の実装
   const pt = (() => {
     const p1x = v1[0], p1y = v1[1];
@@ -444,8 +432,6 @@ function addLineIntersection(
     return null;
   })();
   
-  console.log("Intersection point:", pt);
-  
   if (pt) {
     // paper.jsでは、ここで直接パラメータを計算して、
     // 線分が直線の場合は、単純なベクトル計算で
@@ -474,12 +460,10 @@ function addLineIntersection(
         } else if (t1 > 1) {
           t1 = 1;
         }
-        console.log("Line 1 t1 parameter:", t1);
       }
     } else {
       // 曲線の場合は通常のgetTimeOfを使用
       t1 = Curve.getTimeOf(v1, pt);
-      console.log("Curve 1 t1 parameter:", t1);
     }
     
     // v2にも同様の処理を適用
@@ -500,11 +484,9 @@ function addLineIntersection(
         } else if (t2 > 1) {
           t2 = 1;
         }
-        console.log("Line 2 t2 parameter:", t2);
       }
     } else {
       t2 = Curve.getTimeOf(v2, pt);
-      console.log("Curve 2 t2 parameter:", t2);
     }
 
     // paper.jsと同じように、t1とt2がどちらもnullでなければ交点を追加
@@ -512,9 +494,6 @@ function addLineIntersection(
       flip ? c2 : c1, flip ? t2 : t1,
       flip ? c1 : c2, flip ? t1 : t2);
     
-    console.log("Locations count after add:", locations.length);
-  } else {
-    console.log("No intersection point found");
   }
   
   return locations;
