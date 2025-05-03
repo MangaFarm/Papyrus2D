@@ -74,14 +74,15 @@ export class Matrix {
    * 単位行列かどうか
    */
   isIdentity(): boolean {
-    return this.equals(Matrix.identity());
+    return this.a === 1 && this.b === 0 && this.c === 0 && this.d === 1
+           && this.tx === 0 && this.ty === 0;
   }
 
   /**
    * シンギュラリティ判定（逆行列が存在しない場合true）
    */
   isSingular(): boolean {
-    return this.a * this.d - this.b * this.c === 0;
+    return !this.isInvertible();
   }
 
   /**
@@ -95,8 +96,14 @@ export class Matrix {
    * 平行移動
    */
   translate(x: number, y: number): Matrix {
-    // 新しい行列を返す
-    return this.append(new Matrix(1, 0, 0, 1, x, y));
+    return new Matrix(
+      this.a,
+      this.b,
+      this.c,
+      this.d,
+      this.tx + x * this.a + y * this.c,
+      this.ty + x * this.b + y * this.d
+    );
   }
 
   /**
@@ -104,14 +111,23 @@ export class Matrix {
    */
   scale(sx: number, sy?: number, center?: Point): Matrix {
     if (sy === undefined) sy = sx;
-    let m = new Matrix(sx, 0, 0, sy, 0, 0);
+    
     if (center) {
-      // centerを原点に移動→スケール→戻す
-      return this.translate(center.x, center.y)
-        .append(m)
-        .translate(-center.x, -center.y);
+      const x = center.x;
+      const y = center.y;
+      return this.translate(x, y)
+        .scale(sx, sy)
+        .translate(-x, -y);
     }
-    return this.append(m);
+    
+    return new Matrix(
+      this.a * sx,
+      this.b * sx,
+      this.c * sy,
+      this.d * sy,
+      this.tx,
+      this.ty
+    );
   }
 
   /**
@@ -121,13 +137,31 @@ export class Matrix {
     const rad = (angle * Math.PI) / 180;
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    let m = new Matrix(cos, sin, -sin, cos, 0, 0);
+    
     if (center) {
-      return this.translate(center.x, center.y)
-        .append(m)
-        .translate(-center.x, -center.y);
+      const x = center.x;
+      const y = center.y;
+      const tx = x - x * cos + y * sin;
+      const ty = y - x * sin - y * cos;
+      
+      return new Matrix(
+        cos * this.a + sin * this.c,
+        cos * this.b + sin * this.d,
+        -sin * this.a + cos * this.c,
+        -sin * this.b + cos * this.d,
+        this.tx + tx * this.a + ty * this.c,
+        this.ty + tx * this.b + ty * this.d
+      );
     }
-    return this.append(m);
+    
+    return new Matrix(
+      cos * this.a + sin * this.c,
+      cos * this.b + sin * this.d,
+      -sin * this.a + cos * this.c,
+      -sin * this.b + cos * this.d,
+      this.tx,
+      this.ty
+    );
   }
 
   /**
@@ -135,14 +169,14 @@ export class Matrix {
    */
   append(mx: Matrix): Matrix {
     const a1 = this.a, b1 = this.b, c1 = this.c, d1 = this.d, tx1 = this.tx, ty1 = this.ty;
-    const a2 = mx.a, b2 = mx.b, c2 = mx.c, d2 = mx.d, tx2 = mx.tx, ty2 = mx.ty;
+    const a2 = mx.a, b2 = mx.c, c2 = mx.b, d2 = mx.d, tx2 = mx.tx, ty2 = mx.ty;
     return new Matrix(
-      a1 * a2 + c1 * b2,
-      b1 * a2 + d1 * b2,
-      a1 * c2 + c1 * d2,
-      b1 * c2 + d1 * d2,
-      a1 * tx2 + c1 * ty2 + tx1,
-      b1 * tx2 + d1 * ty2 + ty1
+      a2 * a1 + c2 * c1,
+      a2 * b1 + c2 * d1,
+      b2 * a1 + d2 * c1,
+      b2 * b1 + d2 * d1,
+      tx1 + tx2 * a1 + ty2 * c1,
+      ty1 + tx2 * b1 + ty2 * d1
     );
   }
 
@@ -150,7 +184,16 @@ export class Matrix {
    * 行列の合成（左から掛ける）
    */
   prepend(mx: Matrix): Matrix {
-    return mx.append(this);
+    const a1 = this.a, b1 = this.b, c1 = this.c, d1 = this.d, tx1 = this.tx, ty1 = this.ty;
+    const a2 = mx.a, b2 = mx.c, c2 = mx.b, d2 = mx.d, tx2 = mx.tx, ty2 = mx.ty;
+    return new Matrix(
+      a2 * a1 + b2 * b1,
+      a2 * c1 + b2 * d1,
+      c2 * a1 + d2 * b1,
+      c2 * c1 + d2 * d1,
+      a2 * tx1 + b2 * ty1 + tx2,
+      c2 * tx1 + d2 * ty1 + ty2
+    );
   }
 
   /**
@@ -158,7 +201,7 @@ export class Matrix {
    */
   invert(): Matrix | null {
     const det = this.a * this.d - this.b * this.c;
-    if (det === 0) return null;
+    if (!det || isNaN(det) || !isFinite(this.tx) || !isFinite(this.ty)) return null;
     return new Matrix(
       this.d / det,
       -this.b / det,
@@ -172,13 +215,22 @@ export class Matrix {
    * シアー変換
    */
   shear(shx: number, shy: number = 0, center?: Point): Matrix {
-    let m = new Matrix(1, shy, shx, 1, 0, 0);
     if (center) {
-      return this.translate(center.x, center.y)
-        .append(m)
-        .translate(-center.x, -center.y);
+      const x = center.x;
+      const y = center.y;
+      return this.translate(x, y)
+        .shear(shx, shy)
+        .translate(-x, -y);
     }
-    return this.append(m);
+    
+    return new Matrix(
+      this.a + shy * this.c,
+      this.b + shy * this.d,
+      this.c + shx * this.a,
+      this.d + shx * this.b,
+      this.tx,
+      this.ty
+    );
   }
 
   /**
@@ -215,7 +267,8 @@ export class Matrix {
    * 逆行列が存在するか
    */
   isInvertible(): boolean {
-    return (this.a * this.d - this.b * this.c) !== 0;
+    const det = this.a * this.d - this.b * this.c;
+    return det !== 0 && !isNaN(det) && isFinite(this.tx) && isFinite(this.ty);
   }
 
   /**
@@ -228,32 +281,37 @@ export class Matrix {
   /**
    * 行列の分解（回転角・スケール成分を返す）
    */
-  decompose(): { scaling: Point; rotation: number; translation: Point } {
+  decompose(): { scaling: Point; rotation: number; translation: Point; skewing: Point } {
     // paper.js準拠の2Dアフィン分解
     const { a, b, c, d, tx, ty } = this;
     const det = a * d - b * c;
     const sqrt = Math.sqrt;
     const atan2 = Math.atan2;
-    const acos = Math.acos;
-    const asin = Math.asin;
     const degrees = 180 / Math.PI;
     let rotate = 0;
     let scale: [number, number] = [0, 0];
+    let skew: [number, number] = [0, 0];
+    
     if (a !== 0 || b !== 0) {
       const r = sqrt(a * a + b * b);
-      rotate = acos(a / r) * (b > 0 ? 1 : -1);
+      rotate = Math.acos(a / r) * (b > 0 ? 1 : -1);
       scale = [r, det / r];
+      skew = [atan2(a * c + b * d, r * r), 0];
     } else if (c !== 0 || d !== 0) {
       const s = sqrt(c * c + d * d);
-      rotate = asin(c / s) * (d > 0 ? 1 : -1);
+      rotate = Math.asin(c / s) * (d > 0 ? 1 : -1);
       scale = [det / s, s];
+      skew = [0, atan2(a * c + b * d, s * s)];
+    } else { // a = b = c = d = 0
+      scale = [0, 0];
+      skew = [0, 0];
     }
-    // translation
-    const translation = new Point(tx, ty);
+    
     return {
-      translation,
+      translation: new Point(tx, ty),
       rotation: rotate * degrees,
-      scaling: new Point(scale[0], scale[1])
+      scaling: new Point(scale[0], scale[1]),
+      skewing: new Point(skew[0] * degrees, skew[1] * degrees)
     };
   }
 
@@ -286,23 +344,38 @@ export class Matrix {
    * 逆変換
    */
   inverseTransform(point: Point): Point | null {
-    const inv = this.invert();
-    return inv ? inv.transform(point) : null;
+    const a = this.a;
+    const b = this.b;
+    const c = this.c;
+    const d = this.d;
+    const tx = this.tx;
+    const ty = this.ty;
+    const det = a * d - b * c;
+    
+    if (!det || isNaN(det) || !isFinite(tx) || !isFinite(ty)) {
+      return null;
+    }
+    
+    const x = point.x - tx;
+    const y = point.y - ty;
+    
+    return new Point(
+      (x * d - y * c) / det,
+      (y * a - x * b) / det
+    );
   }
 
   /**
    * Canvas用（Papyrus2Dでは空実装）
    */
-  applyToContext(_ctx: unknown): void {
-    // レンダリング非対応
+  applyToContext(ctx: any): void {
+    if (!this.isIdentity()) {
+      ctx.transform(this.a, this.b, this.c, this.d, this.tx, this.ty);
+    }
   }
 
   /**
-   * 単位行列の場合はnullを返し、そうでない場合は行列自身を返す
-   * paper.jsの_orNullIfIdentity()メソッドに相当
-   */
-  /**
-   * 単位行列の場合はnullを返し、そうでない場合は行列自身を返す
+   * 単位行列の場合はundefinedを返し、そうでない場合は行列自身を返す
    * paper.jsの_orNullIfIdentity()メソッドに相当
    */
   _orNullIfIdentity(): Matrix | undefined {
