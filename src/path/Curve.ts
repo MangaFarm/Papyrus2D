@@ -7,7 +7,7 @@ import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Matrix } from '../basic/Matrix';
 import { Numerical } from '../util/Numerical';
-import { CollisionDetection } from './CollisionDetection';
+import { CollisionDetection } from '../util/CollisionDetection';
 import { getSelfIntersection, getCurveIntersections } from './CurveIntersections';
 
 export class CurveLocation {

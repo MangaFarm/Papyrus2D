@@ -7,6 +7,11 @@ export class CollisionDetection {
   /**
    * 曲線の境界ボックス同士の衝突を検出
    * paper.jsのCollisionDetection.findCurveBoundsCollisions実装を移植
+   * @param curves1 曲線の配列1
+   * @param curves2 曲線の配列2（nullの場合は自己衝突チェック）
+   * @param tolerance 許容誤差
+   * @param bothAxis 両軸でチェックするかどうか
+   * @returns 衝突インデックスの配列
    */
   /**
    * 曲線の境界ボックス同士の衝突を検出
@@ -22,7 +27,7 @@ export class CollisionDetection {
     curves2: number[][] | null,
     tolerance: number,
     bothAxis?: boolean
-  ): number[][] {
+  ): any {
     // paper.jsのfindCurveBoundsCollisions実装を忠実に移植
     function getBounds(curves: number[][]): number[][] {
       const min = Math.min;
@@ -31,55 +36,12 @@ export class CollisionDetection {
       
       for (let i = 0; i < curves.length; i++) {
         const v = curves[i];
-        
-        // 初期値として制御点の最小・最大値を設定
-        let minX = min(v[0], v[2], v[4], v[6]);
-        let minY = min(v[1], v[3], v[5], v[7]);
-        let maxX = max(v[0], v[2], v[4], v[6]);
-        let maxY = max(v[1], v[3], v[5], v[7]);
-        
-        // paper.jsと同様に、曲線の極値も考慮する
-        // x方向の極値を計算
-        CollisionDetection.addCurveExtrema(v, 0, (t: number) => {
-          if (t > 0 && t < 1) {
-            // 三次ベジェ補間で極値の座標を計算
-            const mt = 1 - t;
-            const mt2 = mt * mt;
-            const mt3 = mt2 * mt;
-            const t2 = t * t;
-            const t3 = t2 * t;
-            
-            const x = mt3 * v[0] + 3 * mt2 * t * v[2] + 3 * mt * t2 * v[4] + t3 * v[6];
-            const y = mt3 * v[1] + 3 * mt2 * t * v[3] + 3 * mt * t2 * v[5] + t3 * v[7];
-            
-            minX = min(minX, x);
-            maxX = max(maxX, x);
-            minY = min(minY, y);
-            maxY = max(maxY, y);
-          }
-        });
-        
-        // y方向の極値を計算
-        CollisionDetection.addCurveExtrema(v, 1, (t: number) => {
-          if (t > 0 && t < 1) {
-            // 三次ベジェ補間で極値の座標を計算
-            const mt = 1 - t;
-            const mt2 = mt * mt;
-            const mt3 = mt2 * mt;
-            const t2 = t * t;
-            const t3 = t2 * t;
-            
-            const x = mt3 * v[0] + 3 * mt2 * t * v[2] + 3 * mt * t2 * v[4] + t3 * v[6];
-            const y = mt3 * v[1] + 3 * mt2 * t * v[3] + 3 * mt * t2 * v[5] + t3 * v[7];
-            
-            minX = min(minX, x);
-            maxX = max(maxX, x);
-            minY = min(minY, y);
-            maxY = max(maxY, y);
-          }
-        });
-        
-        bounds[i] = [minX, minY, maxX, maxY];
+        bounds[i] = [
+          min(v[0], v[2], v[4], v[6]),
+          min(v[1], v[3], v[5], v[7]),
+          max(v[0], v[2], v[4], v[6]),
+          max(v[1], v[3], v[5], v[7])
+        ];
       }
       
       return bounds;
@@ -91,26 +53,23 @@ export class CollisionDetection {
       ? bounds1
       : getBounds(curves2);
     
-    // 許容誤差を確実に適用
-    const eps = tolerance || 0;
-    
     if (bothAxis) {
       // 水平方向と垂直方向の両方でチェック
       const hor = this.findBoundsCollisions(
-        bounds1, bounds2, eps, false, true);
+        bounds1, bounds2, tolerance || 0, false, true);
       const ver = this.findBoundsCollisions(
-        bounds1, bounds2, eps, true, true);
+        bounds1, bounds2, tolerance || 0, true, true);
       
       // 結果を組み合わせる
       const list: { hor: number[]; ver: number[] }[] = [];
       for (let i = 0, l = hor.length; i < l; i++) {
         list[i] = { hor: hor[i], ver: ver[i] };
       }
-      return list as any; // 型キャストで対応
+      return list;
     }
     
     // 単一方向でチェック
-    return this.findBoundsCollisions(bounds1, bounds2, eps);
+    return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
   }
 
   /**
@@ -124,13 +83,14 @@ export class CollisionDetection {
     sweepVertical?: boolean,
     onlySweepAxisCollisions?: boolean
   ): number[][] {
-    // PATHITEM_INTERSECTIONS.mdに記載されている実装を使用
     const self = !boundsB || boundsA === boundsB;
     const allBounds = self ? boundsA : boundsA.concat(boundsB!);
     const lengthA = boundsA.length;
     const lengthAll = allBounds.length;
 
     // バイナリサーチユーティリティ関数
+    // 同じ値が複数ある場合、最も右側のエントリを返す
+    // https://en.wikipedia.org/wiki/Binary_search_algorithm#Procedure_for_finding_the_rightmost_element
     function binarySearch(indices: number[], coord: number, value: number): number {
       let lo = 0;
       let hi = indices.length;
@@ -171,7 +131,7 @@ export class CollisionDetection {
       const origIndex = self ? curIndex : curIndex - lengthA;
       const isCurrentA = curIndex < lengthA;
       const isCurrentB = self || !isCurrentA;
-      const curCollisions: number[] | null = isCurrentA ? [] : null;
+      let curCollisions: number[] | null = isCurrentA ? [] : null;
       
       if (activeIndicesByPri1.length) {
         // もはやアクティブでないインデックスを削除（プルーニング）
@@ -183,7 +143,7 @@ export class CollisionDetection {
         if (self && onlySweepAxisCollisions) {
           // すべてのアクティブインデックスを追加、追加チェック不要
           if (curCollisions) {
-            curCollisions.push(...activeIndicesByPri1);
+            curCollisions = curCollisions.concat(activeIndicesByPri1);
           }
           // 現在のインデックスをすべてのアクティブインデックスの衝突に追加
           for (let j = 0; j < activeIndicesByPri1.length; j++) {
@@ -268,35 +228,31 @@ export class CollisionDetection {
   }
   
   /**
-   * 曲線の極値を計算して処理する
-   * @param v 曲線の制御点配列
-   * @param coord 座標インデックス（0=x, 1=y）
-   * @param callback 極値のtパラメータを受け取るコールバック
+   * アイテムの境界ボックス同士の衝突を検出
+   * paper.jsのCollisionDetection.findItemBoundsCollisions実装を移植
+   * @param items1 アイテムの配列1
+   * @param items2 アイテムの配列2（nullの場合は自己衝突チェック）
+   * @param tolerance 許容誤差
+   * @returns 衝突インデックスの配列
    */
-  private static addCurveExtrema(v: number[], coord: number, callback: (t: number) => void): void {
-    // 三次ベジェ曲線の導関数の係数を計算
-    const v0 = v[coord];
-    const v1 = v[coord + 2];
-    const v2 = v[coord + 4];
-    const v3 = v[coord + 6];
-    
-    // 導関数の係数: at^2 + bt + c = 0
-    const a = 3 * (v1 - v2) - v0 + v3;
-    const b = 2 * (v0 + v2) - 4 * v1;
-    const c = v1 - v0;
-    
-    // 2次方程式を解く
-    if (Math.abs(a) > 1e-12) {
-      // 判別式
-      const D = b * b - 4 * a * c;
-      if (D >= 0) {
-        const sqrtD = Math.sqrt(D);
-        callback((-b + sqrtD) / (2 * a));
-        callback((-b - sqrtD) / (2 * a));
+  static findItemBoundsCollisions(
+    items1: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
+    items2: { getBounds(): { left: number; top: number; right: number; bottom: number } }[] | null,
+    tolerance: number
+  ): number[][] {
+    function getBounds(items: { getBounds(): { left: number; top: number; right: number; bottom: number } }[]): number[][] {
+      const bounds = new Array(items.length);
+      for (let i = 0; i < items.length; i++) {
+        const rect = items[i].getBounds();
+        bounds[i] = [rect.left, rect.top, rect.right, rect.bottom];
       }
-    } else if (Math.abs(b) > 1e-12) {
-      // 1次方程式
-      callback(-c / b);
+      return bounds;
     }
+
+    const bounds1 = getBounds(items1);
+    const bounds2 = !items2 || items2 === items1
+      ? bounds1
+      : getBounds(items2);
+    return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
   }
 }
