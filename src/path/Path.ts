@@ -700,6 +700,7 @@ export class Path implements PathItem {
     const self = this === path || !path;
     
     // Paper.jsと同じ行列変換処理を実装
+    // ただし、null/undefinedチェックを厳格に行う
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : undefined;
     
     let matrix2: Matrix | undefined | null = undefined;
@@ -711,17 +712,77 @@ export class Path implements PathItem {
       matrix2 = path._matrix._orNullIfIdentity();
     }
     
+    // デバッグ用情報出力
+    console.log("--- Path.getIntersections Debug ---");
+    console.log("Self intersection:", self);
+    
     // 境界ボックスの交差判定
-    // paper.jsと同様の条件式に修正
-    return self || this.getBounds(matrix1 as Matrix | undefined).intersects(
-      path!.getBounds(matrix2 as Matrix | undefined), Numerical.EPSILON)
-      ? Curve.getIntersections(
-          this.getCurves(),
-          self ? this.getCurves() : path!.getCurves(),
-          include,
-          matrix1 as Matrix | undefined,
-          matrix2 as Matrix | undefined,
-          _returnFirst)
-      : [];
+    // 自己交差または境界ボックスが交差している場合のみ処理を続行
+    let shouldCheck = self;
+    
+    if (!shouldCheck && path) {
+      try {
+        const bounds1 = this.getBounds(matrix1 as Matrix | undefined);
+        const bounds2 = path.getBounds(matrix2 as Matrix | undefined);
+        
+        // デバッグ出力
+        console.log("Bounds1:", JSON.stringify(bounds1));
+        console.log("Bounds2:", JSON.stringify(bounds2));
+        
+        // 境界ボックスの交差を確認（Matrix変換を適用済み）
+        if (bounds1 && bounds2) {
+          shouldCheck = bounds1.intersects(bounds2, Numerical.EPSILON);
+          console.log("Bounds intersect:", shouldCheck);
+        }
+      } catch (e) {
+        // 境界チェックでエラーが発生した場合は続行（境界チェックをスキップ）
+        console.error("Error during bounds check:", e);
+        shouldCheck = true;
+      }
+    }
+    
+    // デバッグ出力
+    console.log("Will check for intersections:", shouldCheck);
+    
+    if (shouldCheck) {
+      const curves1 = this.getCurves();
+      const curves2 = self ? curves1 : path!.getCurves();
+      
+      console.log("Curves1 count:", curves1.length);
+      console.log("Curves2 count:", curves2.length);
+      
+      // 各曲線の基本情報を出力
+      curves1.forEach((c, i) => {
+        const p1 = c.getPoint1();
+        const p2 = c.getPoint2();
+        console.log(`Curve1[${i}]: (${p1.x},${p1.y}) to (${p2.x},${p2.y})`);
+      });
+      
+      if (!self) {
+        curves2.forEach((c, i) => {
+          const p1 = c.getPoint1();
+          const p2 = c.getPoint2();
+          console.log(`Curve2[${i}]: (${p1.x},${p1.y}) to (${p2.x},${p2.y})`);
+        });
+      }
+      
+      const intersections = Curve.getIntersections(
+        curves1,
+        curves2,
+        include,
+        matrix1 as Matrix | undefined,
+        matrix2 as Matrix | undefined,
+        _returnFirst);
+      
+      console.log("Found intersections count:", intersections.length);
+      intersections.forEach((loc, i) => {
+        console.log(`Intersection[${i}]: point=(${loc.point.x},${loc.point.y}), t1=${loc.t1}, t2=${loc.t2}`);
+      });
+      
+      return intersections;
+    } else {
+      console.log("Skipped intersection check due to non-intersecting bounds");
+      return [];
+    }
   }
 }

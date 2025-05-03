@@ -400,16 +400,21 @@ function addLineIntersection(
   include?: (loc: CurveLocation) => boolean,
   flip?: boolean
 ): CurveLocation[] {
-  // Line.intersectの実装
-  // paper.jsと同じ実装を使用
+  console.log("--- addLineIntersection Debug ---");
+  console.log("Line segments:",
+    `Line1: (${v1[0]},${v1[1]}) to (${v1[6]},${v1[7]})`,
+    `Line2: (${v2[0]},${v2[1]}) to (${v2[6]},${v2[7]})`
+  );
+  
+  // クラメルの公式を使用して交点を計算
   const lineIntersect = (
     p1x: number, p1y: number, p2x: number, p2y: number,
     p3x: number, p3y: number, p4x: number, p4y: number
   ): Point | null => {
-    // クラメルの公式を使用して交点を計算
     const d = (p1x - p2x) * (p3y - p4y) - (p1y - p2y) * (p3x - p4x);
     
     if (Math.abs(d) < Numerical.EPSILON) {
+      console.log("Lines are parallel or coincident");
       return null; // 平行または重なっている
     }
     
@@ -440,16 +445,77 @@ function addLineIntersection(
     v2[0], v2[1], v2[6], v2[7]
   );
   
+  console.log("Intersection point:", pt);
+  
   if (pt) {
-    // paper.jsと同様に、交点の座標を使用せず、
-    // 単にaddLocationを呼び出す
-    const t1 = Curve.getTimeOf(v1, pt);
-    const t2 = Curve.getTimeOf(v2, pt);
+    // paper.jsでは、ここで直接パラメータを計算して、
+    // 線分が直線の場合は、単純なベクトル計算で
+    // パラメータ値を計算します（paper.jsのgetTimeOfと同等）
+    let t1: number | null = null;
+    let t2: number | null = null;
     
+    // 直線の場合の特別な処理（paper.jsのアプローチに基づく）
+    if (Curve.isStraight(v1)) {
+      // 直線の長さとベクトル
+      const p1 = new Point(v1[0], v1[1]);
+      const p2 = new Point(v1[6], v1[7]);
+      const line = p2.subtract(p1);
+      const lengthSquared = line.x * line.x + line.y * line.y;
+      
+      if (lengthSquared > Numerical.EPSILON) {
+        // 線分上のパラメータ値を計算
+        const vec = pt.subtract(p1);
+        t1 = (vec.x * line.x + vec.y * line.y) / lengthSquared;
+        
+        // パラメータ値が[0,1]の範囲に収まるか確認
+        if (t1 < 0 - Numerical.GEOMETRIC_EPSILON || t1 > 1 + Numerical.GEOMETRIC_EPSILON) {
+          t1 = null;
+        } else if (t1 < 0) {
+          t1 = 0;
+        } else if (t1 > 1) {
+          t1 = 1;
+        }
+        console.log("Line 1 t1 parameter:", t1);
+      }
+    } else {
+      // 曲線の場合は通常のgetTimeOfを使用
+      t1 = Curve.getTimeOf(v1, pt);
+      console.log("Curve 1 t1 parameter:", t1);
+    }
+    
+    // v2にも同様の処理を適用
+    if (Curve.isStraight(v2)) {
+      const p1 = new Point(v2[0], v2[1]);
+      const p2 = new Point(v2[6], v2[7]);
+      const line = p2.subtract(p1);
+      const lengthSquared = line.x * line.x + line.y * line.y;
+      
+      if (lengthSquared > Numerical.EPSILON) {
+        const vec = pt.subtract(p1);
+        t2 = (vec.x * line.x + vec.y * line.y) / lengthSquared;
+        
+        if (t2 < 0 - Numerical.GEOMETRIC_EPSILON || t2 > 1 + Numerical.GEOMETRIC_EPSILON) {
+          t2 = null;
+        } else if (t2 < 0) {
+          t2 = 0;
+        } else if (t2 > 1) {
+          t2 = 1;
+        }
+        console.log("Line 2 t2 parameter:", t2);
+      }
+    } else {
+      t2 = Curve.getTimeOf(v2, pt);
+      console.log("Curve 2 t2 parameter:", t2);
+    }
+
+    // paper.jsと同じように、t1とt2がどちらもnullでなければ交点を追加
     addLocation(locations, include,
       flip ? c2 : c1, flip ? t2 : t1,
-      flip ? c1 : c2, flip ? t1 : t2,
-      true);
+      flip ? c1 : c2, flip ? t1 : t2);
+    
+    console.log("Locations count after add:", locations.length);
+  } else {
+    console.log("No intersection point found");
   }
   
   return locations;
