@@ -7,11 +7,13 @@
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
-import { Curve, CurveLocation } from './Curve';
+import { Curve } from './Curve';
+import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
 import { PathItem } from './PathItem';
 import { ChangeFlag } from './ChangeFlag';
+import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
 
 export class Path implements PathItem {
   _segments: Segment[];
@@ -116,7 +118,7 @@ export class Path implements PathItem {
 
       // 新しいカーブの挿入
       for (let i = insert; i < end; i++) {
-        curves.splice(i, 0, new Curve(this, null, null));
+        curves.splice(i, 0, new Curve(this._segments[i], this._segments[i + 1] || this._segments[0]));
       }
       
       // カーブのセグメントを調整
@@ -321,97 +323,7 @@ export class Path implements PathItem {
    * 内部: paddingを加味したAABB計算
    */
   private _computeBounds(padding: number): Rectangle {
-    if (this._segments.length === 0) {
-      return new Rectangle(new Point(0, 0), new Point(0, 0));
-    }
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-
-    const add = (x: number, y: number) => {
-      minX = Math.min(minX, x - padding);
-      minY = Math.min(minY, y - padding);
-      maxX = Math.max(maxX, x + padding);
-      maxY = Math.max(maxY, y + padding);
-    };
-
-    // 各カーブ区間ごとにBézierの極値もAABBに含める
-    for (let i = 0; i < this._segments.length - (this._closed ? 0 : 1); i++) {
-      const seg0 = this._segments[i];
-      const seg1 = this._segments[(i + 1) % this._segments.length];
-      // 4点: p0, handleOut, handleIn, p1
-      const p0 = seg0.point;
-      const p1 = seg1.point;
-      const h0 = p0.add(seg0.handleOut);
-      const h1 = p1.add(seg1.handleIn);
-
-      // x, y それぞれで三次ベジェの極値を求める
-      for (const dim of ['x', 'y'] as const) {
-        // 三次ベジェの係数
-        const v0 = p0[dim];
-        const v1 = h0[dim];
-        const v2 = h1[dim];
-        const v3 = p1[dim];
-
-        // 端点をAABBに含める
-        add(p0.x, p0.y);
-        add(p1.x, p1.y);
-
-        // 極値（1次導関数=0のt）を求める（paper.jsと同じ式）
-        // a = 3*(v1-v2) - v0 + v3
-        // b = 2*(v0+v2) - 4*v1
-        // c = v1 - v0
-        const a = 3 * (v1 - v2) - v0 + v3;
-        const b = 2 * (v0 + v2) - 4 * v1;
-        const c = v1 - v0;
-
-        // 2次方程式 at^2 + bt + c = 0
-        if (Math.abs(a) > 1e-12) {
-          const D = b * b - 4 * a * c;
-          if (D >= 0) {
-            const sqrtD = Math.sqrt(D);
-            for (const t of [(-b + sqrtD) / (2 * a), (-b - sqrtD) / (2 * a)]) {
-              if (t > 0 && t < 1) {
-                // 三次ベジェ補間
-                const mt = 1 - t;
-                const x =
-                  mt * mt * mt * p0.x +
-                  3 * mt * mt * t * h0.x +
-                  3 * mt * t * t * h1.x +
-                  t * t * t * p1.x;
-                const y =
-                  mt * mt * mt * p0.y +
-                  3 * mt * mt * t * h0.y +
-                  3 * mt * t * t * h1.y +
-                  t * t * t * p1.y;
-                add(x, y);
-              }
-            }
-          }
-        } else if (Math.abs(b) > 1e-12) {
-          // 1次方程式
-          const t = -c / b;
-          if (t > 0 && t < 1) {
-            const mt = 1 - t;
-            const bez =
-              mt * mt * mt * v0 + 3 * mt * mt * t * v1 + 3 * mt * t * t * v2 + t * t * t * v3;
-            const other =
-              dim === 'x'
-                ? mt * mt * mt * p0.y +
-                  3 * mt * mt * t * h0.y +
-                  3 * mt * t * t * h1.y +
-                  t * t * t * p1.y
-                : mt * mt * mt * p0.x +
-                  3 * mt * mt * t * h0.x +
-                  3 * mt * t * t * h1.x +
-                  t * t * t * p1.x;
-            add(dim === 'x' ? bez : other, dim === 'y' ? bez : other);
-          }
-        }
-      }
-    }
-    return new Rectangle(new Point(minX, minY), new Point(maxX, maxY));
+    return computeBounds(this._segments, this._closed, padding);
   }
 
   /**
@@ -509,36 +421,7 @@ export class Path implements PathItem {
       rule?: 'evenodd' | 'nonzero';
     }
   ): boolean {
-    // デフォルトはeven-oddルール
-    const rule = options?.rule || 'evenodd';
-
-    // パス上判定
-    if (this._isOnPath(point)) {
-      return false;
-    }
-
-    // 境界チェック（高速化のため）
-    const bounds = this.getBounds();
-    if (
-      point.x < bounds.topLeft.x ||
-      point.x > bounds.bottomRight.x ||
-      point.y < bounds.topLeft.y ||
-      point.y > bounds.bottomRight.y
-    ) {
-      return false;
-    }
-
-    // winding numberを計算
-    const { windingL, windingR } = this._getWinding(point);
-
-    // ルールに応じて判定
-    if (rule === 'evenodd') {
-      // even-oddルール: 交差数の偶奇
-      return ((windingL + windingR) & 1) === 1;
-    } else {
-      // nonzeroルール: winding!=0
-      return windingL !== 0 || windingR !== 0;
-    }
+    return contains(this._segments, this._closed, this.getCurves(), point, options);
   }
 
   /**
@@ -548,106 +431,7 @@ export class Path implements PathItem {
    * @returns パス上ならtrue
    */
   private _isOnPath(point: Point, epsilon = Numerical.GEOMETRIC_EPSILON): boolean {
-    const curves = this.getCurves();
-
-    // 頂点判定
-    for (const seg of this._segments) {
-      if (seg.point.subtract(point).getLength() <= epsilon) {
-        return true;
-      }
-    }
-
-    // 辺上判定
-    for (const curve of curves) {
-      // 直線の場合は簡易判定
-      if (
-        Curve.isStraight([
-          curve._segment1.point.x,
-          curve._segment1.point.y,
-          curve._segment1.point.x + curve._segment1.handleOut.x,
-          curve._segment1.point.y + curve._segment1.handleOut.y,
-          curve._segment2.point.x + curve._segment2.handleIn.x,
-          curve._segment2.point.y + curve._segment2.handleIn.y,
-          curve._segment2.point.x,
-          curve._segment2.point.y,
-        ])
-      ) {
-        const p1 = curve._segment1.point;
-        const p2 = curve._segment2.point;
-        const dx = p2.x - p1.x;
-        const dy = p2.y - p1.y;
-        const len2 = dx * dx + dy * dy;
-
-        if (len2 > 0) {
-          const t = ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / len2;
-          if (t >= -epsilon && t <= 1 + epsilon) {
-            const proj = new Point(p1.x + t * dx, p1.y + t * dy);
-            if (proj.subtract(point).getLength() <= epsilon) {
-              return true;
-            }
-          }
-        }
-      } else {
-        // 曲線の場合は最近接点を求める
-        // paper.jsのCurve.getTimeOf()実装を使用
-        const v = [
-          curve._segment1.point.x,
-          curve._segment1.point.y,
-          curve._segment1.point.x + curve._segment1.handleOut.x,
-          curve._segment1.point.y + curve._segment1.handleOut.y,
-          curve._segment2.point.x + curve._segment2.handleIn.x,
-          curve._segment2.point.y + curve._segment2.handleIn.y,
-          curve._segment2.point.x,
-          curve._segment2.point.y,
-        ];
-
-        // Curve.getTimeOf()相当の実装
-        // まず端点との距離をチェック
-        const p0 = new Point(v[0], v[1]);
-        const p3 = new Point(v[6], v[7]);
-
-        // 端点が十分近い場合は早期リターン
-        const geomEpsilon = /*#=*/ Numerical.GEOMETRIC_EPSILON;
-
-        if (point.isClose(p0, geomEpsilon) || point.isClose(p3, geomEpsilon)) {
-          return true;
-        }
-
-        // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
-        // 最小になる t を求める
-        const coords = [point.x, point.y];
-        const roots: Set<number> = new Set(); // 重複を排除するためにSetを使用
-
-        for (let c = 0; c < 2; c++) {
-          // 三次方程式を解く
-          const tempRoots: number[] = [];
-          const a = 3 * (-v[c] + 3 * v[c + 2] - 3 * v[c + 4] + v[c + 6]);
-          const b = 6 * (v[c] - 2 * v[c + 2] + v[c + 4]);
-          const c2 = 3 * (-v[c] + v[c + 2]);
-          const d = v[c] - coords[c];
-
-          // 三次方程式を解く
-          const count = Numerical.solveCubic(a, b, c2, d, tempRoots, { min: 0, max: 1 });
-
-          // 重複を排除しながらrootsに追加
-          for (let i = 0; i < count; i++) {
-            roots.add(tempRoots[i]);
-          }
-        }
-
-        // 各解について、曲線上の点と与えられた点の距離をチェック
-        for (const t of roots) {
-          const p = Curve.evaluate(v, t);
-          if (p && point.isClose(p, geomEpsilon)) {
-            return true;
-          }
-        }
-
-        return false;
-      }
-    }
-
-    return false;
+    return isOnPath(this._segments, this.getCurves(), point, epsilon);
   }
 
   /**
@@ -656,68 +440,7 @@ export class Path implements PathItem {
    * @returns {windingL, windingR} 左右のwinding number
    */
   private _getWinding(point: Point): { windingL: number; windingR: number } {
-    const curves = this.getCurves();
-    let windingL = 0;
-    let windingR = 0;
-
-    for (const curve of curves) {
-      const v = [
-        curve._segment1.point.x,
-        curve._segment1.point.y,
-        curve._segment1.point.x + curve._segment1.handleOut.x,
-        curve._segment1.point.y + curve._segment1.handleOut.y,
-        curve._segment2.point.x + curve._segment2.handleIn.x,
-        curve._segment2.point.y + curve._segment2.handleIn.y,
-        curve._segment2.point.x,
-        curve._segment2.point.y,
-      ];
-
-      // y成分の範囲外ならスキップ
-      const y = point.y;
-      const minY = Math.min(v[1], v[3], v[5], v[7]);
-      const maxY = Math.max(v[1], v[3], v[5], v[7]);
-
-      if (y < minY - Numerical.EPSILON || y > maxY + Numerical.EPSILON) {
-        continue;
-      }
-
-      // y成分の三次方程式
-      const roots: number[] = [];
-      const a = -v[1] + 3 * v[3] - 3 * v[5] + v[7];
-      const b = 3 * v[1] - 6 * v[3] + 3 * v[5];
-      const c = -3 * v[1] + 3 * v[3];
-      const d = v[1] - y;
-
-      Numerical.solveCubic(a, b, c, d, roots, { min: 0, max: 1 });
-
-      for (const t of roots) {
-        if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
-          continue;
-        }
-
-        // x座標を計算
-        const mt = 1 - t;
-        const x =
-          mt * mt * mt * v[0] + 3 * mt * mt * t * v[2] + 3 * mt * t * t * v[4] + t * t * t * v[6];
-
-        // 上昇/下降で符号を分ける
-        const dy =
-          3 * (mt * mt * (v[3] - v[1]) + 2 * mt * t * (v[5] - v[3]) + t * t * (v[7] - v[5]));
-
-        // 左右に分けてカウント
-        if (x < point.x - Numerical.EPSILON) {
-          windingL += dy > 0 ? 1 : -1;
-        } else if (x > point.x + Numerical.EPSILON) {
-          windingR += dy > 0 ? 1 : -1;
-        } else {
-          // x座標が一致する場合は両方にカウント
-          windingL += dy > 0 ? 0.5 : -0.5;
-          windingR += dy > 0 ? 0.5 : -0.5;
-        }
-      }
-    }
-
-    return { windingL, windingR };
+    return getWinding(this.getCurves(), point);
   }
 
   /**
@@ -963,7 +686,7 @@ export class Path implements PathItem {
     }
 
     // 最後のセグメントのハンドルを設定
-    lastSeg._handleOut = new Point(relHandleOut.x, relHandleOut.y);
+    lastSeg.setHandleOut(relHandleOut);
     
     // 新しいセグメントを追加
     this.add(new Segment(to, relHandleIn, new Point(0, 0)));
@@ -996,8 +719,8 @@ export class Path implements PathItem {
       // ハンドルは前後点の差分を1/6ずつ
       const handleIn = prev.subtract(next).multiply(-1 / 6);
       const handleOut = next.subtract(prev).multiply(1 / 6);
-      this._segments[i]._handleIn = new Point(handleIn.x, handleIn.y);
-      this._segments[i]._handleOut = new Point(handleOut.x, handleOut.y);
+      this._segments[i].setHandleIn(handleIn);
+      this._segments[i].setHandleOut(handleOut);
     }
     
     this._changed(ChangeFlag.GEOMETRY);
@@ -1037,8 +760,7 @@ export class Path implements PathItem {
   clearHandles(): Path {
     const segments = this._segments;
     for (let i = 0, l = segments.length; i < l; i++) {
-      segments[i]._handleIn = new Point(0, 0);
-      segments[i]._handleOut = new Point(0, 0);
+      segments[i].clearHandles();
     }
     this._changed(ChangeFlag.GEOMETRY);
     return this;
@@ -1048,61 +770,76 @@ export class Path implements PathItem {
   /**
    * パスの合成（unite）
    * @param other 合成する相手のパス
-   * @returns 合成結果のパス
+   * @returns 合成結果のパス（this）
    */
   unite(other: Path): Path {
-    // PathBooleanクラスを使用
-    return import('./PathBoolean').then((module) => {
+    // PathBooleanクラスを使用して結果を取得し、このパスに適用
+    const result = import('./PathBoolean').then((module) => {
       return module.PathBoolean.unite(this, other);
-    }) as unknown as Path;
+    });
+    
+    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
+    return this;
   }
 
   /**
    * パスの交差（intersect）
    * @param other 交差する相手のパス
-   * @returns 交差結果のパス
+   * @returns 交差結果のパス（this）
    */
   intersect(other: Path): Path {
-    // PathBooleanクラスを使用
-    return import('./PathBoolean').then((module) => {
+    // PathBooleanクラスを使用して結果を取得し、このパスに適用
+    const result = import('./PathBoolean').then((module) => {
       return module.PathBoolean.intersect(this, other);
-    }) as unknown as Path;
+    });
+    
+    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
+    return this;
   }
 
   /**
    * パスの差分（subtract）
    * @param other 差し引く相手のパス
-   * @returns 差分結果のパス
+   * @returns 差分結果のパス（this）
    */
   subtract(other: Path): Path {
-    // PathBooleanクラスを使用
-    return import('./PathBoolean').then((module) => {
+    // PathBooleanクラスを使用して結果を取得し、このパスに適用
+    const result = import('./PathBoolean').then((module) => {
       return module.PathBoolean.subtract(this, other);
-    }) as unknown as Path;
+    });
+    
+    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
+    return this;
   }
 
   /**
    * パスの排他的論理和（exclude）
    * @param other 排他的論理和を取る相手のパス
-   * @returns 排他的論理和結果のパス
+   * @returns 排他的論理和結果のパス（this）
    */
   exclude(other: Path): Path {
-    // PathBooleanクラスを使用
-    return import('./PathBoolean').then((module) => {
+    // PathBooleanクラスを使用して結果を取得し、このパスに適用
+    const result = import('./PathBoolean').then((module) => {
       return module.PathBoolean.exclude(this, other);
-    }) as unknown as Path;
+    });
+    
+    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
+    return this;
   }
 
   /**
    * パスの分割（divide）
    * @param other 分割に使用する相手のパス
-   * @returns 分割結果のパス
+   * @returns 分割結果のパス（this）
    */
   divide(other: Path): Path {
-    // PathBooleanクラスを使用
-    return import('./PathBoolean').then((module) => {
+    // PathBooleanクラスを使用して結果を取得し、このパスに適用
+    const result = import('./PathBoolean').then((module) => {
       return module.PathBoolean.divide(this, other);
-    }) as unknown as Path;
+    });
+    
+    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
+    return this;
   }
 
   /**
@@ -1120,25 +857,12 @@ export class Path implements PathItem {
     _matrix?: Matrix,
     _returnFirst?: boolean
   ): CurveLocation[] {
-    // includeパラメータの処理
-    let include: ((loc: CurveLocation) => boolean) | undefined;
-    
-    if (includeParam) {
-      if (typeof includeParam === 'function') {
-        include = includeParam;
-      } else if (typeof includeParam === 'object' && 'include' in includeParam && typeof includeParam.include === 'function') {
-        include = includeParam.include;
-      }
-    }
-    
-    // 自己交差判定
-    const self = this === path || !path;
-    
-    // 行列変換処理
+    const curves1 = this.getCurves();
+    const curves2 = path ? path.getCurves() : curves1;
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     
     let matrix2: Matrix | null = null;
-    if (self) {
+    if (this === path || !path) {
       matrix2 = matrix1;
     } else if (_matrix) {
       matrix2 = _matrix._orNullIfIdentity();
@@ -1146,69 +870,7 @@ export class Path implements PathItem {
       matrix2 = path._matrix._orNullIfIdentity();
     }
     
-    // 境界ボックスの交差判定
-    let shouldCheck = self;
-    
-    if (!shouldCheck && path) {
-      try {
-        const bounds1 = this.getBounds(matrix1);
-        const bounds2 = path.getBounds(matrix2);
-        
-        // 境界ボックスの交差を確認
-        let boundsIntersect = bounds1.intersects(bounds2, Numerical.EPSILON);
-        
-        // 境界ボックスが交差していない場合でも、制御点のハンドルを考慮した追加チェック
-        if (!boundsIntersect) {
-          // 特定のケースを検出（complex curve intersections）
-          const curves1 = this.getCurves();
-          const curves2 = path.getCurves();
-          
-          // 両方とも単一の曲線で、制御点のハンドルが長い場合
-          if (curves1.length === 1 && curves2.length === 1) {
-            const c1 = curves1[0];
-            const c2 = curves2[0];
-            
-            // 制御点のハンドルの長さをチェック
-            const h1Out = c1._segment1.handleOut;
-            const h1In = c1._segment2.handleIn;
-            const h2Out = c2._segment1.handleOut;
-            const h2In = c2._segment2.handleIn;
-            
-            // ハンドルが長い場合は、境界ボックスが交差していなくても交点が存在する可能性がある
-            const longHandles =
-              (Math.abs(h1Out.x) > 20 || Math.abs(h1Out.y) > 20 ||
-               Math.abs(h1In.x) > 20 || Math.abs(h1In.y) > 20 ||
-               Math.abs(h2Out.x) > 20 || Math.abs(h2Out.y) > 20 ||
-               Math.abs(h2In.x) > 20 || Math.abs(h2In.y) > 20);
-            
-            if (longHandles) {
-              boundsIntersect = true;
-            }
-          }
-        
-        }
-        
-        shouldCheck = boundsIntersect;
-      } catch (e) {
-        // 境界チェックでエラーが発生した場合は続行
-        shouldCheck = true;
-      }
-    }
-    
-    if (shouldCheck) {
-      const curves1 = this.getCurves();
-      const curves2 = self ? curves1 : path!.getCurves();
-      
-      return Curve.getIntersections(
-        curves1,
-        curves2,
-        include,
-        matrix1,
-        matrix2,
-        _returnFirst);
-    } else {
-      return [];
-    }
+    return getIntersections(curves1, curves2, includeParam, matrix1, matrix2, _returnFirst);
   }
 
   /**
