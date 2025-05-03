@@ -110,4 +110,12 @@ export class Point {
   isClose(point: Point, epsilon: number): boolean {
     return this.subtract(point).getLength() <= epsilon;
   }
+
+  /**
+   * 内積（ドット積）を計算
+   * paper.jsのPoint.dot実装を移植
+   */
+  dot(point: Point): number {
+    return this.x * point.x + this.y * point.y;
+  }
 }

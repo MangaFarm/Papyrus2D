@@ -297,11 +297,17 @@ function getOverlaps(v1: number[], v2: number[]): [number, number][] | null {
   }
 
   const abs = Math.abs;
-  // Line.getSignedDistanceの実装（paper.jsと同じ）
+  // paper.jsと完全に同じgetSignedDistance実装
   const getSignedDistance = (px: number, py: number, vx: number, vy: number, x: number, y: number): number => {
-    return vx === 0 ? x - px
-      : vy === 0 ? py - y
-      : ((y - py) * vx - (x - px) * vy) / Math.sqrt(vx * vx + vy * vy);
+    // paper.jsの実装に合わせて修正
+    // 参照: paper.js/src/basic/Line.js の getSignedDistance 関数
+    return vx === 0 ? (vy > 0 ? x - px : px - x)
+      : vy === 0 ? (vx < 0 ? y - py : py - y)
+      : ((x - px) * vy - (y - py) * vx) / (
+          vy > vx
+            ? vy * Math.sqrt(1 + (vx * vx) / (vy * vy))
+            : vx * Math.sqrt(1 + (vy * vy) / (vx * vx))
+        );
   };
   
   const timeEpsilon = Numerical.CURVETIME_EPSILON;

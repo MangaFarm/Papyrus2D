@@ -176,16 +176,53 @@ export class Curve {
   /**
    * 直線判定
    */
+  /**
+   * 直線判定 - paper.jsの実装と完全に同じ
+   */
   static isStraight(v: number[]): boolean {
     // ハンドルがゼロ or 全てcollinear
     const p1 = new Point(v[0], v[1]);
     const h1 = new Point(v[2] - v[0], v[3] - v[1]);
     const h2 = new Point(v[4] - v[6], v[5] - v[7]);
     const p2 = new Point(v[6], v[7]);
+    
+    // ハンドルがゼロの場合
     if (h1.isZero() && h2.isZero()) return true;
+    
+    // 線分の方向ベクトル
     const vLine = p2.subtract(p1);
+    
+    // ゼロ長の線分の場合
     if (vLine.isZero()) return false;
-    return vLine.isCollinear(h1) && vLine.isCollinear(h2);
+    
+    // ハンドルが線分と同一線上にあるかチェック
+    if (vLine.isCollinear(h1) && vLine.isCollinear(h2)) {
+      // paper.jsと同様に、ハンドルが線分上にあるかをより厳密にチェック
+      // 線分からの距離をチェック
+      const line = { point: p1, vector: vLine };
+      const epsilon = Numerical.GEOMETRIC_EPSILON;
+      
+      // 線分からの距離が十分に小さいか
+      const getDistance = (pt: Point): number => {
+        const v2 = pt.subtract(line.point);
+        const vl = line.vector;
+        const vl2 = vl.x * vl.x + vl.y * vl.y;
+        if (vl2 === 0) return v2.getLength();
+        const t = (v2.x * vl.x + v2.y * vl.y) / vl2;
+        const proj = line.point.add(vl.multiply(t));
+        return pt.subtract(proj).getLength();
+      };
+      
+      if (getDistance(p1.add(h1)) < epsilon && getDistance(p2.add(h2)) < epsilon) {
+        // ハンドルが線分の範囲内にあるかチェック
+        const div = vLine.dot(vLine);
+        const s1 = vLine.dot(h1) / div;
+        const s2 = vLine.dot(h2) / div;
+        return s1 >= 0 && s1 <= 1 && s2 <= 0 && s2 >= -1;
+      }
+    }
+    
+    return false;
   }
 
   /**
