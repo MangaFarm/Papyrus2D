@@ -60,7 +60,7 @@ export class CurveLocation {
     if (point) {
       this.point = point;
     } else if (time !== null && curve) {
-      this.point = curve.getPointAt(time);
+      this.point = curve.getPointAtTime(time); // getPointAt -> getPointAtTime
     } else {
       this.point = new Point(0, 0);
     }
