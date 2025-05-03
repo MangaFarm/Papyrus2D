@@ -318,6 +318,7 @@ export class Matrix {
       scale = [det / s, s];
       skew = [0, atan2(a * c + b * d, s * s)];
     } else { // a = b = c = d = 0
+      rotate = 0;
       scale = [0, 0];
       skew = [0, 0];
     }
