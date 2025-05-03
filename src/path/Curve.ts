@@ -225,36 +225,17 @@ export class Curve {
   /**
    * 曲線上の指定されたオフセット位置のパラメータを取得
    */
-  getTimeAt(offset: number): number {
-    if (offset <= 0) {
-      return 0;
-    }
-    if (offset >= this.getLength()) {
-      return 1;
-    }
-    
-    // 二分探索で近似
-    let start = 0;
-    let end = 1;
-    let epsilon = Numerical.CURVETIME_EPSILON;
-    
-    while (end - start > epsilon) {
-      const mid = (start + end) / 2;
-      const length = this.getPartLength(0, mid);
-      if (length < offset) {
-        start = mid;
-      } else {
-        end = mid;
-      }
-    }
-    
-    return start;
+  getTimeAt(offset: number, start?: number): number {
+    return Curve.getTimeAt(this.getValues(), offset, start);
   }
   
   /**
    * 曲線の一部の長さを計算
    */
-  getPartLength(from: number, to: number): number {
+  getPartLength(from?: number, to?: number): number {
+    if (from === undefined) from = 0;
+    if (to === undefined) to = 1;
+    
     if (from === 0 && to === 1) {
       return this.getLength();
     }
@@ -291,6 +272,35 @@ export class Curve {
   }
 
   /**
+   * 曲線の長さを計算
+   */
+  static getLength(v: number[], a?: number, b?: number, ds?: (t: number) => number): number {
+    if (a === undefined)
+      a = 0;
+    if (b === undefined)
+      b = 1;
+    
+    if (Curve.isStraight(v)) {
+      // 直線の場合は単純にピタゴラスの定理で計算
+      let c = v;
+      if (b < 1) {
+        c = CurveSubdivision.subdivide(c, b)[0]; // 左側
+        a /= b; // 新しいサブカーブにパラメータをスケール
+      }
+      if (a > 0) {
+        c = CurveSubdivision.subdivide(c, a)[1]; // 右側
+      }
+      // 直線の長さはより簡単に計算できる
+      const dx = c[6] - c[0]; // x3 - x0
+      const dy = c[7] - c[1]; // y3 - y0
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+    
+    return Numerical.integrate(ds || CurveGeometry.getLengthIntegrand(v), a, b,
+      CurveGeometry.getIterations(a, b));
+  }
+
+  /**
    * 静的なgetValues関数 - 制御点を配列として返す
    */
   static getValues(
@@ -298,6 +308,52 @@ export class Curve {
     matrix?: Matrix | null, straight?: boolean | null
   ): number[] {
     return CurveSubdivision.getValues(segment1, segment2, matrix, straight);
+  }
+
+  /**
+   * 指定されたオフセットでの曲線のtパラメータを計算
+   */
+  static getTimeAt(v: number[], offset: number, start?: number): number {
+    const actualStart = start === undefined ? (offset < 0 ? 1 : 0) : start;
+    if (offset === 0)
+      return actualStart;
+    
+    // 前進または後退を判断し、それに応じて処理
+    const abs = Math.abs;
+    const epsilon = Numerical.EPSILON;
+    const forward = offset > 0;
+    const a = forward ? actualStart : 0;
+    const b = forward ? 1 : actualStart;
+    
+    // 積分を使用して範囲の長さと部分長を計算
+    const ds = CurveGeometry.getLengthIntegrand(v);
+    // 全範囲の長さを取得
+    const rangeLength = Curve.getLength(v, a, b, ds);
+    const diff = abs(offset) - rangeLength;
+    
+    if (abs(diff) < epsilon) {
+      // 終点に一致
+      return forward ? b : a;
+    } else if (diff > epsilon) {
+      // 範囲外
+      return -1; // nullの代わりに-1を返す
+    }
+    
+    // 初期推測値としてoffset / rangeLengthを使用
+    const guess = offset / rangeLength;
+    let length = 0;
+    let currentStart = actualStart;
+    
+    // 曲線範囲の長さを反復的に計算し、それらを合計
+    function f(t: number): number {
+      // startがtより大きい場合、積分は負の値を返す
+      length += Numerical.integrate(ds, currentStart, t, CurveGeometry.getIterations(currentStart, t));
+      currentStart = t;
+      return length - offset;
+    }
+    
+    // 初期推測値から始める
+    return Numerical.findRoot(f, ds, actualStart + guess, a, b, 32, Numerical.EPSILON);
   }
 
   /**
