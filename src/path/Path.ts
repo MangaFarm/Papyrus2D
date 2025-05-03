@@ -41,7 +41,7 @@ export class Path implements PathItem {
    * @param matrix 変換行列（オプション）
    * @returns 境界ボックス
    */
-  getBounds(matrix?: Matrix): Rectangle {
+  getBounds(matrix?: Matrix | null): Rectangle {
     // paper.jsのCurve._addBoundsロジックを移植
     let bounds = this._computeBounds(0);
     
@@ -58,7 +58,7 @@ export class Path implements PathItem {
    * @param strokeWidth 線幅
    * @param matrix 変換行列（オプション）
    */
-  getStrokeBounds(strokeWidth: number, matrix?: Matrix): Rectangle {
+  getStrokeBounds(strokeWidth: number, matrix?: Matrix | null): Rectangle {
     // strokeWidth/2をpaddingとしてAABB拡張
     let bounds = this._computeBounds(strokeWidth / 2);
     
@@ -701,9 +701,9 @@ export class Path implements PathItem {
     
     // Paper.jsと同じ行列変換処理を実装
     // _matrixがundefinedの場合のエラーを防ぐ
-    const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : undefined;
+    const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     
-    let matrix2: Matrix | undefined = undefined;
+    let matrix2: Matrix | null = null;
     if (self) {
       matrix2 = matrix1;
     } else if (_matrix) {

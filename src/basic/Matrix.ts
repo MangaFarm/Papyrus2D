@@ -168,6 +168,8 @@ export class Matrix {
    * 行列の合成（右から掛ける）
    */
   append(mx: Matrix): Matrix {
+    if (!mx) return this.clone();
+    
     const a1 = this.a, b1 = this.b, c1 = this.c, d1 = this.d, tx1 = this.tx, ty1 = this.ty;
     const a2 = mx.a, b2 = mx.c, c2 = mx.b, d2 = mx.d, tx2 = mx.tx, ty2 = mx.ty;
     return new Matrix(
@@ -184,6 +186,8 @@ export class Matrix {
    * 行列の合成（左から掛ける）
    */
   prepend(mx: Matrix): Matrix {
+    if (!mx) return this.clone();
+    
     const a1 = this.a, b1 = this.b, c1 = this.c, d1 = this.d, tx1 = this.tx, ty1 = this.ty;
     const a2 = mx.a, b2 = mx.c, c2 = mx.b, d2 = mx.d, tx2 = mx.tx, ty2 = mx.ty;
     return new Matrix(
@@ -200,16 +204,25 @@ export class Matrix {
    * 逆行列
    */
   invert(): Matrix | null {
-    const det = this.a * this.d - this.b * this.c;
-    if (!det || isNaN(det) || !isFinite(this.tx) || !isFinite(this.ty)) return null;
-    return new Matrix(
-      this.d / det,
-      -this.b / det,
-      -this.c / det,
-      this.a / det,
-      (this.c * this.ty - this.d * this.tx) / det,
-      (this.b * this.tx - this.a * this.ty) / det
-    );
+    const a = this.a;
+    const b = this.b;
+    const c = this.c;
+    const d = this.d;
+    const tx = this.tx;
+    const ty = this.ty;
+    const det = a * d - b * c;
+    
+    if (det && !isNaN(det) && isFinite(tx) && isFinite(ty)) {
+      return new Matrix(
+        d / det,
+        -b / det,
+        -c / det,
+        a / det,
+        (c * ty - d * tx) / det,
+        (b * tx - a * ty) / det
+      );
+    }
+    return null;
   }
 /**
    * シアー変換
@@ -282,7 +295,8 @@ export class Matrix {
    * 行列の分解（回転角・スケール成分を返す）
    */
   decompose(): { scaling: Point; rotation: number; translation: Point; skewing: Point } {
-    // paper.js準拠の2Dアフィン分解
+    // http://dev.w3.org/csswg/css3-2d-transforms/#matrix-decomposition
+    // http://www.maths-informatique-jeux.com/blog/frederic/?post/2013/12/01/Decomposition-of-2D-transform-matrices
     const { a, b, c, d, tx, ty } = this;
     const det = a * d - b * c;
     const sqrt = Math.sqrt;
@@ -299,6 +313,7 @@ export class Matrix {
       skew = [atan2(a * c + b * d, r * r), 0];
     } else if (c !== 0 || d !== 0) {
       const s = sqrt(c * c + d * d);
+      // rotate = Math.PI/2 - (d > 0 ? Math.acos(-c/s) : -Math.acos(c/s));
       rotate = Math.asin(c / s) * (d > 0 ? 1 : -1);
       scale = [det / s, s];
       skew = [0, atan2(a * c + b * d, s * s)];
@@ -352,17 +367,16 @@ export class Matrix {
     const ty = this.ty;
     const det = a * d - b * c;
     
-    if (!det || isNaN(det) || !isFinite(tx) || !isFinite(ty)) {
-      return null;
+    if (det && !isNaN(det) && isFinite(tx) && isFinite(ty)) {
+      const x = point.x - tx;
+      const y = point.y - ty;
+      
+      return new Point(
+        (x * d - y * c) / det,
+        (y * a - x * b) / det
+      );
     }
-    
-    const x = point.x - tx;
-    const y = point.y - ty;
-    
-    return new Point(
-      (x * d - y * c) / det,
-      (y * a - x * b) / det
-    );
+    return null;
   }
 
   /**
@@ -378,7 +392,7 @@ export class Matrix {
    * 単位行列の場合はundefinedを返し、そうでない場合は行列自身を返す
    * paper.jsの_orNullIfIdentity()メソッドに相当
    */
-  _orNullIfIdentity(): Matrix | undefined {
-    return this.isIdentity() ? undefined : this;
+  _orNullIfIdentity(): Matrix | null {
+    return this.isIdentity() ? null : this;
   }
 }
