@@ -106,4 +106,12 @@ export class CurveLocation {
   getPath(): any {
     return this.curve ? (this.curve as any)._path : null;
   }
+  
+  /**
+   * この位置が属する曲線のインデックスを取得
+   * @returns 曲線のインデックス
+   */
+  getIndex(): number {
+    return this.curve ? this.curve.getIndex() : -1;
+  }
 }

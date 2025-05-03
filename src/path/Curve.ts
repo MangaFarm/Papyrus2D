@@ -219,6 +219,54 @@ export class Curve {
   }
 
   /**
+   * 曲線をtで分割し、セグメントを追加する
+   * paper.jsのdivideAtTimeメソッドに相当
+   * @param t 分割位置（0-1）
+   * @returns 分割点のインデックス
+   */
+  divideAtTime(t: number): number {
+    // パスが設定されていない場合は処理できない
+    if (!this._path) {
+      return -1;
+    }
+    
+    // 分割範囲外の場合は処理しない
+    if (t <= 0 || t >= 1) {
+      return -1;
+    }
+    
+    // 曲線を分割
+    const [leftCurve, rightCurve] = CurveSubdivision.divideCurve(this, t);
+    
+    // 分割点のセグメントを作成
+    const segments = this._path._segments;
+    const index = this.getIndex();
+    const middleSegment = leftCurve._segment2;
+    
+    // セグメントを挿入
+    segments.splice(index + 1, 0, middleSegment);
+    
+    // セグメントのインデックスを更新
+    for (let i = index + 1, l = segments.length; i < l; i++) {
+      segments[i]._index = i;
+    }
+    
+    // パスのカーブを更新
+    if (this._path._curves) {
+      this._path._curves.splice(index + 1, 0, rightCurve);
+      this._path._curves[index] = leftCurve;
+      
+      // カーブのパスを設定
+      rightCurve._path = this._path;
+      
+      // カーブの変更を通知
+      this._path._changed();
+    }
+    
+    return index + 1;
+  }
+
+  /**
    * 曲線上の点の位置情報を取得
    * @param point 曲線上の点
    * @returns 曲線位置情報
@@ -232,17 +280,24 @@ export class Curve {
    * 曲線上の指定されたオフセット位置の位置情報を取得
    */
   getLocationAt(offset: number, _isTime?: boolean): CurveLocation | null {
-    return this.getLocationAtTime(
-      _isTime ? offset : this.getTimeAt(offset));
+    console.log('Curve.getLocationAt: offset =', offset, '_isTime =', _isTime);
+    const time = _isTime ? offset : this.getTimeAt(offset);
+    console.log('Curve.getLocationAt: time =', time);
+    return this.getLocationAtTime(time);
   }
 
   /**
    * 曲線上の指定されたtパラメータ位置の位置情報を取得
    */
   getLocationAtTime(t: number): CurveLocation | null {
-    return t != null && t >= 0 && t <= 1
-      ? new CurveLocation(this, t)
-      : null;
+    console.log('Curve.getLocationAtTime: t =', t);
+    if (t != null && t >= 0 && t <= 1) {
+      console.log('Curve.getLocationAtTime: creating location');
+      return new CurveLocation(this, t);
+    } else {
+      console.log('Curve.getLocationAtTime: t out of range');
+      return null;
+    }
   }
 
   /**

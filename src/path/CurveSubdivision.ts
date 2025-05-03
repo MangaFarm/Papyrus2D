@@ -231,10 +231,14 @@ export class CurveSubdivision {
     // 変更を通知
     curve._changed();
     
-    return [
-      new Curve(seg1, seg2Left),
-      new Curve(seg1Right, seg2)
-    ];
+    const leftCurve = new Curve(seg1, seg2Left);
+    const rightCurve = new Curve(seg1Right, seg2);
+    
+    // パスの参照を設定
+    leftCurve._path = curve._path;
+    rightCurve._path = curve._path;
+    
+    return [leftCurve, rightCurve];
   }
 }
 

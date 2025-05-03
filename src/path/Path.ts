@@ -130,7 +130,9 @@ export class Path implements PathItem {
       // 新しいカーブの挿入
       for (let i = insert; i < end; i++) {
         // paper.jsと同様に、カーブを作成する際にセグメントを指定せず、後で_adjustCurvesで設定する
-        curves.splice(i, 0, new Curve(null as any, null as any));
+        const curve = new Curve(null as any, null as any);
+        curve._path = this;
+        curves.splice(i, 0, curve);
       }
       
       // カーブのセグメントを調整
@@ -227,10 +229,12 @@ export class Path implements PathItem {
       if (this._curves) {
         const length = this._curves.length = this._countCurves();
         if (closed) {
-          this._curves[length - 1] = new Curve(
+          const curve = new Curve(
             this._segments[length - 1],
             this._segments[0]
           );
+          curve._path = this;
+          this._curves[length - 1] = curve;
         }
       }
       this._changed(ChangeFlag.SEGMENTS);
@@ -391,27 +395,41 @@ export class Path implements PathItem {
    */
   getLocationAt(offset: number): CurveLocation | null {
     if (typeof offset === 'number') {
+      console.log('getLocationAt: offset =', offset);
       const curves = this.getCurves();
       const length = curves.length;
-      if (!length) return null;
+      console.log('getLocationAt: curves.length =', length);
+      if (!length) {
+        console.log('getLocationAt: no curves');
+        return null;
+      }
       
       let curLength = 0;
       
       for (let i = 0; i < length; i++) {
         const start = curLength;
         const curve = curves[i];
-        curLength += curve.getLength();
+        const curveLength = curve.getLength();
+        console.log(`getLocationAt: curve[${i}].length =`, curveLength);
+        curLength += curveLength;
         
         if (curLength > offset) {
           // この曲線上の位置を計算
-          return curve.getLocationAt(offset - start);
+          const curveOffset = offset - start;
+          console.log(`getLocationAt: found curve[${i}], curveOffset =`, curveOffset);
+          const loc = curve.getLocationAt(curveOffset);
+          console.log('getLocationAt: location =', loc ? 'valid' : 'null');
+          return loc;
         }
       }
       
       // 誤差により最後の曲線が見逃された場合、offsetが全長以下であれば最後の曲線の終点を返す
       if (curves.length > 0 && offset <= this.getLength()) {
+        console.log('getLocationAt: using last curve endpoint');
         return new CurveLocation(curves[length - 1], 1);
       }
+      
+      console.log('getLocationAt: offset out of range');
     } else if (offset && (offset as any).getPath && (offset as any).getPath() === this) {
       // offsetがすでにCurveLocationの場合はそのまま返す
       return offset as unknown as CurveLocation;
@@ -585,7 +603,9 @@ export class Path implements PathItem {
     const length = this._countCurves();
     
     for (let i = 0; i < length; i++) {
-      curves.push(new Curve(segments[i], segments[i + 1] || segments[0]));
+      const curve = new Curve(segments[i], segments[i + 1] || segments[0]);
+      curve._path = this; // _pathプロパティを設定
+      curves.push(curve);
     }
     
     this._curves = curves;
@@ -984,54 +1004,103 @@ export class Path implements PathItem {
     // オフセットの場合はCurveLocationに変換
     let loc: CurveLocation | null;
     if (typeof location === 'number') {
+      console.log('splitAt: offset =', location);
       loc = this.getLocationAt(location);
+      console.log('splitAt: location =', loc ? 'valid' : 'null');
     } else {
+      console.log('splitAt: using provided location');
       loc = location;
     }
 
-    if (!loc || !loc.curve || loc.curve._path !== this) {
+    if (!loc) {
+      console.log('splitAt: location is null');
       return null;
     }
-
-    // 分割位置のカーブとパラメータ
-    const curve = loc.curve;
+    
+    if (!loc.curve) {
+      console.log('splitAt: location.curve is null');
+      return null;
+    }
+    
+    // 別のパスのロケーションかどうかをチェック
+    if (loc.getPath() !== this) {
+      console.log('splitAt: location from different path');
+      return null;
+    }
+    
+    // paper.jsの実装に合わせる
+    const index = loc.getIndex();
+    console.log('splitAt: index =', index);
     const time = loc.time ?? 0;
+    console.log('splitAt: time =', time);
+    const tMin = Numerical.CURVETIME_EPSILON;
+    const tMax = 1 - tMin;
     
-    // カーブを分割
-    const [leftCurve, rightCurve] = curve.divide(time);
-    
-    // 新しいパスを作成（後半部分）
-    const path2 = new Path();
-    
-    // 分割点を追加
-    const middleSegment = rightCurve._segment1.clone();
-    
-    // 後半部分のセグメントを追加
-    path2.add(middleSegment);
-    
-    // 残りのセグメントを追加
-    const curveIndex = curve.getIndex();
-    const segments = this._segments;
-    const count = segments.length;
-    
-    for (let i = curveIndex + 1; i < count; i++) {
-      path2.add(segments[i].clone());
+    // 時間パラメータが1に近い場合、次のセグメントの開始点として扱う
+    let curveIndex = index;
+    let curveTime = time;
+    if (curveTime > tMax) {
+      curveIndex++;
+      curveTime = 0;
     }
+    console.log('splitAt: curveIndex =', curveIndex, 'curveTime =', curveTime);
     
-    // 元のパスが閉じている場合、前半部分のセグメントも追加
-    if (this._closed) {
-      for (let i = 0; i <= curveIndex; i++) {
-        path2.add(segments[i].clone());
+    const curves = this.getCurves();
+    console.log('splitAt: curves.length =', curves.length);
+    if (curveIndex >= 0 && curveIndex < curves.length) {
+      // 時間パラメータが0に近くない場合、カーブを分割
+      if (curveTime >= tMin) {
+        console.log('splitAt: dividing curve at time', curveTime);
+        // カーブを分割（divideAtTimeメソッドを使用）
+        curves[curveIndex].divideAtTime(curveTime);
+        // インデックスを増やす（分割によりセグメントが追加されるため）
+        curveIndex++;
+        console.log('splitAt: new curveIndex =', curveIndex);
       }
-      path2.setClosed(true);
+      
+      // 後半部分のセグメントを取得し、新しいパスを作成
+      console.log('splitAt: removing segments from', curveIndex, 'to', this._segments.length);
+      const segs = this.removeSegments(curveIndex, this._segments.length);
+      console.log('splitAt: removed segments count =', segs.length);
+      
+      // paper.jsと完全に同じ実装にする
+      let path2;
+      if (this._closed) {
+        // 閉じたパスの場合、パスを開いて処理
+        this.setClosed(false);
+        // 自分自身を使用
+        path2 = this;
+      } else {
+        // 新しいパスを作成
+        path2 = new Path();
+        // 属性をコピー
+        // path2.copyAttributes(this); // Papyrus2Dには実装されていない可能性がある
+        
+        // 分割点を元のパスに追加
+        console.log('splitAt: adding first segment back to original path');
+        this.add(segs[0]);
+      }
+      
+      // 後半部分のセグメントを追加
+      console.log('splitAt: adding segments to new path');
+      for (let i = 0; i < segs.length; i++) {
+        path2.add(segs[i]);
+      }
+      
+      // カーブを更新するために、getCurvesを呼び出す
+      console.log('splitAt: updating curves');
+      this._length = undefined; // 長さのキャッシュをリセット
+      path2._length = undefined; // 長さのキャッシュをリセット
+      this.getCurves();
+      path2.getCurves();
+      
+      console.log('splitAt: original path curves =', this.getCurves().length);
+      console.log('splitAt: new path curves =', path2.getCurves().length);
+      
+      return path2;
     }
     
-    // 元のパスを前半部分に変更
-    this.removeSegments(curveIndex + 1, count);
-    const newSegment = leftCurve._segment2.clone();
-    this.add(newSegment);
-    
-    return path2;
+    return null;
   }
 
   /**
