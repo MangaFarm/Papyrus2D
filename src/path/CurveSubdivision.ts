@@ -127,6 +127,7 @@ export class CurveSubdivision {
     const h1 = new Point(v[4], v[5]).subtract(new Point(v[6], v[7]));
     const p1 = new Point(v[6], v[7]);
     return new Curve(
+      null,
       new Segment(p0, new Point(0, 0), h0),
       new Segment(p1, h1, new Point(0, 0))
     );
@@ -231,8 +232,8 @@ export class CurveSubdivision {
     // 変更を通知
     curve._changed();
     
-    const leftCurve = new Curve(seg1, seg2Left);
-    const rightCurve = new Curve(seg1Right, seg2);
+    const leftCurve = new Curve(curve._path, seg1, seg2Left);
+    const rightCurve = new Curve(curve._path, seg1Right, seg2);
     
     // パスの参照を設定
     leftCurve._path = curve._path;

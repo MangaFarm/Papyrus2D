@@ -49,6 +49,7 @@
   - [x] 3.1.3 Curve クラスの実装
     - [x] getLength, [x] getPointAt, [x] getTangentAt
     - [x] 曲線操作メソッド（divide, split）
+    - [x] Curveコンストラクタの修正（pathを引数として取るように）
 - [ ] 3.2 パスクラスの実装
   - [x] 3.2.1 PathItem 基底クラスの実装（インターフェース定義）
   - [x] 3.2.2 Path クラスの実装

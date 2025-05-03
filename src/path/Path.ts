@@ -129,9 +129,8 @@ export class Path implements PathItem {
 
       // 新しいカーブの挿入
       for (let i = insert; i < end; i++) {
-        // paper.jsと同様に、カーブを作成する際にセグメントを指定せず、後で_adjustCurvesで設定する
-        const curve = new Curve(null as any, null as any);
-        curve._path = this;
+        // paper.jsと同様に、カーブを作成する際にパスを指定し、セグメントは後で_adjustCurvesで設定する
+        const curve = new Curve(this, null, null);
         curves.splice(i, 0, curve);
       }
       
@@ -230,10 +229,10 @@ export class Path implements PathItem {
         const length = this._curves.length = this._countCurves();
         if (closed) {
           const curve = new Curve(
+            this,
             this._segments[length - 1],
             this._segments[0]
           );
-          curve._path = this;
           this._curves[length - 1] = curve;
         }
       }
@@ -603,8 +602,7 @@ export class Path implements PathItem {
     const length = this._countCurves();
     
     for (let i = 0; i < length; i++) {
-      const curve = new Curve(segments[i], segments[i + 1] || segments[0]);
-      curve._path = this; // _pathプロパティを設定
+      const curve = new Curve(this, segments[i], segments[i + 1] || segments[0]);
       curves.push(curve);
     }
     

@@ -25,9 +25,22 @@ export class Curve {
   _length: number | undefined;
   _bounds: any;
 
-  constructor(segment1: Segment, segment2: Segment) {
-    this._segment1 = segment1;
-    this._segment2 = segment2;
+  /**
+   * 曲線のコンストラクタ
+   * @param path 曲線が属するパス（オプション）
+   * @param segment1 最初のセグメント
+   * @param segment2 2番目のセグメント
+   */
+  /**
+   * 曲線のコンストラクタ
+   * @param path 曲線が属するパス
+   * @param segment1 最初のセグメント
+   * @param segment2 2番目のセグメント
+   */
+  constructor(path: any, segment1: Segment | null, segment2: Segment | null) {
+    this._path = path;
+    this._segment1 = segment1 || new Segment(new Point(0, 0));
+    this._segment2 = segment2 || new Segment(new Point(0, 0));
   }
 
   getPrevious(): Curve | null {

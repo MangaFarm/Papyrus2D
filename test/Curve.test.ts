@@ -29,42 +29,49 @@ describe('Curve', () => {
     it('should classify curves correctly', () => {
       // ポイント（始点と終点が同じ）
       const point = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(100, 100), null, null)
       );
       
       // 直線
       const line = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(200, 200), null, null)
       );
       
       // カスプ
       const cusp = new Curve(
+        null,
         new Segment(new Point(100, 200), null, new Point(100, -100)),
         new Segment(new Point(200, 200), new Point(-100, -100), null)
       );
       
       // ループ
       const loop = new Curve(
+        null,
         new Segment(new Point(100, 200), null, new Point(150, -100)),
         new Segment(new Point(200, 200), new Point(-150, -100), null)
       );
       
       // 蛇行曲線（1つの変曲点）
       const single = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(50, 0)),
         new Segment(new Point(200, 200), new Point(-27, -46), null)
       );
       
       // 蛇行曲線（2つの変曲点）
       const double = new Curve(
+        null,
         new Segment(new Point(100, 200), null, new Point(100, -100)),
         new Segment(new Point(200, 200), new Point(-40, -80), null)
       );
       
       // アーチ
       const arch = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(50, 0)),
         new Segment(new Point(200, 200), new Point(0, -50), null)
       );
@@ -115,6 +122,7 @@ describe('Curve', () => {
     it('should accurately calculate points at extreme values', () => {
       // paper.js issue #960 テスト
       const curve = new Curve(
+        null,
         new Segment(new Point(178.58559999999994, 333.41440000000006), null, null),
         new Segment(new Point(178.58559999999994, 178.58560000000008), null, null)
       );
@@ -225,6 +233,7 @@ describe('Curve', () => {
 
     it('should return zero curvature for a straight line', () => {
       const curve = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(200, 200), null, null)
       );
@@ -247,6 +256,7 @@ describe('Curve', () => {
   describe('getTimeAt()', () => {
     it('should handle positive and negative offsets correctly', () => {
       const curve = new Curve(
+        null,
         new Segment(new Point(0, 0), null, new Point(100, 0)),
         new Segment(new Point(200, 200), null, null)
       );
@@ -299,6 +309,7 @@ describe('Curve', () => {
     it('should handle edge cases in straight curves', () => {
       // paper.js issue #1000 テスト
       const curve = new Curve(
+        null,
         new Segment(new Point(1584.4999999999998, 1053.2499999999995), null, null),
         new Segment(new Point(1520.5, 1053.2499999999995), null, null)
       );
@@ -318,6 +329,7 @@ describe('Curve', () => {
   describe('getLocationAt()', () => {
     it('should return null for out of range offset', () => {
       const curve = new Curve(
+        null,
         new Segment(new Point(0, 0), null, new Point(100, 0)),
         new Segment(new Point(200, 200), null, null)
       );
@@ -330,6 +342,7 @@ describe('Curve', () => {
     it('should detect straight curves', () => {
       // ハンドルなし
       const curve1 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(200, 200), null, null)
       );
@@ -337,6 +350,7 @@ describe('Curve', () => {
       
       // 1つ目のセグメントのみハンドルあり（方向が違う）
       const curve2 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(-50, -50)),
         new Segment(new Point(200, 200), null, null)
       );
@@ -344,6 +358,7 @@ describe('Curve', () => {
       
       // 1つ目のセグメントのみハンドルあり（方向が同じ）
       const curve3 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(50, 50)),
         new Segment(new Point(200, 200), null, null)
       );
@@ -351,6 +366,7 @@ describe('Curve', () => {
       
       // 両方のセグメントにハンドルあり（方向が同じ）
       const curve4 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(50, 50)),
         new Segment(new Point(200, 200), new Point(-50, -50), null)
       );
@@ -358,6 +374,7 @@ describe('Curve', () => {
       
       // 両方のセグメントにハンドルあり（方向が違う）
       const curve5 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(50, 50)),
         new Segment(new Point(200, 200), new Point(50, 50), null)
       );
@@ -365,6 +382,7 @@ describe('Curve', () => {
       
       // 2つ目のセグメントのみハンドルあり（方向が同じ）
       const curve6 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(200, 200), new Point(-50, -50), null)
       );
@@ -372,6 +390,7 @@ describe('Curve', () => {
       
       // 2つ目のセグメントのみハンドルあり（方向が違う）
       const curve7 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(200, 200), new Point(50, 50), null)
       );
@@ -379,6 +398,7 @@ describe('Curve', () => {
       
       // 点の場合
       const curve8 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(100, 100), null, null)
       );
@@ -386,12 +406,14 @@ describe('Curve', () => {
       
       // 点にハンドルがある場合
       const curve9 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, new Point(50, 50)),
         new Segment(new Point(100, 100), null, null)
       );
       expect(CurveGeometry.isStraight(curve9.getValues())).toBe(false);
       
       const curve10 = new Curve(
+        null,
         new Segment(new Point(100, 100), null, null),
         new Segment(new Point(100, 100), new Point(-50, -50), null)
       );
@@ -399,6 +421,7 @@ describe('Curve', () => {
       
       // issue #1269 テスト
       const curve11 = new Curve(
+        null,
         new Segment(new Point(100, 300), null, new Point(20, -20)),
         new Segment(new Point(200, 200), new Point(-10, 10), null)
       );
@@ -414,6 +437,7 @@ describe('Curve', () => {
       
       // tでの分割
       const curve = new Curve(
+        null,
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
@@ -427,6 +451,7 @@ describe('Curve', () => {
   describe('getTimesWithTangent()', () => {
     it('should find times with specified tangent direction', () => {
       const curve = new Curve(
+        null,
         new Segment(new Point(0, 0), null, new Point(100, 0)),
         new Segment(new Point(200, 200), new Point(0, -100), null)
       );
@@ -453,6 +478,7 @@ describe('Curve', () => {
       
       // 自己交差曲線でのテスト
       const curve2 = new Curve(
+        null,
         new Segment(new Point(0, 0), null, new Point(100, 0)),
         new Segment(new Point(-500, -500), new Point(500, -500), null)
       );
@@ -463,6 +489,7 @@ describe('Curve', () => {
       
       // 放物線曲線でのテスト
       const curve3 = new Curve(
+        null,
         new Segment(new Point(0, 0), null, new Point(100, 0)),
         new Segment(new Point(0, -100), new Point(0, -100), null)
       );
@@ -538,6 +565,7 @@ describe('Curve', () => {
   describe('getPartLength()', () => {
     it('should calculate partial curve length correctly for straight curve', () => {
       const curve = new Curve(
+        null,
         new Segment(new Point(0, 0), null, null),
         new Segment(new Point(64, 0), null, null)
       );
