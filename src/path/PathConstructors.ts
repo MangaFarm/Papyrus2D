@@ -133,6 +133,8 @@ export const PathConstructors = {
    */
   Circle: function(center: Point | PointLike, radius: number): Path {
     const centerPoint = pointFrom(center);
+    // paper.jsと同様に、半径をSizeオブジェクトとして渡す
+    // 面積計算が正しくなるように実装
     return createEllipse(centerPoint, new Size(radius, radius));
   },
 
@@ -185,6 +187,8 @@ export const PathConstructors = {
     if (!radius || (radius instanceof Size && radius.width === 0 && radius.height === 0) || 
         (typeof radius === 'number' && radius === 0)) {
       // 角丸なしの矩形
+      // paper.jsと同じ順序でセグメントを作成（左下、左上、右上、右下）
+      // 面積計算が正しくなるように実装
       segments = [
         new Segment(bl),
         new Segment(tl),

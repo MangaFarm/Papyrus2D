@@ -150,6 +150,7 @@ export class Path implements PathItem {
     
     if (!curves) return;
 
+    // paper.jsと同様に、カーブのセグメントを設定する
     for (let i = start; i < end; i++) {
       const curve = curves[i];
       curve._path = this;
@@ -159,10 +160,19 @@ export class Path implements PathItem {
     }
 
     // 最初のセグメントの場合、閉じたパスの最後のセグメントも修正
-    if (start > 0 && (!start || this._closed)) {
-      const curve = curves[this._closed && !start ? segments.length - 1 : start - 1];
+    if (this._closed && start === 0) {
+      const curve = curves[curves.length - 1];
       if (curve) {
-        curve._segment2 = segments[start] || segments[0];
+        curve._segment2 = segments[0];
+        curve._changed();
+      }
+    }
+
+    // 修正範囲の前のセグメントがある場合も修正
+    if (start > 0) {
+      const curve = curves[start - 1];
+      if (curve) {
+        curve._segment2 = segments[start];
         curve._changed();
       }
     }
@@ -524,6 +534,33 @@ export class Path implements PathItem {
         this._curves[i]._changed();
       }
     }
+    
+    // セグメントを直接変換して、カーブの長さを正しく更新
+    const segments = this._segments;
+    const actualSy = sy === undefined ? sx : sy;
+    const centerPoint = center || new Point(0, 0);
+    
+    for (let i = 0, l = segments.length; i < l; i++) {
+      const segment = segments[i];
+      
+      // SegmentPointオブジェクトを直接操作
+      const point = segment._point;
+      const handleIn = segment._handleIn;
+      const handleOut = segment._handleOut;
+      
+      // 点を変換
+      const px = point._x;
+      const py = point._y;
+      point._set(
+        centerPoint.x + (px - centerPoint.x) * sx,
+        centerPoint.y + (py - centerPoint.y) * actualSy
+      );
+      
+      // ハンドルを変換（ハンドルは相対座標なので中心点は考慮しない）
+      handleIn._set(handleIn._x * sx, handleIn._y * actualSy);
+      handleOut._set(handleOut._x * sx, handleOut._y * actualSy);
+    }
+    
     return this;
   }
 

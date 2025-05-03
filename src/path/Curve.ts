@@ -276,6 +276,14 @@ export class Curve {
   }
 
   /**
+   * この曲線が直線かどうかを判定
+   * @returns 直線ならtrue
+   */
+  isStraight(): boolean {
+    return Curve.isStraight(this.getValues());
+  }
+
+  /**
    * 直線判定
    */
   static isStraight(v: number[]): boolean {

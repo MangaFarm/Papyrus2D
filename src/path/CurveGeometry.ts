@@ -331,14 +331,11 @@ export class CurveGeometry {
           x2 = v[4], y2 = v[5],
           x3 = v[6], y3 = v[7];
     
-    // paper.jsと同じ計算式を使用
-    // Green's theoremを使用した面積計算
-    return (
-      // 台形の面積（基本部分）
-      (3 * ((y3 - y0) * (x1 + x2) - (x3 - x0) * (y1 + y2)) +
-      // 曲線部分の面積
-      (y1 - y0) * (x2 - x1) - (x1 - x0) * (y2 - y1)) / 20
-    );
+    // paper.jsと完全に同じ計算式を使用
+    // http://objectmix.com/graphics/133553-area-closed-bezier-curve.html
+    return 3 * ((y3 - y0) * (x1 + x2) - (x3 - x0) * (y1 + y2)
+            + y1 * (x0 - x2) - x1 * (y0 - y2)
+            + y3 * (x2 + x0 / 3) - x3 * (y2 + y0 / 3)) / 20;
   }
 
 }
