@@ -809,6 +809,10 @@ function addCurveIntersections(
  * paper.jsのgetConvexHull実装
  * PATHITEM_INTERSECTIONS.mdに記載されている実装を使用
  */
+/**
+ * paper.jsのgetConvexHull実装
+ * paper.jsのソースコードに完全に合わせた実装
+ */
 function getConvexHull(dq0: number, dq1: number, dq2: number, dq3: number): [number[][], number[][]] {
   const p0 = [0, dq0];
   const p1 = [1/3, dq1];
@@ -846,85 +850,56 @@ function getConvexHull(dq0: number, dq1: number, dq2: number, dq3: number): [num
   }
   
   // dist1が負またはdist1がゼロでdist2が負の場合、凸包を反転
-  return (dist1 || dist2) < 0 ? [hull[1], hull[0]] : hull;
+  // paper.jsと同じく、hull.reverse()を使用
+  return (dist1 || dist2) < 0 ? hull.reverse() as [number[][], number[][]] : hull;
 }
 
 /**
  * paper.jsのclipConvexHull実装
  * PATHITEM_INTERSECTIONS.mdに記載されている実装を使用
  */
+/**
+ * paper.jsのclipConvexHull実装
+ * paper.jsのソースコードに完全に合わせた実装
+ */
 function clipConvexHull(hullTop: number[][], hullBottom: number[][], dMin: number, dMax: number): number | null {
   if (hullTop[0][1] < dMin) {
     // 凸包の左側がdMin未満、凸包を通過して交点を見つける
-    return clipConvexHullPart(hullTop, hullBottom, dMin, false);
+    return clipConvexHullPart(hullTop, true, dMin);
   } else if (hullBottom[0][1] > dMax) {
     // 凸包の左側がdMaxを超える、凸包を通過して交点を見つける
-    return clipConvexHullPart(hullTop, hullBottom, dMax, true);
+    return clipConvexHullPart(hullBottom, false, dMax);
   } else {
     // 凸包の左側がdMinとdMaxの間、クリッピング不要
-    return 0;
+    return hullTop[0][0];
   }
 }
 
 /**
  * paper.jsのclipConvexHullPart実装
- * PATHITEM_INTERSECTIONS.mdに記載されている実装を使用
+ * paper.jsのソースコードに完全に合わせた実装
  */
 function clipConvexHullPart(
-  hullPart: number[][],
-  hullOther: number[][],
-  dValue: number,
-  dMin: boolean
+  part: number[][],
+  top: boolean,
+  threshold: number
 ): number | null {
-  // 凸包を通過して、dValue線と交差する最初のエッジを見つける
-  if (hullPart.length > 1 && hullOther.length > 1) {
-    let px0 = hullPart[0][0];
-    let py0 = hullPart[0][1];
-    let px1: number;
-    let py1: number;
+  let px = part[0][0];
+  let py = part[0][1];
+  
+  for (let i = 1, l = part.length; i < l; i++) {
+    const qx = part[i][0];
+    const qy = part[i][1];
     
-    // dValue線と交差するセグメントを見つける
-    for (let i = 1, l = hullPart.length; i < l; i++) {
-      px1 = hullPart[i][0];
-      py1 = hullPart[i][1];
-      
-      // エッジがdValue線と交差するかチェック
-      if (py0 <= dValue && py1 > dValue || py0 > dValue && py1 <= dValue) {
-        // 交点を見つける
-        const pxIntersect = px0 + (px1 - px0) * (dValue - py0) / (py1 - py0);
-        
-        // 他の凸包部分を通過して、dValue線と交差する最初のエッジを見つける
-        let qx0 = hullOther[0][0];
-        let qy0 = hullOther[0][1];
-        let qx1: number;
-        let qy1: number;
-        
-        // dValue線と交差するセグメントを見つける
-        for (let j = 1, m = hullOther.length; j < m; j++) {
-          qx1 = hullOther[j][0];
-          qy1 = hullOther[j][1];
-          
-          // エッジがdValue線と交差するかチェック
-          if (qy0 <= dValue && qy1 > dValue || qy0 > dValue && qy1 <= dValue) {
-            // 交点を見つける
-            const qxIntersect = qx0 + (qx1 - qx0) * (dValue - qy0) / (qy1 - qy0);
-            // 交点のt値を返す
-            return pxIntersect < qxIntersect ? pxIntersect : qxIntersect;
-          }
-          
-          qx0 = qx1;
-          qy0 = qy1;
-        }
-        
-        // 他の凸包部分との交点がない場合
-        return pxIntersect;
-      }
-      
-      px0 = px1;
-      py0 = py1;
+    if (top ? qy >= threshold : qy <= threshold) {
+      return qy === threshold ? qx
+              : px + (threshold - py) * (qx - px) / (qy - py);
     }
+    
+    px = qx;
+    py = qy;
   }
   
-  // 交点がない場合
+  // 凸包のすべての点が閾値より上/下にある
   return null;
 }
