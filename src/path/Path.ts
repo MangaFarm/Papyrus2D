@@ -25,13 +25,11 @@ export class Path implements PathItem {
   _length?: number;
   _area?: number;
   _bounds?: Rectangle;
-  _segmentSelection: number = 0;
 
   constructor(segments: Segment[] = [], closed: boolean = false) {
     this._segments = [];
     this._closed = false;
     this._curves = undefined;
-    this._segmentSelection = 0;
     
     // セグメントがある場合は追加
     if (segments.length > 0) {
@@ -64,7 +62,6 @@ export class Path implements PathItem {
    */
   setSegments(segments: Segment[]): void {
     this._segments.length = 0;
-    this._segmentSelection = 0;
     this._curves = undefined;
     
     if (segments && segments.length) {
@@ -97,11 +94,6 @@ export class Path implements PathItem {
       }
       segs[i]._path = this;
       segs[i]._index = index + i;
-      
-      // セグメントの選択状態を更新
-      if (segment._selection) {
-        this._updateSelection(segment, 0, segment._selection);
-      }
     }
 
     // セグメントの挿入
@@ -171,13 +163,6 @@ export class Path implements PathItem {
     }
   }
 
-  /**
-   * セグメントの選択状態を更新する内部メソッド
-   */
-  _updateSelection(segment: Segment, oldSelection: number, newSelection: number): void {
-    segment._selection = newSelection;
-    this._segmentSelection += newSelection - oldSelection;
-  }
 
   /**
    * 複数のセグメントを追加
@@ -922,7 +907,6 @@ export class Path implements PathItem {
   moveTo(point: Point): Path {
     this._segments.length = 0;
     this._curves = undefined;
-    this._segmentSelection = 0;
     this.add(new Segment(point));
     return this;
   }

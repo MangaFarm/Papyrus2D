@@ -5,7 +5,7 @@
 
 import { Point } from '../basic/Point';
 import { Numerical } from '../util/Numerical';
-
+import { CurveSubdivision } from './CurveSubdivision';
 export class CurveGeometry {
   /**
    * 直線判定 - paper.jsの実装と完全に同じ
@@ -340,6 +340,3 @@ export class CurveGeometry {
     );
   }
 }
-
-// CurveSubdivisionクラスへの参照
-import { CurveSubdivision } from './CurveSubdivision';

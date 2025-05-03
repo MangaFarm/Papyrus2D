@@ -337,4 +337,39 @@ export class Point {
       <= Math.sqrt((x1 * x1 + y1 * y1) * (x2 * x2 + y2 * y2))
         * Numerical.TRIGONOMETRIC_EPSILON;
   }
+
+  /**
+   * 様々な形式の引数からPointオブジェクトを生成する
+   * paper.jsのPoint.read実装を移植
+   */
+  static read(args: IArguments | any[]): Point {
+    let arg = args[0];
+    let x: number, y: number;
+
+    if (args.length >= 2) {
+      // 引数が2つ以上ある場合は最初の2つを座標とみなす
+      x = args[0] || 0;
+      y = args[1] || 0;
+    } else if (arg == null) {
+      // 引数がnullの場合は原点を返す
+      x = y = 0;
+    } else if (typeof arg === 'number') {
+      // 数値の場合はx座標とみなし、y=0とする
+      x = arg;
+      y = 0;
+    } else if (Array.isArray(arg)) {
+      // 配列の場合は最初の2要素を座標とみなす
+      x = arg[0] || 0;
+      y = arg[1] || 0;
+    } else if ('x' in arg && 'y' in arg) {
+      // x, yプロパティを持つオブジェクトの場合
+      x = arg.x || 0;
+      y = arg.y || 0;
+    } else {
+      // その他の場合は原点を返す
+      x = y = 0;
+    }
+
+    return new Point(x, y);
+  }
 }

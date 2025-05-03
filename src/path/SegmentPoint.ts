@@ -61,14 +61,23 @@ export class SegmentPoint {
    * 座標を設定する内部メソッド
    * @param x X座標
    * @param y Y座標
+   * @param change 変更通知フラグ（デフォルトはtrue）
    */
-  _set(x: number, y: number): SegmentPoint {
+  _set(x: number, y: number, change: boolean = true): SegmentPoint {
     this._x = x;
     this._y = y;
-    if (this._owner) {
+    if (change && this._owner) {
       this._owner._changed(this);
     }
     return this;
+  }
+
+  /**
+   * 別のSegmentPointの値をこのSegmentPointにセット
+   * @param point セットするSegmentPoint
+   */
+  set(point: SegmentPoint): SegmentPoint {
+    return this._set(point._x, point._y);
   }
 
   /**
@@ -115,6 +124,14 @@ export class SegmentPoint {
   }
 
   /**
+   * このベクトルとotherが同一直線上（外積が0）かどうか
+   * 許容誤差はNumerical.GEOMETRIC_EPSILON
+   */
+  isCollinear(other: SegmentPoint): boolean {
+    return Point.isCollinear(this._x, this._y, other._x, other._y);
+  }
+
+  /**
    * 等価判定
    */
   equals(other: SegmentPoint): boolean {
@@ -148,5 +165,31 @@ export class SegmentPoint {
    */
   setPoint(point: Point): void {
     this._set(point.x, point.y);
+  }
+
+  /**
+   * 指定された点との距離を計算
+   */
+  getDistance(point: SegmentPoint): number {
+    const x = point._x - this._x;
+    const y = point._y - this._y;
+    return Math.sqrt(x * x + y * y);
+  }
+
+  /**
+   * ベクトル減算を行い、結果をPointオブジェクトとして返す
+   */
+  subtract(point: SegmentPoint): Point {
+    return new Point(this._x - point._x, this._y - point._y);
+  }
+
+  /**
+   * ベクトル乗算を行い、結果をPointオブジェクトとして返す
+   */
+  multiply(value: number | Point): Point {
+    if (value instanceof Point) {
+      return new Point(this._x * value.x, this._y * value.y);
+    }
+    return new Point(this._x * value, this._y * value);
   }
 }

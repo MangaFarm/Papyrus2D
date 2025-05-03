@@ -10,7 +10,7 @@ import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import type { Path } from './Path';
-import type { CurveLocation } from './Curve';
+import type { CurveLocation } from './CurveLocation';
 
 export interface PathItem {
   /**
