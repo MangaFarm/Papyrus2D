@@ -339,4 +339,5 @@ export class CurveGeometry {
       (y1 - y0) * (x2 - x1) - (x1 - x0) * (y2 - y1)) / 20
     );
   }
+
 }

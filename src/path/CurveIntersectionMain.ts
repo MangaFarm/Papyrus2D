@@ -3,11 +3,16 @@
  * 曲線交点計算のメイン関数を提供するユーティリティ
  */
 
-import { Curve, CurveLocation } from './Curve';
+import { Curve } from './Curve';
+import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
 import { Line } from '../basic/Line';
-import { addLocation } from './CurveIntersectionBase';
+import { Matrix } from '../basic/Matrix';
+import { CollisionDetection } from '../util/CollisionDetection';
+import { CurveSubdivision } from './CurveSubdivision';
+import { CurveLocationUtils } from './CurveLocationUtils';
+import { addLocation, getSelfIntersection } from './CurveIntersectionBase';
 import { addLineIntersection, addCurveLineIntersections } from './CurveIntersectionSpecial';
 import { addCurveIntersections } from './CurveIntersectionConvexHull';
 
@@ -163,7 +168,7 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
       v[i2][t1 ? 6 : 0],
       v[i2][t1 ? 7 : 1]
     );
-    const t2 = Curve.getTimeOf(v[i1], p);
+    const t2 = CurveLocationUtils.getTimeOf(v[i1], p);
     
     if (t2 != null) {  // 点が曲線上にある場合
       const pair: [number, number] = i1 ? [t1, t2] : [t2, t1];
@@ -185,8 +190,8 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
   } else if (!straightBoth) {
     // 直線ペアはさらなるチェックが不要
     // 2つのペアが見つかった場合、v1とv2の端点は同じはず
-    const o1 = Curve.getPart(v1, pairs[0][0], pairs[1][0]);
-    const o2 = Curve.getPart(v2, pairs[0][1], pairs[1][1]);
+    const o1 = CurveSubdivision.getPart(v1, pairs[0][0], pairs[1][0]);
+    const o2 = CurveSubdivision.getPart(v2, pairs[0][1], pairs[1][1]);
     // オーバーラップする曲線のハンドルも同じかチェック
     if (abs(o2[2] - o1[2]) > geomEpsilon ||
         abs(o2[3] - o1[3]) > geomEpsilon ||
@@ -197,4 +202,127 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
   }
   
   return pairs;
+}
+
+/**
+ * 2つの曲線の交点を計算
+ */
+export function getIntersections(
+  curves1: Curve[] | number[],
+  curves2: Curve[] | number[] | null,
+  include?: (loc: CurveLocation) => boolean,
+  matrix1?: Matrix | null | undefined,
+  matrix2?: Matrix | null | undefined,
+  _returnFirst?: boolean
+): CurveLocation[] {
+  const epsilon = Numerical.GEOMETRIC_EPSILON;
+  const self = !curves2;
+  
+  if (Array.isArray(curves1) && typeof curves1[0] === 'number') {
+    // 数値配列の場合、Curveオブジェクトに変換
+    const v1 = curves1 as number[];
+    const v2 = curves2 as number[] | null;
+    
+    if (v2 && typeof v2[0] === 'number') {
+      // 両方数値配列の場合
+      const curve1 = CurveSubdivision.fromValues(v1);
+      const curve2 = CurveSubdivision.fromValues(v2);
+      const locations: CurveLocation[] = [];
+      
+      return getCurveIntersections(v1, v2, curve1, curve2, locations, include);
+    } else if (!v2) {
+      // 自己交差チェックの場合
+      const curve = CurveSubdivision.fromValues(v1);
+      const locations: CurveLocation[] = [];
+      return getSelfIntersection(v1, curve, locations, include);
+    }
+  }
+  
+  if (self) {
+    curves2 = curves1;
+  }
+  
+  const curveArray1 = curves1 as Curve[];
+  const curveArray2 = curves2 as Curve[];
+  
+  const length1 = curveArray1.length;
+  const length2 = curveArray2!.length;
+  const values1: number[][] = new Array(length1);
+  const values2 = self ? values1 : new Array(length2);
+  const locations: CurveLocation[] = [];
+  
+  // 各曲線の値を取得（行列変換を適用）
+  for (let i = 0; i < length1; i++) {
+    values1[i] = curveArray1[i].getValues();
+    if (matrix1) {
+      // 行列変換を適用
+      matrix1._transformCoordinates(values1[i], values1[i], 4);
+    }
+  }
+  
+  if (!self) {
+    for (let i = 0; i < length2; i++) {
+      values2[i] = curveArray2![i].getValues();
+      if (matrix2) {
+        // 行列変換を適用
+        matrix2._transformCoordinates(values2[i], values2[i], 4);
+      }
+    }
+  }
+  
+  const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
+    values1, self ? values1 : values2, epsilon
+  );
+  
+  // 各曲線の交点を計算
+  for (let index1 = 0; index1 < length1; index1++) {
+    const curve1 = curveArray1[index1];
+    const v1 = values1[index1];
+    
+    if (self) {
+      // 自己交差チェック
+      getSelfIntersection(v1, curve1, locations, include);
+    }
+    
+    // 潜在的に交差する曲線とのチェック
+    const collisions1 = boundsCollisions[index1];
+    if (collisions1) {
+      for (let j = 0; j < collisions1.length; j++) {
+        // 既に交点が見つかっていて、最初の交点だけを返す場合は早期リターン
+        if (_returnFirst && locations.length) {
+          return locations;
+        }
+        
+        const index2 = collisions1[j];
+        // 自己交差の場合は、重複チェックを避けるために index2 > index1 の場合のみ処理
+        if (!self || index2 > index1) {
+          const curve2 = curveArray2![index2];
+          const v2 = values2[index2];
+          
+          // 曲線の交点を計算
+          getCurveIntersections(
+            v1, v2, curve1, curve2, locations, include
+          );
+          
+          // 曲線インデックスを設定
+          for (let k = locations.length - 1; k >= 0; k--) {
+            const loc = locations[k];
+            if (loc.curve1Index === -1) {
+              loc.curve1Index = index1;
+              loc.curve2Index = index2;
+              
+              // paper.jsと同様に、交点が見つかった後に曲線インデックスを設定
+              if (loc.time !== null) {
+                // paper.jsでは交点の位置は変換された座標系で計算され、
+                // 元の座標系に戻す処理は行われない
+                // 交点の位置はそのまま使用する
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  return locations;
 }

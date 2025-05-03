@@ -45,7 +45,7 @@ export class CurveLocationUtils {
       // 各解について、曲線上の点と与えられた点の距離をチェック
       for (let i = 0; i < count; i++) {
         const t = roots[i];
-        const p = CurveCalculation.getPoint(v, t);
+        const p = CurveCalculation.getPoint(v, t)!;
         if (point.isClose(p, geomEpsilon)) {
           return t;
         }
@@ -89,7 +89,7 @@ export class CurveLocationUtils {
     
     function refine(t: number): boolean {
       if (t >= 0 && t <= 1) {
-        const p = CurveCalculation.getPoint(v, t);
+        const p = CurveCalculation.getPoint(v, t)!;
         const dist = point.getDistance(p, true);
         if (dist < minDist) {
           minDist = dist;
@@ -122,5 +122,52 @@ export class CurveLocationUtils {
   static solveCubic(a: number, b: number, c: number, d: number, roots: number[], min?: number, max?: number): number {
     // Numerical.solveCubicを使用
     return Numerical.solveCubic(a, b, c, d, roots, min !== undefined && max !== undefined ? { min, max } : undefined);
+  }
+
+  /**
+   * 指定されたオフセットでの曲線のtパラメータを計算
+   */
+  static getTimeAt(v: number[], offset: number, start?: number): number {
+    if (start === undefined)
+      start = offset < 0 ? 1 : 0;
+    if (offset === 0)
+      return start;
+    
+    // 前進または後退を判断し、それに応じて処理
+    const abs = Math.abs;
+    const epsilon = Numerical.EPSILON;
+    const forward = offset > 0;
+    const a = forward ? start : 0;
+    const b = forward ? 1 : start;
+    
+    // 積分を使用して範囲の長さと部分長を計算
+    const ds = CurveGeometry.getLengthIntegrand(v);
+    // 全範囲の長さを取得
+    const rangeLength = Curve.getLength(v, a, b, ds);
+    const diff = abs(offset) - rangeLength;
+    
+    if (abs(diff) < epsilon) {
+      // 終点に一致
+      return forward ? b : a;
+    } else if (diff > epsilon) {
+      // 範囲外
+      return -1; // nullの代わりに-1を返す（TypeScriptの型制約のため）
+    }
+    
+    // 初期推測値としてoffset / rangeLengthを使用
+    const guess = offset / rangeLength;
+    let length = 0;
+    let currentStart = start;
+    
+    // 曲線範囲の長さを反復的に計算し、それらを合計
+    function f(t: number): number {
+      // startがtより大きい場合、積分は負の値を返す
+      length += Numerical.integrate(ds, currentStart, t, CurveGeometry.getIterations(currentStart, t));
+      currentStart = t;
+      return length - offset;
+    }
+    
+    // 初期推測値から始める
+    return Numerical.findRoot(f, ds, start + guess, a, b, 32, epsilon);
   }
 }

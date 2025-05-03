@@ -11,26 +11,24 @@ export class CurveCalculation {
    * 三次ベジェ曲線のt位置の点を返す
    * v: [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
    */
-  static evaluate(v: number[], t: number, type: number = 0, normalized: boolean = false): Point {
+  static evaluate(v: number[], t: number, type: number = 0, normalized: boolean = false): Point | null {
     // Do not produce results if parameter is out of range or invalid.
     if (t == null || t < 0 || t > 1)
-      throw new Error('t must be in [0,1]');
+      return null;
     
     const x0 = v[0], y0 = v[1],
           x1 = v[2], y1 = v[3],
           x2 = v[4], y2 = v[5],
-          x3 = v[6], y3 = v[7];
+          x3 = v[6], y3 = v[7],
+          isZero = Numerical.isZero;
     
     // If the curve handles are almost zero, reset the control points to the anchors.
-    const isZero = Numerical.isZero;
-    
     let cx1 = x1, cy1 = y1, cx2 = x2, cy2 = y2;
-    
-    if (isZero(x1 - x0) && isZero(y1 - y0)) {
+    if (isZero(cx1 - x0) && isZero(cy1 - y0)) {
       cx1 = x0;
       cy1 = y0;
     }
-    if (isZero(x2 - x3) && isZero(y2 - y3)) {
+    if (isZero(cx2 - x3) && isZero(cy2 - y3)) {
       cx2 = x3;
       cy2 = y3;
     }
@@ -124,7 +122,7 @@ export class CurveCalculation {
    * 曲線上の点を計算
    * paper.jsのgetPoint実装を移植
    */
-  static getPoint(v: number[], t: number): Point {
+  static getPoint(v: number[], t: number): Point | null {
     return CurveCalculation.evaluate(v, t, 0, false);
   }
   
@@ -132,7 +130,7 @@ export class CurveCalculation {
    * 曲線上の正規化された接線ベクトルを計算
    * paper.jsのgetTangent実装を移植
    */
-  static getTangent(v: number[], t: number): Point {
+  static getTangent(v: number[], t: number): Point | null {
     return CurveCalculation.evaluate(v, t, 1, true);
   }
   
@@ -140,7 +138,7 @@ export class CurveCalculation {
    * 曲線上の法線ベクトルを計算
    * paper.jsのgetNormal実装を移植
    */
-  static getNormal(v: number[], t: number): Point {
+  static getNormal(v: number[], t: number): Point | null {
     return CurveCalculation.evaluate(v, t, 2, true);
   }
   
@@ -148,7 +146,7 @@ export class CurveCalculation {
    * 曲線上の重み付き接線ベクトルを計算
    * paper.jsのgetWeightedTangent実装を移植
    */
-  static getWeightedTangent(v: number[], t: number): Point {
+  static getWeightedTangent(v: number[], t: number): Point | null {
     return CurveCalculation.evaluate(v, t, 1, false);
   }
   
@@ -156,7 +154,7 @@ export class CurveCalculation {
    * 曲線上の重み付き法線ベクトルを計算
    * paper.jsのgetWeightedNormal実装を移植
    */
-  static getWeightedNormal(v: number[], t: number): Point {
+  static getWeightedNormal(v: number[], t: number): Point | null {
     return CurveCalculation.evaluate(v, t, 2, false);
   }
   
@@ -165,7 +163,8 @@ export class CurveCalculation {
    * paper.jsのgetCurvature実装を移植
    */
   static getCurvature(v: number[], t: number): number {
-    return CurveCalculation.evaluate(v, t, 3, false).x;
+    const result = CurveCalculation.evaluate(v, t, 3, false);
+    return result ? result.x : 0;
   }
 
   /**
@@ -226,5 +225,104 @@ export class CurveCalculation {
     }
     
     return times;
+  }
+
+  /**
+   * 三次ベジェ曲線のt位置の点を返す（null許容版）
+   * Curve.tsから移動
+   */
+  static evaluateWithNull(v: number[], t: number, type: number = 0, normalized: boolean = false): Point | null {
+    // Do not produce results if parameter is out of range or invalid.
+    if (t == null || t < 0 || t > 1)
+      return null;
+    
+    const x0 = v[0], y0 = v[1],
+          x1 = v[2], y1 = v[3],
+          x2 = v[4], y2 = v[5],
+          x3 = v[6], y3 = v[7],
+          isZero = Numerical.isZero;
+    
+    // If the curve handles are almost zero, reset the control points to the anchors.
+    let cx1 = x1, cy1 = y1, cx2 = x2, cy2 = y2;
+    if (isZero(cx1 - x0) && isZero(cy1 - y0)) {
+      cx1 = x0;
+      cy1 = y0;
+    }
+    if (isZero(cx2 - x3) && isZero(cy2 - y3)) {
+      cx2 = x3;
+      cy2 = y3;
+    }
+    
+    // Calculate the polynomial coefficients.
+    const cx = 3 * (cx1 - x0),
+          bx = 3 * (cx2 - cx1) - cx,
+          ax = x3 - x0 - cx - bx,
+          cy = 3 * (cy1 - y0),
+          by = 3 * (cy2 - cy1) - cy,
+          ay = y3 - y0 - cy - by;
+    
+    let x, y;
+    
+    if (type === 0) {
+      // type === 0: getPoint()
+      // Calculate the curve point at parameter value t
+      // Use special handling at t === 0 / 1, to avoid imprecisions.
+      x = t === 0 ? x0 : t === 1 ? x3
+              : ((ax * t + bx) * t + cx) * t + x0;
+      y = t === 0 ? y0 : t === 1 ? y3
+              : ((ay * t + by) * t + cy) * t + y0;
+    } else {
+      // type === 1: getTangent()
+      // type === 2: getNormal()
+      // type === 3: getCurvature()
+      const tMin = Numerical.CURVETIME_EPSILON,
+            tMax = 1 - tMin;
+      
+      // 1: tangent, 1st derivative
+      // 2: normal, 1st derivative
+      // 3: curvature, 1st derivative & 2nd derivative
+      // Prevent tangents and normals of length 0:
+      if (t < tMin) {
+        x = cx;
+        y = cy;
+      } else if (t > tMax) {
+        x = 3 * (x3 - cx2);
+        y = 3 * (y3 - cy2);
+      } else {
+        x = (3 * ax * t + 2 * bx) * t + cx;
+        y = (3 * ay * t + 2 * by) * t + cy;
+      }
+      
+      if (normalized) {
+        // When the tangent at t is zero and we're at the beginning
+        // or the end, we can use the vector between the handles,
+        // but only when normalizing as its weighted length is 0.
+        if (x === 0 && y === 0 && (t < tMin || t > tMax)) {
+          x = cx2 - cx1;
+          y = cy2 - cy1;
+        }
+        // Now normalize x & y
+        const len = Math.sqrt(x * x + y * y);
+        if (len) {
+          x /= len;
+          y /= len;
+        }
+      }
+      
+      if (type === 3) {
+        // Calculate 2nd derivative, and curvature from there:
+        // k = |dx * d2y - dy * d2x| / (( dx^2 + dy^2 )^(3/2))
+        const x2 = 6 * ax * t + 2 * bx,
+              y2 = 6 * ay * t + 2 * by,
+              d = Math.pow(x * x + y * y, 3 / 2);
+        // For JS optimizations we always return a Point, although
+        // curvature is just a numeric value, stored in x:
+        x = d !== 0 ? (x * y2 - y * x2) / d : 0;
+        y = 0;
+      }
+    }
+    
+    // The normal is simply the rotated tangent:
+    return type === 2 ? new Point(y, -x) : new Point(x, y);
   }
 }

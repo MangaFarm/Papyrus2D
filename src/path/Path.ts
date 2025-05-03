@@ -638,7 +638,7 @@ export class Path implements PathItem {
         // 各解について、曲線上の点と与えられた点の距離をチェック
         for (const t of roots) {
           const p = Curve.evaluate(v, t);
-          if (point.isClose(p, geomEpsilon)) {
+          if (p && point.isClose(p, geomEpsilon)) {
             return true;
           }
         }

@@ -191,6 +191,51 @@ export class CurveSubdivision {
   ): number[] {
     return [x0, y0, x1, y1, x2, y2, x3, y3];
   }
+  /**
+   * 曲線をtで分割し、2つのCurveに分ける
+   */
+  static divideCurve(curve: Curve, t: number): [Curve, Curve] {
+    if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
+      throw new Error('t must be in [' + Numerical.CURVETIME_EPSILON + ',' + (1 - Numerical.CURVETIME_EPSILON) + ']');
+    }
+    
+    const v = curve.getValues();
+    const [left, right] = CurveSubdivision.subdivide(v, t);
+    const hasHandles = curve.hasHandles();
+    
+    // left: [x0, y0, x4, y4, x7, y7, x9, y9]
+    // right: [x9, y9, x8, y8, x6, y6, x3, y3]
+    
+    // 左側のセグメント
+    const seg1 = curve.segment1;
+    const seg2Left = new Segment(
+      new Point(left[6], left[7]),
+      hasHandles ? new Point(left[4] - left[6], left[5] - left[7]) : new Point(0, 0),
+      new Point(0, 0)
+    );
+    
+    // 右側のセグメント
+    const seg1Right = new Segment(
+      new Point(right[0], right[1]),
+      new Point(0, 0),
+      hasHandles ? new Point(right[2] - right[0], right[3] - right[1]) : new Point(0, 0)
+    );
+    const seg2 = curve.segment2;
+    
+    // ハンドルを調整
+    if (hasHandles) {
+      seg1._handleOut._set(left[2] - left[0], left[3] - left[1]);
+      seg2._handleIn._set(right[4] - right[6], right[5] - right[7]);
+    }
+    
+    // 変更を通知
+    curve._changed();
+    
+    return [
+      new Curve(seg1, seg2Left),
+      new Curve(seg1Right, seg2)
+    ];
+  }
 }
 
 // CurveGeometryクラスへの参照

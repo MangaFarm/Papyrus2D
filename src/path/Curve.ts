@@ -9,7 +9,7 @@ import { Point } from '../basic/Point';
 import { Matrix } from '../basic/Matrix';
 import { Numerical } from '../util/Numerical';
 import { CollisionDetection } from '../util/CollisionDetection';
-import { getSelfIntersection, getCurveIntersections } from './CurveIntersections';
+import { getIntersections } from './CurveIntersectionMain';
 import { CurveCalculation } from './CurveCalculation';
 import { CurveGeometry } from './CurveGeometry';
 import { CurveSubdivision } from './CurveSubdivision';
@@ -74,7 +74,7 @@ export class Curve {
    * 曲線がハンドルを持っているかチェック
    */
   hasHandles(): boolean {
-    return !this.segment1.getHandleOut().isZero() || !this.segment2.getHandleIn().isZero();
+    return !this._segment1._handleOut.isZero() || !this._segment2._handleIn.isZero();
   }
 
   /**
@@ -82,7 +82,7 @@ export class Curve {
    */
   getLength(): number {
     if ((this as any)._length == null) {
-      (this as any)._length = CurveGeometry.getLength(this.getValues(), 0, 1);
+      (this as any)._length = Curve.getLength(this.getValues(), 0, 1);
     }
     return (this as any)._length;
   }
@@ -91,59 +91,96 @@ export class Curve {
    * ベジェ制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2] を返す
    */
   getValues(matrix?: Matrix): number[] {
-    const p1 = this.segment1.getPoint();
-    const h1 = p1.add(this.segment1.getHandleOut());
-    const h2 = this.segment2.getPoint().add(this.segment2.getHandleIn());
-    const p2 = this.segment2.getPoint();
-    const values = [p1.x, p1.y, h1.x, h1.y, h2.x, h2.y, p2.x, p2.y];
-    
-    if (matrix) {
-      matrix._transformCoordinates(values, values, 4);
-    }
-    
-    return values;
+    return Curve.getValues(this.segment1, this.segment2, matrix);
   }
 
   /**
    * t(0-1)で指定した位置のPointを返す
    */
-  getPointAt(t: number): Point {
-    const v = this.getValues();
-    return CurveCalculation.getPoint(v, t);
+  getPointAt(t: number, _isTime?: boolean): Point {
+    const values = this.getValues();
+    return Curve.getPoint(values, _isTime ? t : this.getTimeAt(t));
   }
 
   /**
    * t(0-1)で指定した位置の接線ベクトルを返す
    */
-  getTangentAt(t: number): Point {
-    return CurveCalculation.getTangent(this.getValues(), t);
+  getTangentAt(t: number, _isTime?: boolean): Point {
+    const values = this.getValues();
+    return CurveCalculation.getTangent(values, _isTime ? t : this.getTimeAt(t))!;
   }
   
   /**
    * t(0-1)で指定した位置の法線ベクトルを返す
    */
-  getNormalAt(t: number): Point {
-    return CurveCalculation.getNormal(this.getValues(), t);
+  getNormalAt(t: number, _isTime?: boolean): Point {
+    const values = this.getValues();
+    return CurveCalculation.getNormal(values, _isTime ? t : this.getTimeAt(t))!;
   }
   
   /**
    * t(0-1)で指定した位置の重み付き接線ベクトルを返す
    */
-  getWeightedTangentAt(t: number): Point {
-    return CurveCalculation.getWeightedTangent(this.getValues(), t);
+  getWeightedTangentAt(t: number, _isTime?: boolean): Point {
+    const values = this.getValues();
+    return CurveCalculation.getWeightedTangent(values, _isTime ? t : this.getTimeAt(t))!;
   }
   
   /**
    * t(0-1)で指定した位置の重み付き法線ベクトルを返す
    */
-  getWeightedNormalAt(t: number): Point {
-    return CurveCalculation.getWeightedNormal(this.getValues(), t);
+  getWeightedNormalAt(t: number, _isTime?: boolean): Point {
+    const values = this.getValues();
+    return CurveCalculation.getWeightedNormal(values, _isTime ? t : this.getTimeAt(t))!;
   }
   
   /**
    * t(0-1)で指定した位置の曲率を返す
    */
-  getCurvatureAt(t: number): number {
+  getCurvatureAt(t: number, _isTime?: boolean): number {
+    const values = this.getValues();
+    return CurveCalculation.getCurvature(values, _isTime ? t : this.getTimeAt(t));
+  }
+
+  /**
+   * t(0-1)で指定した位置のPointを返す（時間パラメータ指定）
+   */
+  getPointAtTime(t: number): Point {
+    return Curve.getPoint(this.getValues(), t);
+  }
+
+  /**
+   * t(0-1)で指定した位置の接線ベクトルを返す（時間パラメータ指定）
+   */
+  getTangentAtTime(t: number): Point {
+    return CurveCalculation.getTangent(this.getValues(), t)!;
+  }
+  
+  /**
+   * t(0-1)で指定した位置の法線ベクトルを返す（時間パラメータ指定）
+   */
+  getNormalAtTime(t: number): Point {
+    return CurveCalculation.getNormal(this.getValues(), t)!;
+  }
+  
+  /**
+   * t(0-1)で指定した位置の重み付き接線ベクトルを返す（時間パラメータ指定）
+   */
+  getWeightedTangentAtTime(t: number): Point {
+    return CurveCalculation.getWeightedTangent(this.getValues(), t)!;
+  }
+  
+  /**
+   * t(0-1)で指定した位置の重み付き法線ベクトルを返す（時間パラメータ指定）
+   */
+  getWeightedNormalAtTime(t: number): Point {
+    return CurveCalculation.getWeightedNormal(this.getValues(), t)!;
+  }
+  
+  /**
+   * t(0-1)で指定した位置の曲率を返す（時間パラメータ指定）
+   */
+  getCurvatureAtTime(t: number): number {
     return CurveCalculation.getCurvature(this.getValues(), t);
   }
   
@@ -151,43 +188,16 @@ export class Curve {
    * 指定された接線に対して曲線が接する時間パラメータを計算
    */
   getTimesWithTangent(tangent: Point): number[] {
-    return CurveCalculation.getTimesWithTangent(this.getValues(), tangent);
+    return tangent.isZero()
+      ? []
+      : CurveCalculation.getTimesWithTangent(this.getValues(), tangent);
   }
 
   /**
    * 曲線をtで分割し、2つのCurveに分ける
    */
   divide(t: number): [Curve, Curve] {
-    if (t < 0 || t > 1) throw new Error('t must be in [0,1]');
-    const v = this.getValues();
-    const [left, right] = CurveSubdivision.subdivide(v, t);
-
-    // left: [x0, y0, x4, y4, x7, y7, x9, y9]
-    // right: [x9, y9, x8, y8, x6, y6, x3, y3]
-    const seg1_left = new Segment(
-      new Point(left[0], left[1]),
-      new Point(0, 0), // handleIn
-      new Point(left[2] - left[0], left[3] - left[1]) // handleOut
-    );
-    const seg2_left = new Segment(
-      new Point(left[6], left[7]),
-      new Point(left[4] - left[6], left[5] - left[7]), // handleIn
-      new Point(0, 0) // handleOut
-    );
-    const seg1_right = new Segment(
-      new Point(right[0], right[1]),
-      new Point(0, 0), // handleIn
-      new Point(right[2] - right[0], right[3] - right[1]) // handleOut
-    );
-    const seg2_right = new Segment(
-      new Point(right[6], right[7]),
-      new Point(right[4] - right[6], right[5] - right[7]), // handleIn
-      new Point(0, 0) // handleOut
-    );
-    return [
-      new Curve(seg1_left, seg2_left),
-      new Curve(seg1_right, seg2_right)
-    ];
+    return CurveSubdivision.divideCurve(this, t);
   }
 
   /**
@@ -198,28 +208,53 @@ export class Curve {
   }
 
   /**
+   * tで分割し、前半部分のCurveを返す（paper.jsとの互換性のため）
+   */
+  splitAt(location: number | CurveLocation): Curve | null {
+    const path = this._path;
+    return path ? path.splitAt(location) : null;
+  }
+
+  /**
+   * tで分割し、前半部分のCurveを返す（paper.jsとの互換性のため）
+   */
+  splitAtTime(t: number): Curve | null {
+    const loc = this.getLocationAtTime(t);
+    return loc ? this.splitAt(loc) : null;
+  }
+
+  /**
    * 曲線上の点の位置情報を取得
    * @param point 曲線上の点
    * @returns 曲線位置情報
    */
   getLocationOf(point: Point): CurveLocation | null {
-    const time = CurveLocationUtils.getTimeOf(this.getValues(), point);
-    return time !== null ? new CurveLocation(this, time, point) : null;
+    const t = this.getTimeOf(point);
+    return t !== null ? this.getLocationAtTime(t) : null;
   }
 
   /**
    * 曲線上の指定されたオフセット位置の位置情報を取得
    */
-  getLocationAt(offset: number): CurveLocation {
-    if (offset <= 0) {
-      return new CurveLocation(this, 0);
-    }
-    if (offset >= this.getLength()) {
-      return new CurveLocation(this, 1);
-    }
-    
-    const t = this.getTimeAt(offset);
-    return new CurveLocation(this, t);
+  getLocationAt(offset: number, _isTime?: boolean): CurveLocation | null {
+    return this.getLocationAtTime(
+      _isTime ? offset : this.getTimeAt(offset));
+  }
+
+  /**
+   * 曲線上の指定されたtパラメータ位置の位置情報を取得
+   */
+  getLocationAtTime(t: number): CurveLocation | null {
+    return t != null && t >= 0 && t <= 1
+      ? new CurveLocation(this, t)
+      : null;
+  }
+
+  /**
+   * 曲線上の点のtパラメータを取得
+   */
+  getTimeOf(point: Point): number | null {
+    return CurveLocationUtils.getTimeOf(this.getValues(), point);
   }
   
   /**
@@ -233,13 +268,7 @@ export class Curve {
    * 曲線の一部の長さを計算
    */
   getPartLength(from?: number, to?: number): number {
-    if (from === undefined) from = 0;
-    if (to === undefined) to = 1;
-    
-    if (from === 0 && to === 1) {
-      return this.getLength();
-    }
-    return CurveGeometry.getLength(this.getValues(), from, to);
+    return Curve.getLength(this.getValues(), from, to);
   }
 
   /**
@@ -248,6 +277,7 @@ export class Curve {
   _changed(): void {
     // キャッシュをクリア
     (this as any)._length = undefined;
+    (this as any)._bounds = undefined;
   }
 
   /**
@@ -260,8 +290,12 @@ export class Curve {
   /**
    * 三次ベジェ曲線のt位置の点を返す
    */
-  static evaluate(v: number[], t: number, type: number = 0, normalized: boolean = false): Point {
-    return CurveCalculation.evaluate(v, t, type, normalized);
+  static getPoint(v: number[], t: number): Point {
+    const result = CurveCalculation.evaluate(v, t, 0, false);
+    if (result === null) {
+      throw new Error('t must be in [0,1]');
+    }
+    return result;
   }
 
   /**
@@ -275,29 +309,7 @@ export class Curve {
    * 曲線の長さを計算
    */
   static getLength(v: number[], a?: number, b?: number, ds?: (t: number) => number): number {
-    if (a === undefined)
-      a = 0;
-    if (b === undefined)
-      b = 1;
-    
-    if (Curve.isStraight(v)) {
-      // 直線の場合は単純にピタゴラスの定理で計算
-      let c = v;
-      if (b < 1) {
-        c = CurveSubdivision.subdivide(c, b)[0]; // 左側
-        a /= b; // 新しいサブカーブにパラメータをスケール
-      }
-      if (a > 0) {
-        c = CurveSubdivision.subdivide(c, a)[1]; // 右側
-      }
-      // 直線の長さはより簡単に計算できる
-      const dx = c[6] - c[0]; // x3 - x0
-      const dy = c[7] - c[1]; // y3 - y0
-      return Math.sqrt(dx * dx + dy * dy);
-    }
-    
-    return Numerical.integrate(ds || CurveGeometry.getLengthIntegrand(v), a, b,
-      CurveGeometry.getIterations(a, b));
+    return CurveGeometry.getLength(v, a, b, ds);
   }
 
   /**
@@ -314,46 +326,7 @@ export class Curve {
    * 指定されたオフセットでの曲線のtパラメータを計算
    */
   static getTimeAt(v: number[], offset: number, start?: number): number {
-    const actualStart = start === undefined ? (offset < 0 ? 1 : 0) : start;
-    if (offset === 0)
-      return actualStart;
-    
-    // 前進または後退を判断し、それに応じて処理
-    const abs = Math.abs;
-    const epsilon = Numerical.EPSILON;
-    const forward = offset > 0;
-    const a = forward ? actualStart : 0;
-    const b = forward ? 1 : actualStart;
-    
-    // 積分を使用して範囲の長さと部分長を計算
-    const ds = CurveGeometry.getLengthIntegrand(v);
-    // 全範囲の長さを取得
-    const rangeLength = Curve.getLength(v, a, b, ds);
-    const diff = abs(offset) - rangeLength;
-    
-    if (abs(diff) < epsilon) {
-      // 終点に一致
-      return forward ? b : a;
-    } else if (diff > epsilon) {
-      // 範囲外
-      return -1; // nullの代わりに-1を返す
-    }
-    
-    // 初期推測値としてoffset / rangeLengthを使用
-    const guess = offset / rangeLength;
-    let length = 0;
-    let currentStart = actualStart;
-    
-    // 曲線範囲の長さを反復的に計算し、それらを合計
-    function f(t: number): number {
-      // startがtより大きい場合、積分は負の値を返す
-      length += Numerical.integrate(ds, currentStart, t, CurveGeometry.getIterations(currentStart, t));
-      currentStart = t;
-      return length - offset;
-    }
-    
-    // 初期推測値から始める
-    return Numerical.findRoot(f, ds, actualStart + guess, a, b, 32, Numerical.EPSILON);
+    return CurveLocationUtils.getTimeAt(v, offset, start);
   }
 
   /**
@@ -367,125 +340,7 @@ export class Curve {
     matrix2?: Matrix | null | undefined,
     _returnFirst?: boolean
   ): CurveLocation[] {
-    const epsilon = Numerical.GEOMETRIC_EPSILON;
-    const self = !curves2;
-    
-    if (Array.isArray(curves1) && typeof curves1[0] === 'number') {
-      // 数値配列の場合、Curveオブジェクトに変換
-      const v1 = curves1 as number[];
-      const v2 = curves2 as number[] | null;
-      
-      if (v2 && typeof v2[0] === 'number') {
-        // 両方数値配列の場合
-        const curve1 = CurveSubdivision.fromValues(v1);
-        const curve2 = CurveSubdivision.fromValues(v2);
-        const locations: CurveLocation[] = [];
-        
-        return getCurveIntersections(v1, v2, curve1, curve2, locations, include);
-      } else if (!v2) {
-        // 自己交差チェックの場合
-        const curve = CurveSubdivision.fromValues(v1);
-        const locations: CurveLocation[] = [];
-        return getSelfIntersection(v1, curve, locations, include);
-      }
-    }
-    
-    if (self) {
-      curves2 = curves1;
-    }
-    
-    const curveArray1 = curves1 as Curve[];
-    const curveArray2 = curves2 as Curve[];
-    
-    const length1 = curveArray1.length;
-    const length2 = curveArray2!.length;
-    const values1: number[][] = new Array(length1);
-    const values2 = self ? values1 : new Array(length2);
-    const locations: CurveLocation[] = [];
-    
-    // 各曲線の値を取得（行列変換を適用）
-    for (let i = 0; i < length1; i++) {
-      values1[i] = curveArray1[i].getValues();
-      if (matrix1) {
-        // 行列変換を適用
-        for (let j = 0; j < 8; j += 2) {
-          const p = new Point(values1[i][j], values1[i][j + 1]);
-          const transformed = matrix1.transform(p);
-          values1[i][j] = transformed.x;
-          values1[i][j + 1] = transformed.y;
-        }
-      }
-    }
-    
-    if (!self) {
-      for (let i = 0; i < length2; i++) {
-        values2[i] = curveArray2![i].getValues();
-        if (matrix2) {
-          // 行列変換を適用
-          for (let j = 0; j < 8; j += 2) {
-            const p = new Point(values2[i][j], values2[i][j + 1]);
-            const transformed = matrix2.transform(p);
-            values2[i][j] = transformed.x;
-            values2[i][j + 1] = transformed.y;
-          }
-        }
-      }
-    }
-    
-    const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
-      values1, self ? values1 : values2, epsilon
-    );
-    
-    // 各曲線の交点を計算
-    for (let index1 = 0; index1 < length1; index1++) {
-      const curve1 = curveArray1[index1];
-      const v1 = values1[index1];
-      
-      if (self) {
-        // 自己交差チェック
-        getSelfIntersection(v1, curve1, locations, include);
-      }
-      
-      // 潜在的に交差する曲線とのチェック
-      const collisions1 = boundsCollisions[index1];
-      if (collisions1) {
-        for (let j = 0; j < collisions1.length; j++) {
-          // 既に交点が見つかっていて、最初の交点だけを返す場合は早期リターン
-          if (_returnFirst && locations.length) {
-            return locations;
-          }
-          
-          const index2 = collisions1[j];
-          // 自己交差の場合は、重複チェックを避けるために index2 > index1 の場合のみ処理
-          if (!self || index2 > index1) {
-            const curve2 = curveArray2![index2];
-            const v2 = values2[index2];
-            
-            // 曲線の交点を計算
-            getCurveIntersections(
-              v1, v2, curve1, curve2, locations, include
-            );
-            
-            // 曲線インデックスを設定
-            for (let k = locations.length - 1; k >= 0; k--) {
-              const loc = locations[k];
-              if (loc.curve1Index === -1) {
-                loc.curve1Index = index1;
-                loc.curve2Index = index2;
-                
-                // paper.jsと同様に、交点が見つかった後に曲線インデックスを設定
-                if (loc.time !== null) {
-                  // paper.jsでは交点の位置は変換された座標系で計算され、
-                  // 元の座標系に戻す処理は行われない
-                  // 交点の位置はそのまま使用する
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-    
-    return locations;
+    // CurveIntersectionMainモジュールの関数を使用
+    return getIntersections(curves1, curves2, include, matrix1, matrix2, _returnFirst);
   }
 }
