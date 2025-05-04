@@ -203,4 +203,229 @@ export class CurveLocation {
     const curve = this.getCurve();
     return curve ? curve.getIndex() : -1;
   }
+  /**
+   * この位置の点を取得
+   * @returns 点
+   */
+  getPoint(): Point {
+    return this._point;
+  }
+
+  /**
+   * この位置に最も近いセグメントを取得
+   * @returns セグメント
+   */
+  getSegment(): any {
+    // まず曲線を取得して_segmentが最新かを確認
+    let segment = this._segment;
+    if (!segment) {
+      const curve = this.getCurve();
+      const time = this.getTime();
+      if (time === 0) {
+        segment = curve?._segment1;
+      } else if (time === 1) {
+        segment = curve?._segment2;
+      } else if (time != null && curve) {
+        // 最も近いセグメントを曲線の長さを比較して決定
+        segment = curve.getPartLength(0, time) < curve.getPartLength(time, 1)
+          ? curve._segment1
+          : curve._segment2;
+      }
+      this._segment = segment;
+    }
+    return segment;
+  }
+
+  /**
+   * セグメントを設定する内部メソッド
+   */
+  _setSegment(segment: any): void {
+    const curve = segment?.getCurve();
+    if (curve) {
+      this._setCurve(curve);
+    } else {
+      this._setPath(segment?._path);
+      this._segment1 = segment;
+      this._segment2 = null;
+    }
+    this._segment = segment;
+    this._time = segment === this._segment1 ? 0 : 1;
+    // 精度の問題を避けるため、セグメントの点をクローンして使用
+    this._point = segment?._point.clone() || this._point;
+  }
+
+  /**
+   * 距離を取得
+   * @returns 距離
+   */
+  getDistance(): number | undefined {
+    return this._distance;
+  }
+
+  /**
+   * 交点を取得
+   * @returns 交点
+   */
+  getIntersection(): CurveLocation | null {
+    return this._intersection;
+  }
+
+  /**
+   * 交点が接触しているかを確認
+   * @returns 接触していればtrue
+   */
+  isTouching(): boolean {
+    const inter = this._intersection;
+    const myTangent = this.getTangent();
+    const interTangent = inter?.getTangent();
+    
+    if (inter && myTangent && interTangent && myTangent.isCollinear(interTangent)) {
+      // 2つの直線曲線が接触している場合、それらの線が交差しない場合のみ接触と見なす
+      const curve1 = this.getCurve();
+      const curve2 = inter.getCurve();
+      return !(curve1?.isStraight() && curve2?.isStraight()
+        // TODO: getLine()とintersect()の実装が必要
+        // && curve1.getLine().intersect(curve2.getLine())
+      );
+    }
+    return false;
+  }
+
+  /**
+   * 交点が交差しているかを確認
+   * @returns 交差していればtrue
+   */
+  isCrossing(): boolean {
+    // 交点がない場合はfalse
+    const inter = this._intersection;
+    if (!inter) return false;
+
+    // 時間パラメータを取得
+    const t1 = this.getTime();
+    const t2 = inter.getTime();
+    const tMin = Numerical.CURVETIME_EPSILON;
+    const tMax = 1 - tMin;
+
+    // 時間パラメータが曲線の内部にあるかを確認
+    const t1Inside = t1 !== null && t1 >= tMin && t1 <= tMax;
+    const t2Inside = t2 !== null && t2 >= tMin && t2 <= tMax;
+
+    // 両方の交点が曲線の内部にある場合、接触でなければ交差
+    if (t1Inside && t2Inside) {
+      return !this.isTouching();
+    }
+
+    // TODO: 完全なpaper.jsの実装には、曲線の端点での交差判定が含まれる
+    // 現在の実装では簡略化して、内部交点のみを考慮
+    return false;
+  }
+
+  /**
+   * 交点が重複しているかを確認
+   * @returns 重複していればtrue
+   */
+  hasOverlap(): boolean {
+    return !!this._overlap;
+  }
+
+  /**
+   * 曲線を分割
+   * @returns 分割結果
+   */
+  divide(): any {
+    const curve = this.getCurve();
+    const time = this.getTime() || 0;
+    const index = curve?.divideAtTime(time);
+    
+    if (index !== undefined && index !== -1 && curve?._path) {
+      // divideAtTimeはインデックスを返すので、そのインデックスのセグメントを取得
+      const segments = curve._path._segments;
+      if (segments && index < segments.length) {
+        this._setSegment(segments[index]);
+      }
+    }
+    
+    return index !== -1 ? curve : null;
+  }
+
+  /**
+   * パスを分割
+   * @returns 分割結果
+   */
+  split(): any {
+    const curve = this.getCurve();
+    const path = curve?._path;
+    const res = curve && curve.splitAtTime(this.getTime() || 0);
+    if (res && path) {
+      this._setSegment(path.getLastSegment());
+    }
+    return res;
+  }
+
+  /**
+   * 2つのCurveLocationが等しいかを確認
+   * @param loc 比較対象のCurveLocation
+   * @param _ignoreOther 相互参照を無視するかどうか
+   * @returns 等しければtrue
+   */
+  equals(loc: CurveLocation, _ignoreOther: boolean = false): boolean {
+    let res = this === loc;
+    if (!res && loc instanceof CurveLocation) {
+      const c1 = this.getCurve();
+      const c2 = loc.getCurve();
+      const p1 = c1?._path;
+      const p2 = c2?._path;
+      if (p1 === p2) {
+        // 曲線時間ではなく、実際のオフセットを比較して
+        // 同じ位置にあるかどうかを判断
+        const abs = Math.abs;
+        const epsilon = Numerical.GEOMETRIC_EPSILON;
+        const diff = abs(this.getOffset() - loc.getOffset());
+        const i1 = !_ignoreOther && this._intersection;
+        const i2 = !_ignoreOther && loc._intersection;
+        res = (diff < epsilon || (p1 && abs(p1.getLength() - diff) < epsilon))
+          && (!i1 && !i2 || i1 && i2 && i1.equals(i2, true));
+      }
+    }
+    return res;
+  }
+
+  /**
+   * 接線を取得
+   * @returns 接線
+   */
+  getTangent(): Point | null {
+    const curve = this.getCurve();
+    const time = this.getTime();
+    if (time != null && curve) {
+      return curve.getTangentAtTime(time);
+    }
+    return null;
+  }
+
+  /**
+   * 法線を取得
+   * @returns 法線
+   */
+  getNormal(): Point | null {
+    const curve = this.getCurve();
+    const time = this.getTime();
+    if (time != null && curve) {
+      return curve.getNormalAtTime(time);
+    }
+    return null;
+  }
+
+  /**
+   * 曲率を取得
+   * @returns 曲率
+   */
+  getCurvature(): number | null {
+    const curve = this.getCurve();
+    const time = this.getTime();
+    if (time != null && curve) {
+      return curve.getCurvatureAtTime(time);
+    }
+    return null;
+  }
 }

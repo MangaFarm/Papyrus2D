@@ -293,9 +293,7 @@ export class Curve {
    * 曲線上の指定されたオフセット位置の位置情報を取得
    */
   getLocationAt(offset: number, _isTime?: boolean): CurveLocation | null {
-    console.log('Curve.getLocationAt: offset =', offset, '_isTime =', _isTime);
     const time = _isTime ? offset : this.getTimeAt(offset);
-    console.log('Curve.getLocationAt: time =', time);
     return this.getLocationAtTime(time);
   }
 
@@ -303,12 +301,9 @@ export class Curve {
    * 曲線上の指定されたtパラメータ位置の位置情報を取得
    */
   getLocationAtTime(t: number): CurveLocation | null {
-    console.log('Curve.getLocationAtTime: t =', t);
     if (t != null && t >= 0 && t <= 1) {
-      console.log('Curve.getLocationAtTime: creating location');
       return new CurveLocation(this, t);
     } else {
-      console.log('Curve.getLocationAtTime: t out of range');
       return null;
     }
   }
