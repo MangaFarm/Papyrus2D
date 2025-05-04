@@ -395,4 +395,86 @@ export class CurveLocation {
     }
     return null;
   }
+
+  /**
+   * 交点情報を挿入する静的メソッド
+   * paper.jsのCurveLocation.insertメソッドを完全に実装
+   * @param locations 交点情報の配列
+   * @param loc 挿入する交点情報
+   * @param merge マージするかどうか
+   * @returns 挿入された交点情報
+   */
+  static insert(locations: CurveLocation[], loc: CurveLocation, merge: boolean): CurveLocation {
+    // パスID、曲線、時間でソートするためのバイナリサーチを行う
+    let length = locations.length;
+    let l = 0;
+    let r = length - 1;
+
+    function search(index: number, dir: number): CurveLocation | null {
+      // リストの始端/終端に達した場合、もう一方の端の位置も比較する
+      for (let i = index + dir; i >= -1 && i <= length; i += dir) {
+        // インデックスを循環させる
+        const loc2 = locations[((i % length) + length) % length];
+        // 点が十分近い場合のみ比較
+        if (!loc.getPoint().isClose(loc2.getPoint(), Numerical.GEOMETRIC_EPSILON))
+          break;
+        if (loc.equals(loc2))
+          return loc2;
+      }
+      return null;
+    }
+
+    while (l <= r) {
+      const m = (l + r) >>> 1;
+      const loc2 = locations[m];
+      let found: CurveLocation | null = null;
+      
+      // 2つの位置が実際に同じかどうかを確認し、同じ場合はマージ
+      if (merge && (found = loc.equals(loc2) ? loc2 : (search(m, -1) || search(m, 1)))) {
+        // 重複フラグを伝播
+        if (loc._overlap) {
+          found._overlap = found._intersection!._overlap = true;
+        }
+        return found;
+      }
+
+      // パスID、曲線、時間でソート
+      const path1 = loc.getPath();
+      const path2 = loc2.getPath();
+      
+      // パスIDが異なる場合はパスIDでソート
+      // 同じパスの場合はインデックスと時間でソート
+      const diff = path1 !== path2
+        ? (path1 as any)._id - (path2 as any)._id
+        : (loc.getIndex() + (loc.getTime() || 0)) - (loc2.getIndex() + (loc2.getTime() || 0));
+      
+      if (diff < 0) {
+        r = m - 1;
+      } else {
+        l = m + 1;
+      }
+    }
+    
+    // 既存の位置とマージしなかった場合、新しい位置を挿入
+    locations.splice(l, 0, loc);
+    return loc;
+  }
+
+  /**
+   * 交点情報を展開する静的メソッド
+   * paper.jsのCurveLocation.expandメソッドを完全に実装
+   * @param locations 交点情報の配列
+   * @returns 展開された交点情報の配列
+   */
+  static expand(locations: CurveLocation[]): CurveLocation[] {
+    // コピーを作成（insertが配列を変更するため）
+    const expanded = locations.slice();
+    
+    // 各交点の_intersectionも配列に追加
+    for (let i = locations.length - 1; i >= 0; i--) {
+      CurveLocation.insert(expanded, locations[i]._intersection!, false);
+    }
+    
+    return expanded;
+  }
 }

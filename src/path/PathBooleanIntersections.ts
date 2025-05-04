@@ -66,13 +66,14 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
 export function getIntersections(path1: Path, path2: Path): Intersection[] {
-  // CurveLocation.expand()相当の処理
+  // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
   const rawIntersections = path1.getIntersections(path2, filterIntersection);
+  const expandedIntersections = CurveLocation.expand(rawIntersections);
   
   // Intersection型に変換
   const intersections: Intersection[] = [];
   
-  for (const loc of rawIntersections) {
+  for (const loc of expandedIntersections) {
     // 交点情報を抽出
     const point = loc.getPoint();
     const curve = loc.getCurve();
@@ -170,9 +171,8 @@ export function divideLocations(
         segment = curve._segment2;
       } else {
         // カーブを時間で分割
-        // TypeScript制約: paper.jsでは2つ目の引数でハンドルを設定するが、
-        // Papyrus2DのdivideAtTimeは1つの引数しか受け付けない
-        const newCurve = curve.divideAtTime(time);
+        // paper.jsと同様に、_setHandlesパラメータを渡す
+        const newCurve = curve.divideAtTime(time, clearHandles);
         
         // TypeScript制約: paper.jsではclearHandlesがtrueの場合、
         // 元のカーブと新しいカーブをclearCurvesに追加するが、

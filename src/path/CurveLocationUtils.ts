@@ -216,6 +216,7 @@ export class CurveLocationUtils {
 
   /**
    * 交点が交差しているかを確認する静的メソッド
+   * paper.jsのCurveLocation.isCrossingメソッドを完全に実装
    * @param loc CurveLocation
    * @returns 交差していればtrue
    */
@@ -227,20 +228,126 @@ export class CurveLocationUtils {
     // 時間パラメータを取得
     const t1 = loc.getTime();
     const t2 = inter.getTime();
+    if (t1 === null || t2 === null) return false;
+    
     const tMin = Numerical.CURVETIME_EPSILON;
     const tMax = 1 - tMin;
 
     // 時間パラメータが曲線の内部にあるかを確認
-    const t1Inside = t1 !== null && t1 >= tMin && t1 <= tMax;
-    const t2Inside = t2 !== null && t2 >= tMin && t2 <= tMax;
+    const t1Inside = t1 >= tMin && t1 <= tMax;
+    const t2Inside = t2 >= tMin && t2 <= tMax;
 
     // 両方の交点が曲線の内部にある場合、接触でなければ交差
     if (t1Inside && t2Inside) {
       return !loc.isTouching();
     }
 
-    // TODO: 完全なpaper.jsの実装には、曲線の端点での交差判定が含まれる
-    // 現在の実装では簡略化して、内部交点のみを考慮
-    return false;
+    // 以下はpaper.jsの完全な実装
+    // 交差に関わる4つの曲線の参照を取得
+    const c2 = loc.getCurve();
+    if (!c2) return false;
+    
+    const c1 = t1 < tMin ? c2.getPrevious() : c2;
+    if (!c1) return false;
+    
+    const c4 = inter.getCurve();
+    if (!c4) return false;
+    
+    const c3 = t2 < tMin ? c4.getPrevious() : c4;
+    if (!c3) return false;
+
+    // t1/t2が終点にある場合、次の曲線に進む
+    const c2Next = t1 > tMax ? c2.getNext() : null;
+    const c4Next = t2 > tMax ? c4.getNext() : null;
+    
+    const curves = [c1, c2, c3, c4];
+    if (c2Next) curves[1] = c2Next;
+    if (c4Next) curves[3] = c4Next;
+    
+    // 4つの曲線すべてが存在することを確認
+    if (curves.some(c => !c)) return false;
+
+    // 交点での曖昧でない角度を計算するためのオフセットを追加
+    const offsets: number[] = [];
+
+    // 曲線上の曖昧でない方向のオフセットを見つける関数
+    function addOffsets(curve: Curve, end: boolean): void {
+      const v = curve.getValues();
+      const roots = CurveGeometry.classify(v).roots || [];
+      const count = roots.length;
+      
+      // 曲線の長さを計算
+      let offset: number;
+      if (end && count > 0) {
+        offset = Curve.getLength(v, roots[count - 1], 1);
+      } else if (!end && count > 0) {
+        offset = Curve.getLength(v, 0, roots[0]);
+      } else {
+        offset = Curve.getLength(v, 0, 1);
+      }
+      
+      // ルートが見つからない場合、長さの一部を使用
+      offsets.push(count ? offset : offset / 32);
+    }
+
+    // 角度が範囲内にあるかを確認する関数
+    function isInRange(angle: number, min: number, max: number): boolean {
+      return min < max
+        ? angle > min && angle < max
+        // min > max: 範囲が-180/180度を超える
+        : angle > min || angle < max;
+    }
+
+    // t1が曲線の内部にない場合、オフセットを追加
+    if (!t1Inside) {
+      addOffsets(curves[0]!, true);
+      addOffsets(curves[1]!, false);
+    }
+    
+    // t2が曲線の内部にない場合、オフセットを追加
+    if (!t2Inside) {
+      addOffsets(curves[2]!, true);
+      addOffsets(curves[3]!, false);
+    }
+
+    // 交点の座標を取得
+    const pt = loc.getPoint();
+    
+    // すべての関連する曲線で最短のオフセットを決定
+    const offset = Math.min(...offsets);
+    
+    // 各曲線の接線ベクトルを計算
+    let v2, v1, v4, v3: Point;
+    
+    if (t1Inside) {
+      v2 = c2.getTangentAtTime(t1)!;
+      v1 = v2.negate();
+    } else {
+      v1 = curves[0]!.getPointAt(-offset).subtract(pt);
+      v2 = curves[1]!.getPointAt(offset).subtract(pt);
+    }
+    
+    if (t2Inside) {
+      v4 = c4.getTangentAtTime(t2)!;
+      v3 = v4.negate();
+    } else {
+      v3 = curves[2]!.getPointAt(-offset).subtract(pt);
+      v4 = curves[3]!.getPointAt(offset).subtract(pt);
+    }
+
+    // 各ベクトルの角度を計算
+    const a1 = v1.getAngle();
+    const a2 = v2.getAngle();
+    const a3 = v3.getAngle();
+    const a4 = v4.getAngle();
+
+    // 曲線2の角度が曲線1の角度の間に何回現れるかをカウント
+    // 各角度ペアが他の2つを分割する場合、エッジは交差する
+    // t1Insideを使用して、どの角度ペアをチェックするかを決定
+    return !!(t1Inside
+      ? (isInRange(a1, a3, a4) !== isInRange(a2, a3, a4)) &&
+        (isInRange(a1, a4, a3) !== isInRange(a2, a4, a3))
+      : (isInRange(a3, a1, a2) !== isInRange(a4, a1, a2)) &&
+        (isInRange(a3, a2, a1) !== isInRange(a4, a2, a1)));
   }
 }

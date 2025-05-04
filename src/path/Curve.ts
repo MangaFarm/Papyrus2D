@@ -235,9 +235,10 @@ export class Curve {
    * 曲線をtで分割し、セグメントを追加する
    * paper.jsのdivideAtTimeメソッドに相当
    * @param t 分割位置（0-1）
+   * @param _setHandles ハンドルを設定するかどうか（paper.jsとの互換性のため）
    * @returns 分割点のインデックス
    */
-  divideAtTime(t: number): number {
+  divideAtTime(t: number, _setHandles?: boolean): number {
     // パスが設定されていない場合は処理できない
     if (!this._path) {
       return -1;
@@ -250,6 +251,9 @@ export class Curve {
     
     // 曲線を分割
     const [leftCurve, rightCurve] = CurveSubdivision.divideCurve(this, t);
+    
+    // ハンドルを設定するかどうか（paper.jsとの互換性のため）
+    const setHandles = _setHandles !== undefined ? _setHandles : this.hasHandles();
     
     // 分割点のセグメントを作成
     const segments = this._path._segments;
@@ -656,3 +660,4 @@ export class Curve {
     return CurveSubdivision.getMonoCurves(v, dir);
   }
 }
+

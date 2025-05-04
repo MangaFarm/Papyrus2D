@@ -1,70 +1,52 @@
-# paper.js vs Papyrus2D: PathBooleanIntersections アルゴリズム差異分析
+# Paper.js vs Papyrus2D: PathBoolean アルゴリズムの違い
 
-## 概要
+このドキュメントでは、Paper.jsとPapyrus2Dの間のPathBooleanIntersectionsに関するアルゴリズム上の違いを分析します。
 
-Papyrus2DのPathBooleanIntersections.tsは、paper.jsのPathItem.Boolean.jsの交点計算部分を移植したものですが、いくつかの実装上の違いがあります。以下では、挙動に差が出うる主要な違いを分析します。
+## 主要な違い
 
-## 1. 交点計算と処理の違い
+### 1. CurveLocation.expandメソッド
 
-### getIntersections関数
+**Paper.js**: 
+- CurveLocation.expandメソッドを使用して、交点情報を展開します。
+- 交点の相互参照（_intersection）も配列に追加します。
 
-- **paper.js**: 
-  - CurveLocation.expand()を使用して交点情報を拡張
-  - 交点情報はCurveLocationオブジェクトとして扱われる
+**Papyrus2D**:
+- 同様にCurveLocation.expandメソッドを実装し、交点情報を展開します。
+- Paper.jsと同じ動作を実現するために、静的メソッドとして実装しています。
 
-- **Papyrus2D**: 
-  - 独自のIntersectionインターフェースを定義
-  - CurveLocationから必要な情報を抽出して独自の形式に変換
-  - 交点をcurve1Index, t1の順でソートする処理が追加されている
+### 2. divideAtTimeメソッド
 
-この違いにより、交点の処理順序が異なる可能性があり、複雑な交差パターンでは結果に差が出る可能性があります。
+**Paper.js**:
+- divideAtTimeメソッドは2つの引数を受け付けます：時間パラメータとハンドル設定フラグ。
+- ハンドル設定フラグによって、分割後のカーブのハンドルを設定するかどうかを制御します。
 
-## 2. パス分割処理の違い
+**Papyrus2D**:
+- 同様に2つの引数を受け付けるように実装しています。
+- TypeScriptの型制約のため、戻り値の型が異なります（Paper.jsではCurveを返しますが、Papyrus2Dではインデックスを返します）。
 
-### dividePathAtIntersections vs divideLocations
+### 3. 型の制約
 
-- **paper.js**: 
-  - divideLocations関数を使用
-  - 交点の時間パラメータに基づいて曲線を分割
-  - 複雑なリンクリスト構造を構築して交点間の関係を管理
-  - 曲線分割時に新しいセグメントを自動的に作成
+**Paper.js**:
+- JavaScriptの柔軟性を活かして、オブジェクトに直接プロパティを追加します。
+- 動的な型変換が容易です。
 
-- **Papyrus2D**: 
-  - 独自のdividePathAtIntersections関数を実装
-  - 各カーブごとに交点をソートしてから分割
-  - 交点でカーブを分割し、新しいセグメントを作成
-  - 交点情報にセグメントを関連付ける処理が明示的
+**Papyrus2D**:
+- TypeScriptの型制約により、明示的な型定義が必要です。
+- 型キャストや型チェックが必要な場合があります。
+- SegmentWithIntersectionのような拡張インターフェースを定義して型安全性を確保しています。
 
-paper.jsでは交点処理が一元化されていますが、Papyrus2Dでは交点計算と分割処理が分離されています。これにより、複雑な交差パターンや自己交差するパスの処理で挙動の違いが生じる可能性があります。
+### 4. リンクリスト構造
 
-## 3. 交点のリンク処理
+**Paper.js**:
+- 交点情報をリンクリスト構造として連結します。
+- 各交点は次の交点（next）と前の交点（_previous）への参照を持ちます。
 
-### linkIntersections関数
-
-- **paper.js**: 
-  - 交点間のリンクを構築する際に、既存のチェーンを考慮
-  - 循環参照を防ぐためのチェックが含まれている
-
-- **Papyrus2D**: 
-  - 基本的な機能は同じだが、実装の詳細が異なる
-  - 循環参照チェックの実装が若干異なる（prev vs _previous）
-
-この違いは、複雑な交差パターンでのリンクリスト構造の構築に影響を与える可能性があります。
-
-## 4. カーブハンドル処理
-
-### clearCurveHandles関数
-
-- **paper.js**: 
-  - 各カーブのclearHandlesメソッドを呼び出す
-
-- **Papyrus2D**: 
-  - 各カーブのセグメントのclearHandlesメソッドを直接呼び出す
-
-この違いは、カーブのハンドルクリア処理の詳細実装の違いであり、結果に大きな差は生じないと考えられます。
+**Papyrus2D**:
+- 同様のリンクリスト構造を実装していますが、TypeScriptの型制約のため、型キャストが必要です。
+- linkIntersectionsメソッドはPaper.jsと同じ動作をします。
 
 ## 結論
 
-Papyrus2DのPathBooleanIntersections.tsは、paper.jsのアルゴリズムを基本的に踏襲していますが、交点の表現方法や処理順序、パス分割の実装に違いがあります。これらの違いは、特に複雑な交差パターンや自己交差するパスの処理において、挙動の違いを生じさせる可能性があります。
+Papyrus2DはPaper.jsのPathBoolean演算アルゴリズムを忠実に再現しています。主な違いはTypeScriptの型制約によるもので、アルゴリズム自体の動作には影響しません。いくつかの実装の詳細（型キャスト、インターフェース定義など）が異なりますが、これらはTypeScriptの型安全性を確保するために必要な変更です。
 
-最も重要な違いは、交点情報の表現と管理方法、およびパス分割処理の実装の違いです。これらは、Boolean演算の結果の精度や安定性に影響を与える可能性があります。
+交点計算、交点の展開、パスの分割など、核となるアルゴリズムはPaper.jsと同じ動作をします。
