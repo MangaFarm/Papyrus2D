@@ -202,14 +202,14 @@ export class Curve {
   /**
    * 曲線をtで分割し、2つのCurveに分ける
    */
-  divide(t: number = 0.5, isTime: boolean = false): [Curve, Curve] {
+  divide(t: number = 0.5, isTime: boolean): [Curve, Curve] {
     return CurveSubdivision.divideCurve(this, isTime ? t : this.getTimeAt(t));
   }
 
   /**
    * tで分割し、前半部分のCurveを返す
    */
-  split(t: number = 0.5, isTime: boolean = false): Curve {
+  split(t: number = 0.5, isTime: boolean): Curve {
     return this.divide(t, isTime)[0];
   }
 

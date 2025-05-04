@@ -442,7 +442,7 @@ describe('Curve', () => {
         new Segment(point2, null, null)
       );
       
-      const [left, right] = curve.divide(0.5);
+      const [left, right] = curve.divide(0.5, true);
       expect(left.getPoint2().x).toBeCloseTo(middle.x, 4);
       expect(left.getPoint2().y).toBeCloseTo(middle.y, 4);
     });
