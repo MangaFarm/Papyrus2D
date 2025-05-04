@@ -268,12 +268,19 @@ export function getIntersections(
   }
   
   // paper.jsと同様に境界ボックスチェックを行う
-  // 注意: paper.jsでは境界ボックスの交差チェックを行っているが、
-  // Papyrus2Dでは簡略化のためカーブの存在チェックのみを行っている
-  // 本来は以下のようなチェックが必要:
-  // return self || this.getBounds(matrix1).intersects(path.getBounds(matrix2), Numerical.EPSILON)
-  //        ? Curve.getIntersections(...) : [];
-  if (self || curves2 && curves1.length > 0 && curves2.length > 0) {
+  if (self || (curves2 && curves1.length > 0 && curves2.length > 0)) {
+    // 境界ボックスの交差チェックを追加
+    if (!self) {
+      // 境界ボックスを計算
+      const bounds1 = getBoundsFromCurves(curves1, matrix1Null);
+      const bounds2 = getBoundsFromCurves(curves2, matrix2Null);
+      
+      // 境界ボックスが交差しない場合は早期リターン
+      if (!bounds1.intersects(bounds2, Numerical.EPSILON)) {
+        return [];
+      }
+    }
+    
     return Curve.getIntersections(
       curves1,
       curves2 || null,
@@ -284,6 +291,32 @@ export function getIntersections(
   } else {
     return [];
   }
+}
+
+/**
+ * カーブ配列から境界ボックスを計算
+ * @param curves カーブ配列
+ * @param matrix 変換行列
+ * @returns 境界ボックス
+ */
+function getBoundsFromCurves(curves: Curve[], matrix: Matrix | null): Rectangle {
+  if (curves.length === 0) {
+    return new Rectangle(new Point(0, 0), new Point(0, 0));
+  }
+  
+  // 各カーブの境界ボックスを計算して統合
+  let bounds: Rectangle | null = null;
+  
+  for (const curve of curves) {
+    const curveBounds = curve.getBounds(matrix);
+    if (bounds) {
+      bounds = bounds.unite(curveBounds);
+    } else {
+      bounds = curveBounds;
+    }
+  }
+  
+  return bounds!;
 }
 
 /**
@@ -308,24 +341,16 @@ export function contains(
   const rule = options?.rule || 'evenodd';
 
   // 境界チェック（高速化のため）
-  // paper.jsでは point.isInside(this.getBounds({ internal: true, handle: true })) を使用
+  // paper.jsと同じ方法で境界チェックを行う
   const bounds = computeBounds(segments, closed, 0);
-  if (
-    point.x < bounds.topLeft.x ||
-    point.x > bounds.bottomRight.x ||
-    point.y < bounds.topLeft.y ||
-    point.y > bounds.bottomRight.y
-  ) {
+  if (!point.isInside(bounds)) {
     return false;
   }
-
+  
   // winding numberを計算
   const wind = getWinding(point, curves);
   
   // paper.jsと同じ判定ロジック
-  // return winding.onPath || !!(this.getFillRule() === 'evenodd'
-  //         ? winding.windingL & 1 || winding.windingR & 1
-  //         : winding.winding);
   return wind.onPath || !!(rule === 'evenodd'
     ? wind.windingL & 1 || wind.windingR & 1
     : wind.winding);

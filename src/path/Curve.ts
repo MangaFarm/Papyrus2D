@@ -7,6 +7,7 @@
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Matrix } from '../basic/Matrix';
+import { Rectangle } from '../basic/Rectangle';
 import { getIntersections } from './CurveIntersectionMain';
 import { CurveCalculation } from './CurveCalculation';
 import { CurveGeometry } from './CurveGeometry';
@@ -97,7 +98,7 @@ export class Curve {
   /**
    * ベジェ制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2] を返す
    */
-  getValues(matrix?: Matrix): number[] {
+  getValues(matrix?: Matrix | null): number[] {
     return Curve.getValues(this._segment1, this._segment2, matrix);
   }
 
@@ -352,6 +353,27 @@ export class Curve {
   }
 
   /**
+   * 曲線の境界ボックスを取得
+   * paper.jsのCurve.getBoundsメソッドの実装
+   */
+  getBounds(matrix?: Matrix | null): Rectangle {
+    if (!this._bounds) {
+      this._bounds = {};
+    }
+    
+    let bounds = this._bounds.getBounds;
+    if (!bounds) {
+      // 曲線の値を取得
+      const values = this.getValues(matrix);
+      // 境界ボックスを計算
+      bounds = Curve.getBounds(values);
+      this._bounds.getBounds = bounds;
+    }
+    
+    return bounds.clone();
+  }
+
+  /**
    * 直線判定
    */
   static isStraight(v: number[], epsilon?: number): boolean {
@@ -471,5 +493,72 @@ export class Curve {
    */
   static getTangent(v: number[], t: number): Point {
     return CurveCalculation.getTangent(v, t)!;
+  }
+
+  /**
+   * 曲線の境界ボックスを計算
+   * paper.jsのCurve.getBoundsメソッドの実装
+   */
+  static getBounds(v: number[]): Rectangle {
+    const min = v.slice(0, 2); // 始点の値をコピー
+    const max = min.slice(); // クローン
+    const roots = [0, 0];
+
+    // x座標とy座標それぞれについて境界を計算
+    for (let i = 0; i < 2; i++) {
+      Curve._addBounds(v[i], v[i + 2], v[i + 4], v[i + 6], i, 0, min, max, roots);
+    }
+
+    return new Rectangle(min[0], min[1], max[0] - min[0], max[1] - min[1]);
+  }
+
+  /**
+   * 境界ボックス計算のヘルパー関数
+   * paper.jsのCurve._addBoundsメソッドの実装
+   */
+  static _addBounds(v0: number, v1: number, v2: number, v3: number, coord: number, padding: number, min: number[], max: number[], roots: number[]): void {
+    function add(value: number, padding: number): void {
+      const left = value - padding;
+      const right = value + padding;
+      if (left < min[coord]) {
+        min[coord] = left;
+      }
+      if (right > max[coord]) {
+        max[coord] = right;
+      }
+    }
+
+    padding /= 2; // strokePaddingは幅であり、半径ではない
+    const minPad = min[coord] + padding;
+    const maxPad = max[coord] - padding;
+
+    // 境界チェックを最初に行う: 少なくとも1つの値がmin-max範囲外の場合のみ、曲線は現在の境界を拡張できる
+    if (v0 < minPad || v1 < minPad || v2 < minPad || v3 < minPad ||
+        v0 > maxPad || v1 > maxPad || v2 > maxPad || v3 > maxPad) {
+      if (v1 < v0 != v1 < v3 && v2 < v0 != v2 < v3) {
+        // 曲線の値がソートされている場合、極値は単に始点と終点
+        add(v0, 0);
+        add(v3, 0);
+      } else {
+        // ベジェ多項式の導関数を計算（3で割る）
+        const a = 3 * (v1 - v2) - v0 + v3;
+        const b = 2 * (v0 + v2) - 4 * v1;
+        const c = v1 - v0;
+        const count = Numerical.solveQuadratic(a, b, c, roots);
+        const tMin = Numerical.CURVETIME_EPSILON;
+        const tMax = 1 - tMin;
+
+        add(v3, 0);
+        for (let i = 0; i < count; i++) {
+          const t = roots[i];
+          const u = 1 - t;
+          // 良い根かどうかをテストし、良い場合のみ境界に追加
+          if (tMin <= t && t <= tMax) {
+            // t位置でのベジェ多項式を計算
+            add(u * u * u * v0 + 3 * u * u * t * v1 + 3 * u * t * t * v2 + t * t * t * v3, padding);
+          }
+        }
+      }
+    }
   }
 }
