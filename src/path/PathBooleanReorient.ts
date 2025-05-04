@@ -7,6 +7,8 @@ import { Path } from './Path';
 import { Point } from '../basic/Point';
 import { Numerical } from '../util/Numerical';
 import { CollisionDetection } from '../util/CollisionDetection';
+import { CurveSubdivision } from './CurveSubdivision';
+import { CurveCalculation } from './CurveCalculation';
 
 /**
  * パスの方向を再設定し、内部/外部の関係を考慮してパスを整理する
@@ -25,11 +27,10 @@ export function reorientPaths(
 ): Path[] {
   const length = paths && paths.length;
   if (!length) {
-    return [];
+    return paths;
   }
 
   // パスの情報を格納するルックアップテーブルを作成
-  // paper.jsのBase.eachに相当する処理
   const lookup: Record<string, {
     container: Path | null;
     winding: number;
@@ -106,18 +107,86 @@ export function reorientPaths(
       // 含むパスが除外されていない場合、方向を設定
       const container = entry1.container;
       
-      if (container) {
-        // 含むパスがある場合、その逆方向に設定
-        path1.setClockwise(!container.isClockwise());
-      } else {
-        // 含むパスがない場合、指定された方向に設定
-        path1.setClockwise(!!clockwise);
-      }
+      path1.setClockwise(
+        container ? !container.isClockwise() : !!clockwise
+      );
     }
   }
 
   // nullでないパスのみを返す
   return paths.filter(path => path !== null);
 }
-
-// 不要な関数なので削除
+/**
+ * パスの内部点を取得する
+ * paper.jsのgetInteriorPoint関数を移植
+ *
+ * @returns パスの内部にある点
+ */
+export function getInteriorPoint(path: Path): Point {
+  const bounds = path.getBounds();
+  let point = bounds.center;
+  
+  if (!path.contains(point)) {
+    // バウンディングボックスの中心が必ずしもパスの内部にあるとは限らないため、
+    // x方向に光線を発射し、左側の連続する交点間の点を選択する
+    const curves = path.getCurves();
+    const y = point.y;
+    const intercepts: number[] = [];
+    const roots: number[] = [];
+    
+    // y座標と交差するすべてのy単調曲線を処理
+    for (let i = 0, l = curves.length; i < l; i++) {
+      const v = curves[i].getValues();
+      const o0 = v[1];
+      const o1 = v[3];
+      const o2 = v[5];
+      const o3 = v[7];
+      
+      if (y >= Math.min(o0, o1, o2, o3) && y <= Math.max(o0, o1, o2, o3)) {
+        const monoCurves = CurveSubdivision.getMonoCurves(v);
+        
+        for (let j = 0, m = monoCurves.length; j < m; j++) {
+          const mv = monoCurves[j];
+          const mo0 = mv[1];
+          const mo3 = mv[7];
+          
+          // y方向に変化があり、点のy座標と交差する曲線のみを処理
+          if (mo0 !== mo3 &&
+              (y >= mo0 && y <= mo3 || y >= mo3 && y <= mo0)) {
+            let x;
+            
+            if (y === mo0) {
+              x = mv[0];
+            } else if (y === mo3) {
+              x = mv[6];
+            } else {
+              // 曲線上のy座標に対応するx座標を求める
+              const count = Numerical.solveCubic(
+                3 * (-mv[1] + 3 * mv[3] - 3 * mv[5] + mv[7]),
+                6 * (mv[1] - 2 * mv[3] + mv[5]),
+                3 * (-mv[1] + mv[3]),
+                mv[1] - y,
+                roots, { min: 0, max: 1 }
+              );
+              x = count === 1
+                ? CurveCalculation.getPoint(mv, roots[0])!.x
+                : (mv[0] + mv[6]) / 2;
+            }
+            
+            intercepts.push(x);
+          }
+        }
+      }
+    }
+    
+    if (intercepts.length > 1) {
+      // x座標でソートし、最初の2つの交点の中間を選択
+      intercepts.sort((a, b) => a - b);
+      // Pointはイミュータブルなので、新しいPointオブジェクトを作成
+      const newX = (intercepts[0] + intercepts[1]) / 2;
+      point = new Point(newX, point.y);
+    }
+  }
+  
+  return point;
+}
