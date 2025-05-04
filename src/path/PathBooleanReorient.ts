@@ -121,11 +121,11 @@ export function reorientPaths(
     // unite操作の場合は、winding=2のパスも保持する特別な処理を行う
     console.log(`DEBUG: operator:`, operator);
     
-    // paper.jsと同様の実装
+    // paper.jsのisValid関数の実装に合わせる
     // unite操作の場合は特別な処理を行う
-    if (operator && operator.unite && entry1.winding === 2) {
-      // uniteの場合、winding=2のパスは保持する
-      console.log(`DEBUG: unite operation, keeping path with winding=${entry1.winding}`);
+    if (operator && operator.unite && entry1.winding === 2 && containerWinding === 0) {
+      // uniteの場合、winding=2のパスは、containerWindingが0の場合のみ保持する
+      console.log(`DEBUG: unite operation, keeping path with winding=${entry1.winding}, containerWinding=${containerWinding}`);
     } else if (isInside(entry1.winding) === isInside(containerWinding)) {
       // unite以外の操作では、「内部性」が変わる場合のみパスを保持
       entry1.exclude = true;
@@ -133,26 +133,14 @@ export function reorientPaths(
     } else {
       // 含むパスが除外されていない場合、方向を設定
       const container = entry1.container;
-      // パスの型をチェックして適切なメソッドを呼び出す
-      // path1がPathItemインターフェースを実装していれば、setClockwiseメソッドを持っているはず
+      
+      // paper.jsの実装に合わせて方向を設定
       if (container) {
-        if (typeof path1.setClockwise === 'function') {
-          path1.setClockwise(!container.isClockwise());
-        } else {
-          // setClockwiseがない場合は、reverseメソッドを使用して方向を変更
-          if (path1.isClockwise() !== !container.isClockwise()) {
-            path1.reverse();
-          }
-        }
+        // 含むパスがある場合、その逆方向に設定
+        path1.setClockwise(!container.isClockwise());
       } else {
-        if (typeof path1.setClockwise === 'function') {
-          path1.setClockwise(!!clockwise);
-        } else {
-          // setClockwiseがない場合は、reverseメソッドを使用して方向を変更
-          if (path1.isClockwise() !== !!clockwise) {
-            path1.reverse();
-          }
-        }
+        // 含むパスがない場合、指定された方向に設定
+        path1.setClockwise(!!clockwise);
       }
     }
   }
