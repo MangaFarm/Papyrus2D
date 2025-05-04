@@ -10,6 +10,9 @@ import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CompoundPath } from './CompoundPath';
 import { PathItem } from './PathItem';
+import { CurveLocation } from './CurveLocation';
+import { reorientPaths } from './PathBooleanReorient';
+import { CollisionDetection } from '../util/CollisionDetection';
 
 /**
  * 交点情報
@@ -45,10 +48,17 @@ export interface Intersection {
 export class PathBoolean {
   /**
    * 2つのパスの交点を計算
+   * paper.jsのfilterIntersection関数を参考に実装
    */
   private static getIntersections(path1: Path, path2: Path): Intersection[] {
-    // 交点計算
-    const rawIntersections = path1.getIntersections(path2);
+    // 交差点と重なりを区別するフィルター関数
+    function filterIntersection(inter: CurveLocation): boolean {
+      // 重なりまたは交差のみを返す
+      return inter.hasOverlap() || inter.isCrossing();
+    }
+    
+    // 交点計算（フィルター関数を使用）
+    const rawIntersections = path1.getIntersections(path2, filterIntersection);
     
     // Intersection型に変換
     const intersections: Intersection[] = [];
@@ -229,56 +239,38 @@ export class PathBoolean {
     operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
   ): Path[] {
     if (intersections.length === 0) {
-      // 交点がない場合の処理
-      switch (operation) {
-        case 'unite':
-          // path2がpath1の内部にある場合はpath1を返す
-          const firstSegment2 = path2.getFirstSegment();
-          if (firstSegment2 && path1.contains(firstSegment2.point)) {
-            return [path1];
-          }
-          // path1がpath2の内部にある場合はpath2を返す
-          const firstSegment1 = path1.getFirstSegment();
-          if (firstSegment1 && path2.contains(firstSegment1.point)) {
-            return [path2];
-          }
-          // 交差していない場合は両方を返す
-          return [path1, path2];
-        case 'intersect':
-          // path2がpath1の内部にある場合はpath2を返す
-          const firstSeg2 = path2.getFirstSegment();
-          if (firstSeg2 && path1.contains(firstSeg2.point)) {
-            return [path2];
-          }
-          // path1がpath2の内部にある場合はpath1を返す
-          const firstSeg1 = path1.getFirstSegment();
-          if (firstSeg1 && path2.contains(firstSeg1.point)) {
-            return [path1];
-          }
-          // 交差していない場合は空を返す
-          return [];
-        case 'subtract':
-          // path2がpath1の内部にある場合は穴を開ける（未実装）
-          const firstSegment2Sub = path2.getFirstSegment();
-          if (firstSegment2Sub && path1.contains(firstSegment2Sub.point)) {
-            return [path1]; // 簡易実装
-          }
-          // path1がpath2の内部にある場合は空を返す
-          const firstSegment1Sub = path1.getFirstSegment();
-          if (firstSegment1Sub && path2.contains(firstSegment1Sub.point)) {
-            return [];
-          }
-          // 交差していない場合はpath1を返す
-          return [path1];
-        case 'exclude':
-          // 交差していない場合は両方を返す
-          return [path1, path2];
-        case 'divide':
-          // 交差していない場合は両方を返す
-          return [path1, path2];
-        default:
-          return [path1];
+      // 交点がない場合は、paper.jsと同様にreorientPathsを使用して結果を決定
+      // reorientPathsは、パスの方向を再設定し、内部/外部の関係を考慮してパスを整理する
+      console.log('DEBUG: No intersections, using reorientPaths for operation:', operation);
+      
+      // 演算子に応じたフィルタ関数を定義
+      const operators: Record<string, Record<string, boolean>> = {
+        'unite':     { '1': true, '2': true },
+        'intersect': { '2': true },
+        'subtract':  { '1': true },
+        'exclude':   { '1': true, '-1': true }
+      };
+      
+      // 現在の演算に対応するフィルタ関数
+      const operator = operators[operation];
+      
+      // path2がnullの場合は、path1のみを返す
+      if (!path2) {
+        return [path1];
       }
+      
+      // reorientPathsを使用してパスを整理
+      const paths = reorientPaths(
+        // 元のパスの配列をコピーして渡す
+        [path1, path2],
+        // windingに基づいてパスを保持するかどうかを判定する関数
+        function(winding: number) {
+          return !!operator[winding.toString()];
+        }
+      );
+      
+      // 結果を返す
+      return paths;
     }
 
     // 交点がある場合のマーチングアルゴリズム
@@ -408,37 +400,48 @@ export class PathBoolean {
   
   /**
    * 結果Path構築と重複統合
+   * paper.jsのcreateResult関数を参考に実装
    */
   static createResult(
     paths: Path[],
     operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
   ): PathItem {
+    console.log(`DEBUG: createResult called with ${paths.length} paths for operation: ${operation}`);
+    
     if (paths.length === 0) {
+      console.log('DEBUG: No paths, returning empty Path');
       return new Path();
     }
     
     if (paths.length === 1) {
+      console.log('DEBUG: Single path, returning it directly');
       return paths[0];
     }
     
+    console.log('DEBUG: Multiple paths, creating CompoundPath');
     // 複数のパスをCompoundPathとして結合
-    const compoundPath = new CompoundPath();
+    const result = new CompoundPath();
     
     // 各パスを独立したパスとして追加
     // 各パスが閉じていることを確認
     for (const path of paths) {
+      console.log('DEBUG: Adding path to CompoundPath, segments:', path.getSegments().length);
       // パスのコピーを作成して閉じる
       const newPath = new Path(path.getSegments(), true);
-      compoundPath.addChild(newPath);
+      result.addChild(newPath);
     }
     
     // 結果を単一のPathに変換できる場合は変換
-    if (compoundPath._children && compoundPath._children.length === 1) {
-      return compoundPath._children[0] as Path;
+    // paper.jsのreduce()メソッドに相当する処理
+    if (result._children && result._children.length === 1) {
+      console.log('DEBUG: CompoundPath has only one child, converting to Path');
+      const singlePath = result._children[0] as Path;
+      return singlePath;
     }
     
+    console.log('DEBUG: Returning CompoundPath with', result._children?.length, 'children');
     // CompoundPathをそのまま返す
-    return compoundPath;
+    return result;
   }
 
   /**

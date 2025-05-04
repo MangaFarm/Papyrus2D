@@ -243,6 +243,18 @@ describe('PathBoolean', () => {
       'M0,0L100,0L100,100L0,100ZM200,200L300,200L300,300L200,300Z'  // exclude
     ];
     
+    // デバッグ用に追加
+    it('debug non-intersecting unite', () => {
+      console.log('=== Debug non-intersecting unite ===');
+      const result = PathBoolean.unite(rect1, rect2);
+      console.log('Result type:', result.constructor.name);
+      console.log('Result children:', result instanceof CompoundPath ? result._children?.length : 'N/A');
+      console.log('Result segments:', result.getSegments().length);
+      console.log('Result path data:', pathToString(result));
+      console.log('Expected:', results[0]);
+      console.log('===============================');
+    });
+    
     testOperations(rect1, rect2, results);
   });
   
