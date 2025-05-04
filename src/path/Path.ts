@@ -358,7 +358,7 @@ export class Path implements PathItem {
    */
   getPointAt(t: number): Point {
     const loc = this.getLocationAt(t);
-    return loc ? loc.point : new Point(0, 0);
+    return loc ? loc.getPoint() : new Point(0, 0);
   }
 
   /**
@@ -444,7 +444,7 @@ export class Path implements PathItem {
    */
   getTangentAt(offset: number): Point {
     const loc = this.getLocationAt(offset);
-    return loc && loc.curve ? loc.curve.getTangentAt(loc.time!, true) : new Point(0, 0);
+    return loc && loc.getCurve() ? loc.getCurve()!.getTangentAt(loc.getTime()!, true) : new Point(0, 0);
   }
 
   /**
@@ -1015,7 +1015,7 @@ export class Path implements PathItem {
       return null;
     }
     
-    if (!loc.curve) {
+    if (!loc.getCurve()) {
       console.log('splitAt: location.curve is null');
       return null;
     }
@@ -1029,7 +1029,7 @@ export class Path implements PathItem {
     // paper.jsの実装に合わせる
     const index = loc.getIndex();
     console.log('splitAt: index =', index);
-    const time = loc.time ?? 0;
+    const time = loc.getTime() ?? 0;
     console.log('splitAt: time =', time);
     const tMin = Numerical.CURVETIME_EPSILON;
     const tMax = 1 - tMin;

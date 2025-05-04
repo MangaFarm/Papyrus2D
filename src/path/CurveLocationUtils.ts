@@ -170,4 +170,62 @@ export class CurveLocationUtils {
     // 初期推測値から始める
     return Numerical.findRoot(f, ds, start + guess, a, b, 32, epsilon);
   }
+  /**
+   * 2つのCurveLocationが等しいかを確認する静的メソッド
+   * @param loc1 比較対象のCurveLocation
+   * @param loc2 比較対象のCurveLocation
+   * @param ignoreOther 相互参照を無視するかどうか
+   * @returns 等しければtrue
+   */
+  static equals(loc1: CurveLocation, loc2: CurveLocation, ignoreOther: boolean = false): boolean {
+    let res = loc1 === loc2;
+    if (!res && loc2 instanceof CurveLocation) {
+      const c1 = loc1.getCurve();
+      const c2 = loc2.getCurve();
+      const p1 = c1?._path;
+      const p2 = c2?._path;
+      if (p1 === p2) {
+        // 曲線時間ではなく、実際のオフセットを比較して
+        // 同じ位置にあるかどうかを判断
+        const abs = Math.abs;
+        const epsilon = Numerical.GEOMETRIC_EPSILON;
+        const diff = abs(loc1.getOffset() - loc2.getOffset());
+        const i1 = !ignoreOther && loc1._intersection;
+        const i2 = !ignoreOther && loc2._intersection;
+        res = (diff < epsilon || (p1 && abs(p1.getLength() - diff) < epsilon))
+          && (!i1 && !i2 || i1 && i2 && i1.equals(i2, true));
+      }
+    }
+    return res;
+  }
+
+  /**
+   * 交点が交差しているかを確認する静的メソッド
+   * @param loc CurveLocation
+   * @returns 交差していればtrue
+   */
+  static isCrossing(loc: CurveLocation): boolean {
+    // 交点がない場合はfalse
+    const inter = loc._intersection;
+    if (!inter) return false;
+
+    // 時間パラメータを取得
+    const t1 = loc.getTime();
+    const t2 = inter.getTime();
+    const tMin = Numerical.CURVETIME_EPSILON;
+    const tMax = 1 - tMin;
+
+    // 時間パラメータが曲線の内部にあるかを確認
+    const t1Inside = t1 !== null && t1 >= tMin && t1 <= tMax;
+    const t2Inside = t2 !== null && t2 >= tMin && t2 <= tMax;
+
+    // 両方の交点が曲線の内部にある場合、接触でなければ交差
+    if (t1Inside && t2Inside) {
+      return !loc.isTouching();
+    }
+
+    // TODO: 完全なpaper.jsの実装には、曲線の端点での交差判定が含まれる
+    // 現在の実装では簡略化して、内部交点のみを考慮
+    return false;
+  }
 }

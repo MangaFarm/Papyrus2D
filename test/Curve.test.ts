@@ -547,7 +547,7 @@ describe('Curve', () => {
           if (time !== null) {
             const loc = curve.getLocationAtTime(time);
             if (loc !== null) {
-              point2 = loc.point;
+              point2 = loc.getPoint();
               break;
             }
           }

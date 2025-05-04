@@ -304,21 +304,9 @@ export function getIntersections(
             v1, v2, curve1, curve2, locations, include
           );
           
-          // 曲線インデックスを設定
-          for (let k = locations.length - 1; k >= 0; k--) {
-            const loc = locations[k];
-            if (loc.curve1Index === -1) {
-              loc.curve1Index = index1;
-              loc.curve2Index = index2;
-              
-              // paper.jsと同様に、交点が見つかった後に曲線インデックスを設定
-              if (loc.time !== null) {
-                // paper.jsでは交点の位置は変換された座標系で計算され、
-                // 元の座標系に戻す処理は行われない
-                // 交点の位置はそのまま使用する
-              }
-            }
-          }
+          // paper.jsでは曲線インデックスはCurveLocationに直接保存せず、
+          // 必要に応じてCurveオブジェクトから取得する
+          // ここでは特に何もする必要がない
         }
       }
     }

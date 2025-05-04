@@ -69,11 +69,9 @@ export function addLocation(
       loc1._intersection = loc2;
       loc2._intersection = loc1;
       
-      // 拡張プロパティを設定（Papyrus2D互換性のため）
-      loc1.curve2 = c2;
-      loc1.t2 = t2;
-      loc2.curve2 = c1;
-      loc2.t2 = t1;
+      // 交点情報は_intersectionに格納されているので、追加のプロパティは不要
+      // loc1._curve は c1、loc2._curve は c2 として設定済み
+      // loc1._time は t1、loc2._time は t2 として設定済み
       
       // includeコールバックがなければ、または条件を満たせば追加
       if (!include || include(loc1)) {
@@ -107,27 +105,27 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
     const loc = locations[i];
     
     // 同じ曲線上の交点で、tパラメータが近い場合は重複とみなす
-    if (loc.curve1 !== null && location.curve1 !== null &&
-        loc.t1 !== null && location.t1 !== null &&
-        loc.curve2 !== null && location.curve2 !== null &&
-        loc.t2 !== null && location.t2 !== null) {
+    if (loc._curve !== null && location._curve !== null &&
+        loc._time !== null && location._time !== null &&
+        loc._intersection?._curve !== null && location._intersection?._curve !== null &&
+        loc._intersection?._time !== null && location._intersection?._time !== null) {
       // 曲線が同じかどうかをチェック（paper.jsと同様）
       const sameCurves =
-        (loc.curve1 === location.curve1 && loc.curve2 === location.curve2) ||
-        (loc.curve1 === location.curve2 && loc.curve2 === location.curve1);
+        (loc._curve === location._curve && loc._intersection?._curve === location._intersection?._curve) ||
+        (loc._curve === location._intersection?._curve && loc._intersection?._curve === location._curve);
       
       if (sameCurves) {
         // Paper.jsと同じ重複チェックロジック
-        // 曲線が同じ場合、t1とt2を適切に比較
+        // 曲線が同じ場合、_timeとintersection._timeを適切に比較
         let t1Diff: number, t2Diff: number;
         
-        if (loc.curve1 === location.curve1) {
-          t1Diff = Math.abs(loc.t1 - location.t1);
-          t2Diff = Math.abs(loc.t2 - location.t2);
+        if (loc._curve === location._curve) {
+          t1Diff = Math.abs(loc._time! - location._time!);
+          t2Diff = Math.abs(loc._intersection!._time! - location._intersection!._time!);
         } else {
-          // 曲線が逆の場合、t1とt2を入れ替えて比較
-          t1Diff = Math.abs(loc.t1 - location.t2);
-          t2Diff = Math.abs(loc.t2 - location.t1);
+          // 曲線が逆の場合、_timeとintersection._timeを入れ替えて比較
+          t1Diff = Math.abs(loc._time! - location._intersection!._time!);
+          t2Diff = Math.abs(loc._intersection!._time! - location._time!);
         }
         
         // Paper.jsと同じ条件で重複判定
@@ -150,8 +148,8 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
     }
     
     // 点の距離が十分に近い場合は重複とみなす
-    if (loc.point && location.point) {
-      const dist = loc.point.subtract(location.point).getLength();
+    if (loc._point && location._point) {
+      const dist = loc._point.subtract(location._point).getLength();
       if (dist < geomEpsilon) {
         // 交点が既に存在する場合は、相互参照を更新
         if (location._intersection && loc._intersection) {

@@ -5,6 +5,7 @@
 import { Curve } from './Curve';
 import { Point } from '../basic/Point';
 import { Numerical } from '../util/Numerical';
+import { CurveLocationUtils } from './CurveLocationUtils';
 
 export class CurveLocation {
   // Paper.jsと同様のプロパティ
@@ -296,28 +297,7 @@ export class CurveLocation {
    * @returns 交差していればtrue
    */
   isCrossing(): boolean {
-    // 交点がない場合はfalse
-    const inter = this._intersection;
-    if (!inter) return false;
-
-    // 時間パラメータを取得
-    const t1 = this.getTime();
-    const t2 = inter.getTime();
-    const tMin = Numerical.CURVETIME_EPSILON;
-    const tMax = 1 - tMin;
-
-    // 時間パラメータが曲線の内部にあるかを確認
-    const t1Inside = t1 !== null && t1 >= tMin && t1 <= tMax;
-    const t2Inside = t2 !== null && t2 >= tMin && t2 <= tMax;
-
-    // 両方の交点が曲線の内部にある場合、接触でなければ交差
-    if (t1Inside && t2Inside) {
-      return !this.isTouching();
-    }
-
-    // TODO: 完全なpaper.jsの実装には、曲線の端点での交差判定が含まれる
-    // 現在の実装では簡略化して、内部交点のみを考慮
-    return false;
+    return CurveLocationUtils.isCrossing(this);
   }
 
   /**
@@ -369,25 +349,7 @@ export class CurveLocation {
    * @returns 等しければtrue
    */
   equals(loc: CurveLocation, _ignoreOther: boolean = false): boolean {
-    let res = this === loc;
-    if (!res && loc instanceof CurveLocation) {
-      const c1 = this.getCurve();
-      const c2 = loc.getCurve();
-      const p1 = c1?._path;
-      const p2 = c2?._path;
-      if (p1 === p2) {
-        // 曲線時間ではなく、実際のオフセットを比較して
-        // 同じ位置にあるかどうかを判断
-        const abs = Math.abs;
-        const epsilon = Numerical.GEOMETRIC_EPSILON;
-        const diff = abs(this.getOffset() - loc.getOffset());
-        const i1 = !_ignoreOther && this._intersection;
-        const i2 = !_ignoreOther && loc._intersection;
-        res = (diff < epsilon || (p1 && abs(p1.getLength() - diff) < epsilon))
-          && (!i1 && !i2 || i1 && i2 && i1.equals(i2, true));
-      }
-    }
-    return res;
+    return CurveLocationUtils.equals(this, loc, _ignoreOther);
   }
 
   /**
