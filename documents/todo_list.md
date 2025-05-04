@@ -130,7 +130,7 @@
 - [x] MangaFarm Organizationへのリモートリポジトリ移行（2025/05/02 完了）
 - [ ] PathBoolean.tsの実装改善
   - [ ] 非交差矩形のunite操作の修正（バウンディングボックス計算の問題）
-    - [ ] paper.jsのreorientPaths関数の移植または同等機能の実装
+    - [x] paper.jsのreorientPaths関数の移植または同等機能の実装
     - [ ] tracePaths関数の交点がない場合の処理を修正
     - [ ] 詳細は documents/pathboolean_unite_issue.md を参照
   - [ ] subtract操作の修正

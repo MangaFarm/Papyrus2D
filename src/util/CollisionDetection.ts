@@ -242,15 +242,16 @@ export class CollisionDetection {
    * @returns 衝突インデックスの配列
    */
   static findItemBoundsCollisions(
-    items1: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
-    items2: { getBounds(): { left: number; top: number; right: number; bottom: number } }[] | null,
+    items1: { getBounds(): { x: number; y: number; width: number; height: number } }[],
+    items2: { getBounds(): { x: number; y: number; width: number; height: number } }[] | null,
     tolerance: number
   ): (number[] | null)[] {
-    function getBounds(items: { getBounds(): { left: number; top: number; right: number; bottom: number } }[]): number[][] {
+    function getBounds(items: { getBounds(): { x: number; y: number; width: number; height: number } }[]): number[][] {
       const bounds = new Array(items.length);
       for (let i = 0; i < items.length; i++) {
         const rect = items[i].getBounds();
-        bounds[i] = [rect.left, rect.top, rect.right, rect.bottom];
+        // paper.jsと同様に[left, top, right, bottom]の配列に変換
+        bounds[i] = [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height];
       }
       return bounds;
     }

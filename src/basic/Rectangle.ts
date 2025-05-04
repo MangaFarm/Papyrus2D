@@ -65,6 +65,23 @@ export class Rectangle {
     return new Size(this.width, this.height);
   }
 
+  // CollisionDetectionとの互換性のためのプロパティ
+  get left(): number {
+    return this.x;
+  }
+
+  get top(): number {
+    return this.y;
+  }
+
+  get right(): number {
+    return this.x + this.width;
+  }
+
+  get bottom(): number {
+    return this.y + this.height;
+  }
+
   clone(): Rectangle {
     return new Rectangle(this.x, this.y, this.width, this.height);
   }

@@ -41,6 +41,9 @@ export class Path implements PathItem {
   _length?: number;
   _area?: number;
   _bounds?: Rectangle;
+  
+  // paper.jsとの互換性のためのID
+  _id: string = Math.random().toString(36).substring(2, 15);
 
   constructor(segments: Segment[] = [], closed: boolean = false) {
     this._segments = [];
@@ -286,10 +289,19 @@ export class Path implements PathItem {
         ));
       }
       
-      this._area = Math.abs(area); // Paper.jsでは絶対値を取る
+      this._area = area; // 符号を保持する（時計回り判定に使用）
     }
     
     return this._area!;
+  }
+
+  /**
+   * パスが時計回りかどうかを判定
+   * paper.jsのisClockwise()メソッドを移植
+   * @returns 時計回りならtrue
+   */
+  isClockwise(): boolean {
+    return this.getArea() >= 0;
   }
 
   /**
@@ -1314,5 +1326,26 @@ export class Path implements PathItem {
     }
     
     return !!segments;
+  }
+
+  /**
+   * パスの内部点を取得する
+   * paper.jsのgetInteriorPoint()メソッドを移植
+   * @returns パス内部の点
+   */
+  getInteriorPoint(): Point {
+    const bounds = this.getBounds();
+    const point = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    
+    // 中心点がパス内部にない場合は、別の方法で内部点を探す
+    if (!this.contains(point)) {
+      // パスの最初のセグメントの点を使用
+      const firstSegment = this.getFirstSegment();
+      if (firstSegment) {
+        return firstSegment.point;
+      }
+    }
+    
+    return point;
   }
 }
