@@ -404,6 +404,29 @@ export class Curve {
   }
 
   /**
+   * 曲線が指定された平坦さの基準を満たしているかどうかを判定
+   * paper.jsのCurve.isFlatEnoughメソッドの実装
+   * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param flatness 許容される最大誤差
+   * @returns 平坦と判断できる場合はtrue
+   */
+  static isFlatEnough(v: number[], flatness: number): boolean {
+    // 曲線の制御点
+    const x0 = v[0], y0 = v[1];
+    const x1 = v[2], y1 = v[3];
+    const x2 = v[4], y2 = v[5];
+    const x3 = v[6], y3 = v[7];
+    
+    // 曲線の端点を結ぶ直線からの最大距離を計算
+    const ux = 3 * x1 - 2 * x0 - x3;
+    const uy = 3 * y1 - 2 * y0 - y3;
+    const vx = 3 * x2 - 2 * x3 - x0;
+    const vy = 3 * y2 - 2 * y3 - y0;
+    
+    return Math.max(ux * ux, vx * vx) + Math.max(uy * uy, vy * vy) <= 16 * flatness * flatness;
+  }
+
+  /**
    * 指定されたオフセットでの曲線のtパラメータを計算
    */
   static getTimeAt(v: number[], offset: number, start?: number): number {

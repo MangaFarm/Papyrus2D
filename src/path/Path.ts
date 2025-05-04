@@ -15,6 +15,7 @@ import { PathItem } from './PathItem';
 import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';
 import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
+import { PathFlattener } from './PathFlattener';
 
 // PathConstructorsからメソッドをインポート
 import { PathConstructors } from './PathConstructors';
@@ -1133,5 +1134,33 @@ export class Path implements PathItem {
     }
     
     return true;
+  }
+
+  /**
+   * パスを平坦化（フラット化）します。
+   * 曲線を直線セグメントに変換し、ハンドルを持たないパスにします。
+   * @param flatness 許容される最大誤差（デフォルト: 0.25）
+   * @returns このパスオブジェクト（メソッドチェーン用）
+   */
+  flatten(flatness: number = 0.25): Path {
+    // PathFlattenerを使用して曲線を直線セグメントに分割
+    const flattener = new PathFlattener(this, flatness || 0.25, 256, true);
+    const parts = flattener.parts;
+    const length = parts.length;
+    const segments: Segment[] = [];
+
+    // 各部分から新しいセグメントを作成
+    for (let i = 0; i < length; i++) {
+      segments.push(new Segment(new Point(parts[i].curve[0], parts[i].curve[1])));
+    }
+
+    // 開いたパスで長さが0より大きい場合、最後の曲線の終点を追加
+    if (!this._closed && length > 0) {
+      segments.push(new Segment(new Point(parts[length - 1].curve[6], parts[length - 1].curve[7])));
+    }
+
+    // 新しいセグメントでパスを更新
+    this.setSegments(segments);
+    return this;
   }
 }

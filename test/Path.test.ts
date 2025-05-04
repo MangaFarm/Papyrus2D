@@ -3,6 +3,7 @@ import { Path } from '../src/path/Path';
 import { Segment } from '../src/path/Segment';
 import { Point } from '../src/basic/Point';
 import { Rectangle } from '../src/basic/Rectangle';
+import { Size } from '../src/basic/Size';
 import { Curve } from '../src/path/Curve';
 import { Numerical } from '../src/util/Numerical';
 
@@ -291,30 +292,59 @@ describe('Path', () => {
   });
 
   describe('flatten', () => {
-    it('should flatten curves to straight segments', () => {
-      // Papyrus2Dではflattenメソッドが実装されていない可能性があるため、
-      // このテストはスキップするか、実装が存在する場合のみ実行する
+    it('should flatten curves to straight segments with specified flatness', () => {
+      // paper.jsのテストケースを移植
+      const path = Path.Ellipse({ center: new Point(80, 50), radius: new Size(35, 35) });
       
-      // 実装例（もし存在しない場合）:
-      // const path = Path.Ellipse(new Point(80, 50), new Point(35, 35));
-      // const flattened = new Path();
-      // const curves = path.getCurves();
-      // const flatness = 5;
+      // 元のパスのセグメント数を記録
+      const originalSegmentCount = path.getSegments().length;
       
-      // for (const curve of curves) {
-      //   if (curve.isStraight()) {
-      //     flattened.add(curve.getPoint1().clone());
-      //   } else {
-      //     // 曲線を平坦化
-      //     const points = curve.getPointsAtEvenIntervals(flatness);
-      //     for (let i = 0; i < points.length - 1; i++) {
-      //       flattened.add(points[i].clone());
-      //     }
-      //   }
-      // }
-      // flattened.add(path.getLastSegment()!.point.clone());
+      // flatness 5で平坦化
+      path.flatten(5);
       
-      // expect(flattened.getSegments().length).toBeGreaterThan(path.getSegments().length);
+      // paper.jsのテストでは8セグメントになることを期待
+      expect(path.getSegments().length).toBe(8);
+      
+      // 最初と最後のセグメントの点が同じではないことを確認
+      const firstSegment = path.getFirstSegment();
+      const lastSegment = path.getLastSegment();
+      expect(firstSegment).not.toBeUndefined();
+      expect(lastSegment).not.toBeUndefined();
+      
+      if (firstSegment && lastSegment) {
+        expect(lastSegment.point.equals(firstSegment.point)).toBe(false);
+      }
+      
+      // 最後のセグメントとその前のセグメントの点が近すぎないことを確認
+      const beforeLastSegment = path.getSegments()[path.getSegments().length - 2];
+      if (lastSegment && beforeLastSegment) {
+        // 点が異なることを確認（paper.jsのテストでは文字列表現が異なることを確認）
+        expect(lastSegment.point.toString()).not.toBe(beforeLastSegment.point.toString());
+      }
+      
+      // ハンドルが削除されていることを確認
+      expect(path.hasHandles()).toBe(false);
+    });
+    
+    it('should handle single segment closed path flatten', () => {
+      // paper.jsのテストケースを移植
+      // SVGパスからの作成をシミュレート
+      const path = new Path();
+      path.moveTo(new Point(445.26701, 223.69688));
+      path.cubicCurveTo(
+        new Point(451.44081, 232.45348),
+        new Point(438.21529, 237.74368),
+        new Point(445.26701, 223.69688)
+      );
+      path.setClosed(true);
+      
+      // エラーが発生しないことを確認
+      expect(() => {
+        path.flatten();
+      }).not.toThrow();
+      
+      // 平坦化後もセグメントが存在することを確認
+      expect(path.getSegments().length).toBeGreaterThan(0);
     });
   });
 
