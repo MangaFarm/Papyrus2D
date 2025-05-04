@@ -138,6 +138,7 @@
     - [ ] 詳細は documents/pathboolean_unite_issue.md を参照
   - [ ] subtract操作の修正
   - [x] PathBooleanWinding.tsのpaper.jsとの挙動の違いを修正
+  - [x] PathBooleanWinding.tsとpaper.jsのアルゴリズム上の違いを分析し文書化（documents/paper_js_vs_papyrus2d_winding.md）
 
 ## 実装方針
 - バグを減らすため、まずpaper.jsの既存コードを流用する

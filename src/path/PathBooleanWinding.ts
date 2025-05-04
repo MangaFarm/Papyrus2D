@@ -103,9 +103,8 @@ export function propagateWinding(
         if (operator.subtract && path2) {
           const otherPath = operand === path1 ? path2 : path1;
           // getWindingを使用して計算
-          // paper.jsと同じ挙動になるようにgetWindingを使用
-          // paper.jsと同じ挙動になるようにgetWindingを使用
-          const pathWinding = getWinding(pt, otherPath.getCurves(), dir, true);
+          // paper.jsでは_getWindingメソッドを使用
+          const pathWinding = otherPath.getWinding(pt);
           
           // 曲線を省略すべきかチェック
           if ((operand === path1 && pathWinding.winding) ||
@@ -226,22 +225,7 @@ export function getWinding(
       // paper.jsと同じ挙動になるように三次方程式を解く
       t = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
         ? 1
-        : (() => {
-            // paper.jsのCurve.solveCubicと同等の処理
-            // v[io+0], v[io+2], v[io+4], v[io+6]から三次方程式の係数を計算
-            const y0 = v[io+0];
-            const y1 = v[io+2];
-            const y2 = v[io+4];
-            const y3 = v[io+6];
-            // 三次ベジェ曲線の係数を計算
-            const a = -y0 + 3 * y1 - 3 * y2 + y3;
-            const b = 3 * y0 - 6 * y1 + 3 * y2;
-            const c = -3 * y0 + 3 * y1;
-            const d = y0 - po;
-            // Numerical.solveCubicを使用
-            const count = Numerical.solveCubic(a, b, c, d, roots, { min: 0, max: 1 });
-            return count > 0 ? roots[0] : 1;
-          })();
+        : Curve.solveCubic(v, io, po, roots, 0, 1) > 0 ? roots[0] : 1;
     }
     
     // 曲線上の点の横座標を計算
@@ -254,7 +238,7 @@ export function getWinding(
       // paper.jsと同じ挙動になるように点を計算
       a = t === 0 ? a0
         : t === 1 ? a3
-        : CurveCalculation.getPoint(v, t)![dir ? 'y' : 'x'];
+        : Curve.getPoint(v, t)[dir ? 'y' : 'x'];
     }
     
     // winding方向を決定
@@ -304,7 +288,7 @@ export function getWinding(
     // 接線が方向に平行な場合、方向を反転して再計算
     if (!dontFlip && a > paL && a < paR) {
       // paper.jsと同じ挙動になるように接線を計算
-      const tangent = CurveCalculation.getTangent(v, t)!;
+      const tangent = Curve.getTangent(v, t);
       if (tangent[dir ? 'x' : 'y'] === 0) {
         return getWinding(point, curves, !dir, closed, true);
       }

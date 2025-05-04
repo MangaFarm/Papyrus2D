@@ -13,6 +13,7 @@ import { CurveGeometry } from './CurveGeometry';
 import { CurveSubdivision } from './CurveSubdivision';
 import { CurveLocationUtils } from './CurveLocationUtils';
 import { CurveLocation } from './CurveLocation';
+import { Numerical } from '../util/Numerical';
 
 export class Curve {
   _segment1: Segment;
@@ -453,5 +454,22 @@ export class Curve {
     const v2 = curve && curve !== this && curve.getValues();
     return v2 ? Curve.getIntersections([this], [curve], undefined, null, null, false)
               : Curve.getIntersections([this], null, undefined, null, null, false);
+  }
+
+  /**
+   * 三次方程式を解く
+   * CurveCalculation.solveCubicのラッパー
+   */
+  static solveCubic(v: number[], coord: number, val: number, roots: number[], min: number, max: number): number {
+    // CurveLocationUtils.solveCubicを呼び出すだけ
+    return CurveLocationUtils.solveCubic(v, coord, val, roots, { min, max });
+  }
+
+  /**
+   * 曲線上の点での接線ベクトルを計算
+   * CurveCalculation.getTangentのラッパー
+   */
+  static getTangent(v: number[], t: number): Point {
+    return CurveCalculation.getTangent(v, t)!;
   }
 }

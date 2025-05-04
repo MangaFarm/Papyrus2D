@@ -487,8 +487,16 @@ export class Path extends PathItemBase {
    * @param point 判定する点
    * @returns {windingL, windingR} 左右のwinding number
    */
-  private _getWinding(point: Point): { windingL: number; windingR: number } {
-    return getWinding(this.getCurves(), point);
+  getWinding(point: Point, dir: boolean = false, closed: boolean = false): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } {
+    const result = getWinding(this.getCurves(), point);
+    // paper.jsとの互換性のために必要なプロパティを追加
+    return {
+      winding: Math.max(Math.abs(result.windingL), Math.abs(result.windingR)),
+      windingL: Math.abs(result.windingL),
+      windingR: Math.abs(result.windingR),
+      quality: 1,
+      onPath: false
+    };
   }
 
   /**
