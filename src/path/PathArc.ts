@@ -102,6 +102,7 @@ export class PathArc {
       }
       
       factor = (rxSq * rySq - rxSq * ySq - rySq * xSq) / (rxSq * ySq + rySq * xSq);
+      
       if (Math.abs(factor) < Numerical.EPSILON) {
         factor = 0;
       }
@@ -137,14 +138,23 @@ export class PathArc {
     if (through && !center) {
       // through点がある場合の処理
       // 2つの垂直二等分線を構築し、それらの交点を中心とする
-      const l1 = new Line(from.add(through).divide(2),
-        through.subtract(from).rotate(90));
-      const l2 = new Line(through.add(to).divide(2),
-        to.subtract(through).rotate(90));
+      const fromThroughMidpoint = from.add(through).divide(2);
+      const throughDirection = through.subtract(from);
+      const throughNormal = throughDirection.rotate(90);
+      
+      const throughToMidpoint = through.add(to).divide(2);
+      const toDirection = to.subtract(through);
+      const toNormal = toDirection.rotate(90);
+      
+      // paper.jsと同様に、第3引数にtrueを渡して、第2引数をベクトルとして扱うようにする
+      const l1 = new Line(fromThroughMidpoint, throughNormal, true);
+      const l2 = new Line(throughToMidpoint, toNormal, true);
+      
       const line = new Line(from, to);
       const throughSide = line.getSide(through);
       
-      const intersection = l1.intersect(l2);
+      // paper.jsと同様に、第2引数にtrueを渡して、直線を無限に延長するようにする
+      const intersection = l1.intersect(l2, true);
       if (intersection) {
         center = intersection;
       }
