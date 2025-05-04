@@ -1,49 +1,96 @@
-# paper.jsとPapyrus2DのPathBooleanWindingモジュールの違い
+# paper.js と Papyrus2D の PathBooleanWinding 実装の違い
 
-このドキュメントでは、paper.jsとPapyrus2DのPathBooleanWindingモジュールにおけるアルゴリズム上の違いを分析します。
+このドキュメントでは、paper.js と Papyrus2D の PathBooleanWinding 関連の実装で、挙動に差が出うる重要な違いを分析します。
 
-## 概要
+## getWinding 関数の違い
 
-Papyrus2DのPathBooleanWindingモジュールは、paper.jsのPathItem.Boolean.jsから移植されています。基本的なアルゴリズムは同じですが、いくつかの実装の違いがあります。
+### 1. PathGeometry.ts の getWinding 実装
 
-## 主な違い
+Papyrus2D では、`PathGeometry.ts` に独自の `getWinding` 実装があります：
 
-### 1. モジュール構造
+```typescript
+export function getWinding(
+  curves: Curve[],
+  point: Point
+): { windingL: number; windingR: number } {
+  let windingL = 0;
+  let windingR = 0;
 
-- **paper.js**: PathItem.Boolean.jsファイル内に実装されています。
-- **Papyrus2D**: PathBooleanWinding.tsとして独立したモジュールに分離されています。
+  for (const curve of curves) {
+    // 曲線の値を取得...
 
-これは単なる構造上の違いであり、アルゴリズムには影響しません。
+    // y成分の範囲外ならスキップ...
 
-### 2. 型システム
+    // y成分の三次方程式を解く...
 
-- **paper.js**: JavaScriptで実装されています。
-- **Papyrus2D**: TypeScriptで実装され、型安全性が向上しています。
+    for (const t of roots) {
+      // ...
+      // 左右に分けてカウント
+      if (x < point.x - Numerical.EPSILON) {
+        windingL += dy > 0 ? 1 : -1;
+      } else if (x > point.x + Numerical.EPSILON) {
+        windingR += dy > 0 ? 1 : -1;
+      } else {
+        // x座標が一致する場合は両方にカウント
+        windingL += dy > 0 ? 0.5 : -0.5;
+        windingR += dy > 0 ? 0.5 : -0.5;
+      }
+    }
+  }
 
-これも基本的なアルゴリズムには影響しません。
+  return { windingL, windingR };
+}
+```
 
-## アルゴリズム上の違い
+この実装は paper.js の複雑な実装とは異なり、シンプルな方法で winding 値を計算します。特に：
 
-以下の点で、paper.jsとPapyrus2Dの間にアルゴリズム上の違いはありませんでした：
+- 曲線と点の y 座標が交差する場所を見つけ、その x 座標に基づいて左右の winding 値を更新
+- paper.js のような品質評価のロジックがない
+- 水平曲線の特殊処理が異なる
 
-1. **getWinding関数**:
-   - 座標インデックスの解釈（dir=trueはy方向、dir=falseはx方向）
-   - 水平曲線の特殊処理
-   - 曲線上の時間パラメータの計算
-   - 曲線上の点の横座標の計算
-   - 曲線の始点での処理
-   - 標準的なケースの処理
-   - パスの最後の曲線の処理
-   - パス上にあり、windingが相殺された場合の処理
+これにより、特に複雑な曲線や点が曲線に非常に近い場合に、異なる結果が生じる可能性があります。
 
-2. **propagateWinding関数**:
-   - 曲線チェーンの構築
-   - winding numberの計算
-   - winding numberの伝播
+### 2. segment.getNext() の処理の違い
 
-3. **getWindingContribution関数**:
-   - winding寄与の計算
+**paper.js**:
+```javascript
+segment = segment.getNext();
+```
+
+**Papyrus2D**:
+```typescript
+segment = segment.getNext() || segment;
+```
+
+Papyrus2D では、`segment.getNext()` が null を返す場合に現在のセグメントを使用します。これにより、特定のケースでセグメントチェーンの構築方法が異なり、winding の伝播に影響を与える可能性があります。
+
+### 3. x座標が一致する場合の処理
+
+**paper.js** では、点が曲線上にある場合の処理が複雑で、様々な特殊ケースを考慮しています。
+
+**Papyrus2D (PathGeometry.ts)** では、x座標が一致する場合に両方の winding 値に半分ずつ寄与させる単純な方法を採用しています：
+
+```typescript
+// x座標が一致する場合は両方にカウント
+windingL += dy > 0 ? 0.5 : -0.5;
+windingR += dy > 0 ? 0.5 : -0.5;
+```
+
+この違いにより、点が曲線上またはその非常に近くにある場合に、異なる winding 値が計算される可能性があります。
 
 ## 結論
 
-paper.jsとPapyrus2DのPathBooleanWindingモジュールは、アルゴリズム上の違いはありません。違いは主に言語（JavaScriptからTypeScript）とモジュール構造の変更に関するものです。Papyrus2Dは、paper.jsのアルゴリズムを忠実に再現しています。
+paper.js と Papyrus2D の PathBooleanWinding 実装には、挙動に影響を与える可能性のある以下の主な違いがあります：
+
+1. **PathGeometry.ts の独自実装**:
+   - シンプルな winding 計算方法
+   - 品質評価のロジックの欠如
+   - 水平曲線の処理の違い
+
+2. **セグメントチェーンの構築**:
+   - `segment.getNext()` が null を返す場合の処理の違い
+
+3. **境界ケースの処理**:
+   - x座標が一致する場合の処理の違い
+
+これらの違いは、特に複雑な形状や境界ケースで異なる結果をもたらす可能性があります。

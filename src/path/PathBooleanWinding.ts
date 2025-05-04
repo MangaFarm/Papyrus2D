@@ -70,7 +70,7 @@ export function propagateWinding(
       chain.push({ segment, curve, length });
       totalLength += length;
     }
-    segment = segment.getNext() || segment;
+    segment = segment.getNext()!;
   } while (segment && !(segment as any)._intersection && segment !== start);
   
   // Determine winding at three points in the chain. If a winding with
