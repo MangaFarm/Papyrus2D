@@ -53,14 +53,18 @@ export function propagateWinding(
   curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>>,
   operator: Record<string, boolean>
 ): void {
-  // セグメントから始まる曲線チェーンを追跡
+  // Here we try to determine the most likely winding number contribution
+  // for the curve-chain starting with this segment. Once we have enough
+  // confidence in the winding contribution, we can propagate it until the
+  // next intersection or end of a curve chain.
   const chain: { segment: Segment; curve: Curve; length: number }[] = [];
   let start = segment;
   let totalLength = 0;
   
-  // 交点または始点に戻るまで曲線チェーンを構築
   do {
     const curve = segment.getCurve();
+    // We can encounter paths with only one segment, which would not
+    // have a curve.
     if (curve) {
       const length = curve.getLength();
       chain.push({ segment, curve, length });
@@ -69,13 +73,15 @@ export function propagateWinding(
     segment = segment.getNext() || segment;
   } while (segment && !(segment as any)._intersection && segment !== start);
   
-  // チェーン上の3点でwinding numberを計算
+  // Determine winding at three points in the chain. If a winding with
+  // sufficient quality is found, use it. Otherwise use the winding with
+  // the best quality.
   const offsets = [0.5, 0.25, 0.75];
   let windingResult = { winding: 0, quality: -1, windingL: 0, windingR: 0, onPath: false };
+  // Don't go too close to segments, to avoid special winding cases:
   const tMin = 1e-3;
   const tMax = 1 - tMin;
   
-  // 十分な品質のwinding numberが見つかるまで計算
   for (let i = 0; i < offsets.length && windingResult.quality < 0.5; i++) {
     const length = totalLength * offsets[i];
     let chainLength = 0;
@@ -85,39 +91,43 @@ export function propagateWinding(
       const curveLength = entry.length;
       
       if (length <= chainLength + curveLength) {
-        // 曲線上の点を計算
         const curve = entry.curve;
         const path = curve._path;
         const parent = path._parent;
         const operand = parent instanceof CompoundPath ? parent : path;
-        // paper.jsと同じ方法で曲線上の点を計算
         const t = Numerical.clamp(curve.getTimeAt(length), tMin, tMax);
         const pt = curve.getPointAtTime(t);
         
-        // 接線の方向に基づいて、水平または垂直方向を決定
+        // Determine the direction in which to check the winding
+        // from the point (horizontal or vertical), based on the
+        // curve's direction at that point. If tangent is less
+        // than 45°, cast the ray vertically, else horizontally.
         const tangent = curve.getTangentAtTime(t);
         const dir = Math.abs(tangent.y) < Math.SQRT1_2;
         
-        // 減算演算の場合の特殊処理
+        // While subtracting, we need to omit this curve if it is
+        // contributing to the second operand and is outside the
+        // first operand.
         let wind: { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } | null = null;
         if (operator.subtract && path2) {
+          // Calculate path winding at point depending on operand.
           const otherPath = operand === path1 ? path2 : path1;
-          // getWindingを使用して計算
-          // paper.jsでは_getWindingメソッドを使用
           const pathWinding = otherPath.getWinding(pt);
           
-          // 曲線を省略すべきかチェック
+          // Check if curve should be omitted.
           if ((operand === path1 && pathWinding.winding) ||
               (operand === path2 && !pathWinding.winding)) {
+            // Check if quality is not good enough...
             if (pathWinding.quality < 1) {
+              // ...and if so, skip this point...
               continue;
             } else {
+              // ...otherwise, omit this curve.
               wind = { winding: 0, quality: 1, windingL: 0, windingR: 0, onPath: false };
             }
           }
         }
         
-        // winding numberを計算
         wind = wind || getWinding(
           pt,
           curveCollisionsMap[path._id][curve.getIndex()],
@@ -125,10 +135,8 @@ export function propagateWinding(
           true
         );
         
-        // より高品質なwinding numberを採用
-        if (wind.quality > windingResult.quality) {
+        if (wind.quality > windingResult.quality)
           windingResult = wind;
-        }
         
         break;
       }
@@ -137,7 +145,7 @@ export function propagateWinding(
     }
   }
   
-  // 曲線チェーン全体にwinding numberを割り当て
+  // Now assign the winding to the entire curve chain.
   for (let j = chain.length - 1; j >= 0; j--) {
     const segmentInfo = asSegmentInfo(chain[j].segment);
     if (segmentInfo) {
@@ -167,8 +175,9 @@ export function getWinding(
     : curves[dir ? 'hor' : 'ver'];
   
   // 座標インデックスを設定
-  const ia = dir ? 1 : 0; // 横座標インデックス
-  const io = ia ^ 1;      // 縦座標インデックス
+  // paper.jsと同じ解釈: dir=trueはy方向、dir=falseはx方向
+  const ia = dir ? 1 : 0; // 横座標インデックス (abscissa)
+  const io = ia ^ 1;      // 縦座標インデックス (ordinate)
   const pv = [point.x, point.y];
   const pa = pv[ia];      // 点の横座標
   const po = pv[io];      // 点の縦座標
@@ -206,40 +215,42 @@ export function getWinding(
     const a3 = v[ia + 6];
     
     // 水平曲線の特殊処理
+    // A horizontal curve is not necessarily between two non-
+    // horizontal curves. We have to take cases like these into
+    // account:
+    //          +-----+
+    //     +----+     |
+    //          +-----+
     if (o0 === o3) {
       if ((a0 < paR && a3 > paL) || (a3 < paR && a0 > paL)) {
         onPath = true;
       }
+      // If curve does not change in ordinate direction, windings will
+      // be added by adjacent curves.
+      // Bail out without updating vPrev at the end of the call.
       return;
     }
     
     // 曲線上の時間パラメータを計算
+    // Determine the curve-time value corresponding to the point.
     let t: number;
     if (po === o0) {
       t = 0;
     } else if (po === o3) {
       t = 1;
-    } else if (paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)) {
-      t = 1;
     } else {
-      // paper.jsと同じ挙動になるように三次方程式を解く
+      // If the abscissa is outside the curve, we can use any
+      // value except 0 (requires special handling). Use 1, as it
+      // does not require additional calculations for the point.
       t = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
         ? 1
         : Curve.solveCubic(v, io, po, roots, 0, 1) > 0 ? roots[0] : 1;
     }
     
     // 曲線上の点の横座標を計算
-    let a: number;
-    if (t === 0) {
-      a = a0;
-    } else if (t === 1) {
-      a = a3;
-    } else {
-      // paper.jsと同じ挙動になるように点を計算
-      a = t === 0 ? a0
-        : t === 1 ? a3
-        : Curve.getPoint(v, t)[dir ? 'y' : 'x'];
-    }
+    const a = t === 0 ? a0
+            : t === 1 ? a3
+            : Curve.getPoint(v, t)[dir ? 'y' : 'x'];
     
     // winding方向を決定
     const winding = o0 > o3 ? 1 : -1;
@@ -248,7 +259,7 @@ export function getWinding(
     
     // 曲線の始点でない場合の処理
     if (po !== o0) {
-      // 標準的なケース
+      // Standard case, curve is not crossed at its starting point.
       if (a < paL) {
         pathWindingL += winding;
       } else if (a > paR) {
@@ -257,25 +268,33 @@ export function getWinding(
         onPath = true;
       }
       
-      // 精度を下げる（点が曲線に非常に近い場合）
+      // Determine the quality of the winding calculation. Reduce the
+      // quality with every crossing of the ray very close to the
+      // path. This means that if the point is on or near multiple
+      // curves, the quality becomes less than 0.5.
       if (a > pa - qualityEpsilon && a < pa + qualityEpsilon) {
         quality /= 2;
       }
     } else {
       // 曲線の始点での処理
+      // Curve is crossed at starting point.
       if (winding !== windingPrev) {
-        // 前の曲線からwinding方向が変わった場合
+        // Winding changes from previous curve, cancel its winding.
         if (a0 < paL) {
           pathWindingL += winding;
         } else if (a0 > paR) {
           pathWindingR += winding;
         }
       } else if (a0 !== a3Prev) {
-        // 水平曲線の特殊処理
+        // Handle a horizontal curve between the current and
+        // previous non-horizontal curve. See
+        // #1261#issuecomment-282726147 for a detailed explanation:
         if (a3Prev < paR && a > paR) {
+          // Right winding was not added before, so add it now.
           pathWindingR += winding;
           onPath = true;
         } else if (a3Prev > paL && a < paL) {
+          // Left winding was not added before, so add it now.
           pathWindingL += winding;
           onPath = true;
         }
@@ -286,8 +305,12 @@ export function getWinding(
     vPrev = v;
     
     // 接線が方向に平行な場合、方向を反転して再計算
+    // paper.jsと同じ挙動になるように接線を計算
+    // If we're on the curve, look at the tangent to decide whether to
+    // flip direction to better determine a reliable winding number:
+    // If the tangent is parallel to the direction, call getWinding()
+    // again with flipped direction and return that result instead.
     if (!dontFlip && a > paL && a < paR) {
-      // paper.jsと同じ挙動になるように接線を計算
       const tangent = Curve.getTangent(v, t);
       if (tangent[dir ? 'x' : 'y'] === 0) {
         return getWinding(point, curves, !dir, closed, true);
@@ -297,31 +320,32 @@ export function getWinding(
   
   // 曲線を処理する関数
   function handleCurve(v: number[]): any {
-    // 縦座標を取得
+    // Get the ordinates:
     const o0 = v[io + 0];
     const o1 = v[io + 2];
     const o2 = v[io + 4];
     const o3 = v[io + 6];
     
-    // 点の縦座標が曲線の範囲内にある場合のみ処理
+    // Only handle curves that can cross the point's ordinate.
     if (po <= max(o0, o1, o2, o3) && po >= min(o0, o1, o2, o3)) {
-      // 横座標を取得
+      // Get the abscissas:
       const a0 = v[ia + 0];
       const a1 = v[ia + 2];
       const a2 = v[ia + 4];
       const a3 = v[ia + 6];
       
-      // 単調曲線を取得
-      // paper.jsと同じ挙動になるように単調曲線を取得
-      // CurveSubdivision.getMonoCurvesはdirの解釈がpaper.jsと逆なので、!dirを渡す
+      // Get monotone curves. If the curve is outside the point's
+      // abscissa, it can be treated as a monotone curve:
       const monoCurves = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
         ? [v]
-        : CurveSubdivision.getMonoCurves(v, !dir);
+        : CurveSubdivision.getMonoCurves(v, dir);
       
-      // 各単調曲線に対してwinding計算
+      let res;
       for (let i = 0, l = monoCurves.length; i < l; i++) {
-        const res = addWinding(monoCurves[i]);
-        if (res) return res;
+        // Calling addWinding() may lead to direction flipping, in
+        // which case we already have the result and can return it.
+        if (res = addWinding(monoCurves[i]))
+          return res;
       }
     }
   }
@@ -335,11 +359,17 @@ export function getWinding(
     
     // 新しいパスの開始時の処理
     if (!i || curvesList[i - 1]._path !== path) {
+      // We're on a new (sub-)path, so we need to determine values of
+      // the last non-horizontal curve on this path.
       vPrev = undefined;
       
-      // パスが閉じていない場合、最初と最後のセグメントを接続
+      // If the path is not closed, connect the first and last segment
+      // based on the value of `closed`:
+      // - `false`: Connect with a straight curve, just like how
+      //   filling open paths works.
+      // - `true`: Connect with a curve that takes the segment handles
+      //   into account, just like how closed paths behave.
       if (!path._closed) {
-        // CurveSubdivisionを使用して閉じる曲線を計算
         vClose = CurveSubdivision.getValues(
           path.getLastCurve()._segment2,
           curve._segment1,
@@ -347,14 +377,17 @@ export function getWinding(
           !closed
         );
         
-        // この閉じる曲線が水平でない場合、前の曲線として使用
+        // This closing curve is a potential candidate for the last
+        // non-horizontal curve.
         if (vClose[io] !== vClose[io + 6]) {
           vPrev = vClose;
         }
       }
       
-      // 前の曲線が見つからない場合、パスの最後から水平でない曲線を探す
       if (!vPrev) {
+        // Walk backwards through list of the path's curves until we
+        // find one that is not horizontal.
+        // Fall-back to the first curve's values if none is found:
         vPrev = v;
         let prev = path.getLastCurve();
         while (prev && prev !== curve) {
@@ -368,19 +401,26 @@ export function getWinding(
       }
     }
     
-    // 曲線を処理
-    if ((res = handleCurve(v))) {
+    // Calling handleCurve() may lead to direction flipping, in which
+    // case we already have the result and can return it.
+    if (res = handleCurve(v))
       return res;
-    }
     
     // パスの最後の曲線の処理
     if (i + 1 === l || curvesList[i + 1]._path !== path) {
-      // 閉じる曲線がある場合は処理
-      if (vClose && (res = handleCurve(vClose))) {
+      // We're at the last curve of the current (sub-)path. If a
+      // closing curve was calculated at the beginning of it, handle
+      // it now to treat the path as closed:
+      if (vClose && (res = handleCurve(vClose)))
         return res;
-      }
       
       // パス上にあり、windingが相殺された場合の処理
+      // If the point is on the path and the windings canceled
+      // each other, we treat the point as if it was inside the
+      // path. A point inside a path has a winding of [+1,-1]
+      // for clockwise and [-1,+1] for counter-clockwise paths.
+      // If the ray is cast in y direction (dir == true), the
+      // windings always have opposite sign.
       if (onPath && !pathWindingL && !pathWindingR) {
         pathWindingL = pathWindingR = path.isClockwise(closed) !== dir ? 1 : -1;
       }
@@ -400,10 +440,14 @@ export function getWinding(
   }
   
   // 符号なしのwinding値を使用
+  // Use the unsigned winding contributions when determining which areas
+  // are part of the boolean result.
   windingL = abs(windingL);
   windingR = abs(windingR);
   
   // 計算結果を返す
+  // Return the calculated winding contributions along with a quality
+  // value indicating how reliable the value really is.
   return {
     winding: max(windingL, windingR),
     windingL: windingL,
@@ -411,6 +455,35 @@ export function getWinding(
     quality: quality,
     onPath: onAnyPath
   };
+}
+
+/**
+ * 交点のwinding numberの寄与を計算
+ * paper.jsのgetWindingContribution関数を移植
+ *
+ * @param segment - winding寄与を計算するセグメント
+ * @param path1 - ブール演算の最初のパス
+ * @param path2 - ブール演算の2番目のパス（存在する場合）
+ * @param operator - ブール演算子
+ * @returns winding寄与
+ */
+export function getWindingContribution(
+  segment: Segment,
+  path1: Path,
+  path2: Path | null,
+  operator: Record<string, boolean>
+): number {
+  const segmentInfo = asSegmentInfo(segment);
+  if (!segmentInfo || !segmentInfo._winding) {
+    return 0;
+  }
+  
+  const winding = segmentInfo._winding;
+  return operator.subtract && path2
+    ? path1.isClockwise() !== path2.isClockwise()
+      ? winding.winding
+      : (winding.windingL || 0) - (winding.windingR || 0)
+    : winding.winding;
 }
 
 // CompoundPathのimport
