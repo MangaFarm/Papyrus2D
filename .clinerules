@@ -36,9 +36,6 @@ Papyrus2Dはpaper.jsから幾何部分を抽出するプロジェクトです。
 1. **implementation_plan.md**
    - プロジェクトの概要、目的、設計原則を詳細に記述
 
-2. **todo_list.md**
-   - 具体的な実装タスクのチェックリスト
-
 ## テスト実行
 
   % npm test filename

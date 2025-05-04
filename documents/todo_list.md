@@ -129,6 +129,9 @@
 ## 次のステップ（優先度順）
 - [x] MangaFarm Organizationへのリモートリポジトリ移行（2025/05/02 完了）
 - [ ] PathBoolean.tsの実装改善
+  - [x] PathBoolean.tsの機能を複数のファイルに分割
+    - [x] winding number関連の処理をPathBooleanWinding.tsに移動
+    - [x] 交点計算関連の処理をPathBooleanIntersections.tsに移動
   - [ ] 非交差矩形のunite操作の修正（バウンディングボックス計算の問題）
     - [x] paper.jsのreorientPaths関数の移植または同等機能の実装
     - [ ] tracePaths関数の交点がない場合の処理を修正
