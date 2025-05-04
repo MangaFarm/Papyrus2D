@@ -331,17 +331,59 @@ describe('Path', () => {
   });
 
   describe('arcTo', () => {
-    it('should add arc segments correctly', () => {
-      // Papyrus2DではarcToメソッドが実装されていない可能性があるため、
-      // このテストはスキップするか、実装が存在する場合のみ実行する
+    it('should add arc segments correctly when points have different y positions', () => {
+      // paper.jsのテストケースを移植
+      const path = new Path();
+      path.moveTo(new Point(0, 20));
+      path.arcTo(new Point(75, 75), new Point(100, 0));
       
-      // 実装例（もし存在しない場合）:
-      // const path = new Path();
-      // path.moveTo(new Point(0, 20));
-      // path.arcTo(new Point(75, 75), new Point(100, 0));
+      // セグメント数を確認
+      expect(path.getSegments().length).toBe(4);
       
-      // expect(path.getSegments().length).toBe(4);
-      // expect(path.hasHandles()).toBe(true);
+      // ハンドルが設定されていることを確認
+      expect(path.hasHandles()).toBe(true);
+      
+      // セグメントの位置とハンドルを確認
+      const segments = path.getSegments();
+      
+      // 最初のセグメント
+      expect(segments[0].point.x).toBeCloseTo(0, 0);
+      expect(segments[0].point.y).toBeCloseTo(20, 0);
+      expect(segments[0].handleOut.x).toBeCloseTo(-2.62559, 1);
+      expect(segments[0].handleOut.y).toBeCloseTo(23.01251, 1);
+      
+      // 2番目のセグメント
+      expect(segments[1].point.x).toBeCloseTo(30.89325, 0);
+      expect(segments[1].point.y).toBeCloseTo(74.75812, 0);
+      expect(segments[1].handleIn.x).toBeCloseTo(-21.05455, 0);
+      expect(segments[1].handleIn.y).toBeCloseTo(-9.65273, 0);
+      expect(segments[1].handleOut.x).toBeCloseTo(21.05455, 0);
+      expect(segments[1].handleOut.y).toBeCloseTo(9.65273, 0);
+      
+      // 3番目のセグメント
+      expect(segments[2].point.x).toBeCloseTo(92.54397, 0);
+      expect(segments[2].point.y).toBeCloseTo(62.42797, 0);
+      expect(segments[2].handleIn.x).toBeCloseTo(-15.72238, 0);
+      expect(segments[2].handleIn.y).toBeCloseTo(17.00811, 0);
+      expect(segments[2].handleOut.x).toBeCloseTo(15.72238, 0);
+      expect(segments[2].handleOut.y).toBeCloseTo(-17.00811, 0);
+      
+      // 最後のセグメント
+      expect(segments[3].point.x).toBeCloseTo(100, 0);
+      expect(segments[3].point.y).toBeCloseTo(0, 0);
+      expect(segments[3].handleIn.x).toBeCloseTo(11.27458, 0);
+      expect(segments[3].handleIn.y).toBeCloseTo(20.23247, 0);
+    });
+    
+    it('should add arc segments correctly when points share the same y position', () => {
+      // paper.jsの別のテストケースを移植
+      const path = new Path();
+      path.add(new Segment(new Point(40, 75)));
+      path.arcTo(new Point(50, 75), new Point(100, 75));
+      
+      // 最後のセグメントの位置を確認
+      expect(path.getLastSegment()!.point.x).toBe(100);
+      expect(path.getLastSegment()!.point.y).toBe(75);
     });
   });
 
