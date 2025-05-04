@@ -252,6 +252,18 @@ describe('PathBoolean', () => {
       console.log('Result segments:', result.getSegments().length);
       console.log('Result path data:', pathToString(result));
       console.log('Expected:', results[0]);
+
+      // バウンディングボックスのデバッグ情報
+      const bounds = result.getBounds();
+      const bounds1 = rect1.getBounds();
+      const bounds2 = rect2.getBounds();
+      console.log('Result bounds:', bounds);
+      console.log('Rect1 bounds:', bounds1);
+      console.log('Rect2 bounds:', bounds2);
+      console.log('Min x:', Math.min(bounds1.x, bounds2.x));
+      console.log('Min y:', Math.min(bounds1.y, bounds2.y));
+      console.log('Max right:', Math.max(bounds1.x + bounds1.width, bounds2.x + bounds2.width));
+      console.log('Max bottom:', Math.max(bounds1.y + bounds1.height, bounds2.y + bounds2.height));
       console.log('===============================');
     });
     

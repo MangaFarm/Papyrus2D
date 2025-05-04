@@ -254,6 +254,10 @@ export class PathBoolean {
       // 現在の演算に対応するフィルタ関数
       const operator = operators[operation];
       
+      // paper.jsと同様に、operatorにoperationプロパティを追加
+      // これにより、reorientPaths関数でunite操作かどうかを判定できる
+      operator[operation] = true;
+      
       // path2がnullの場合は、path1のみを返す
       if (!path2) {
         return [path1];
@@ -266,7 +270,9 @@ export class PathBoolean {
         // windingに基づいてパスを保持するかどうかを判定する関数
         function(winding: number) {
           return !!operator[winding.toString()];
-        }
+        },
+        undefined,
+        operator
       );
       
       // 結果を返す
@@ -400,48 +406,47 @@ export class PathBoolean {
   
   /**
    * 結果Path構築と重複統合
-   * paper.jsのcreateResult関数を参考に実装
+   * paper.jsのcreateResult関数を忠実に移植
    */
   static createResult(
     paths: Path[],
-    operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
+    simplify: boolean,
+    path1: PathItem,
+    path2?: PathItem,
+    options?: { insert?: boolean }
   ): PathItem {
-    console.log(`DEBUG: createResult called with ${paths.length} paths for operation: ${operation}`);
-    
-    if (paths.length === 0) {
-      console.log('DEBUG: No paths, returning empty Path');
-      return new Path();
-    }
-    
-    if (paths.length === 1) {
-      console.log('DEBUG: Single path, returning it directly');
-      return paths[0];
-    }
-    
-    console.log('DEBUG: Multiple paths, creating CompoundPath');
-    // 複数のパスをCompoundPathとして結合
+    // 結果のCompoundPathを作成
     const result = new CompoundPath();
     
-    // 各パスを独立したパスとして追加
-    // 各パスが閉じていることを確認
-    for (const path of paths) {
-      console.log('DEBUG: Adding path to CompoundPath, segments:', path.getSegments().length);
-      // パスのコピーを作成して閉じる
-      const newPath = new Path(path.getSegments(), true);
-      result.addChild(newPath);
+    // パスを追加
+    result.addChildren(paths);
+    
+    // パスを簡略化（reduce相当の処理）
+    const simplified = result.reduce({ simplify });
+    
+    // 挿入オプションが明示的にfalseでない場合、結果を挿入
+    if (!(options && options.insert === false)) {
+      // path1とpath2が存在し、兄弟関係にある場合、
+      // path1のインデックスがpath2より小さければpath2の上に、
+      // そうでなければpath1の上に挿入
+      if (path2 && path1 && path1.isSibling && path2.isSibling &&
+          path1.isSibling(path2) &&
+          path1.getIndex && path2.getIndex &&
+          path1.getIndex() < path2.getIndex()) {
+        if (simplified.insertAbove) {
+          simplified.insertAbove(path2);
+        }
+      } else if (path1 && simplified.insertAbove) {
+        simplified.insertAbove(path1);
+      }
     }
     
-    // 結果を単一のPathに変換できる場合は変換
-    // paper.jsのreduce()メソッドに相当する処理
-    if (result._children && result._children.length === 1) {
-      console.log('DEBUG: CompoundPath has only one child, converting to Path');
-      const singlePath = result._children[0] as Path;
-      return singlePath;
+    // path1の属性をコピー
+    if (path1 && simplified.copyAttributes) {
+      simplified.copyAttributes(path1, true);
     }
     
-    console.log('DEBUG: Returning CompoundPath with', result._children?.length, 'children');
-    // CompoundPathをそのまま返す
-    return result;
+    return simplified;
   }
 
   /**
@@ -466,7 +471,7 @@ export class PathBoolean {
     const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'unite');
     
     // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, 'unite');
+    return PathBoolean.createResult(resultPaths, true, path1, path2);
   }
   
   /**
@@ -491,7 +496,7 @@ export class PathBoolean {
     const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'intersect');
     
     // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, 'intersect');
+    return PathBoolean.createResult(resultPaths, true, path1, path2);
   }
   
   /**
@@ -516,7 +521,7 @@ export class PathBoolean {
     const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'subtract');
     
     // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, 'subtract');
+    return PathBoolean.createResult(resultPaths, true, path1, path2);
   }
   
   /**
@@ -541,7 +546,7 @@ export class PathBoolean {
     const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'exclude');
     
     // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, 'exclude');
+    return PathBoolean.createResult(resultPaths, true, path1, path2);
   }
   
   /**
@@ -566,6 +571,6 @@ export class PathBoolean {
     const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'divide');
     
     // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, 'divide');
+    return PathBoolean.createResult(resultPaths, true, path1, path2);
   }
 }

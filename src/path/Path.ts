@@ -1329,6 +1329,27 @@ export class Path implements PathItem {
   }
 
   /**
+   * パスが空かどうかを判定
+   * paper.jsのPath.isEmpty()を移植
+   * @returns 空ならtrue
+   */
+  isEmpty(): boolean {
+    // セグメントがない場合は空
+    return this._segments.length === 0;
+  }
+
+  /**
+   * パスを削除する
+   * paper.jsのItem.remove()を移植
+   * @returns 削除されたパス、または削除できなかった場合はnull
+   */
+  remove(): PathItem | null {
+    // 現在の実装では単純に自身を返す
+    // 実際のpaper.jsでは、親アイテムから削除する
+    return this;
+  }
+
+  /**
    * パスの内部点を取得する
    * paper.jsのgetInteriorPoint()メソッドを移植
    * @returns パス内部の点
@@ -1347,5 +1368,85 @@ export class Path implements PathItem {
     }
     
     return point;
+  }
+
+  /**
+   * パスを簡略化する
+   * 単一のPathに変換できる場合は変換する
+   * paper.jsのPath.reduce()を移植
+   * @param options 簡略化オプション
+   * @returns 簡略化されたPathItemオブジェクト
+   */
+  reduce(options?: { simplify?: boolean }): PathItem {
+    // 単一のPathの場合は、そのまま返す
+    return this;
+  }
+
+  /**
+   * 指定されたパスが兄弟関係にあるかどうかを判定する
+   * paper.jsのItem.isSibling()を移植
+   * @param path 判定するパス
+   * @returns 兄弟関係にある場合はtrue
+   */
+  isSibling(path: PathItem): boolean {
+    // 現在の実装では常にfalseを返す
+    // 実際のpaper.jsでは、同じ親を持つアイテムかどうかを判定する
+    return false;
+  }
+
+  /**
+   * パスのインデックスを取得する
+   * paper.jsのItem.getIndex()を移植
+   * @returns インデックス
+   */
+  getIndex(): number {
+    // 現在の実装では常に0を返す
+    // 実際のpaper.jsでは、親アイテム内でのインデックスを返す
+    return 0;
+  }
+
+  /**
+   * 指定されたパスの上に挿入する
+   * paper.jsのItem.insertAbove()を移植
+   * @param path 挿入する位置の基準となるパス
+   * @returns このパス
+   */
+  insertAbove(path: PathItem): Path {
+    // 現在の実装では何もしない
+    // 実際のpaper.jsでは、指定されたアイテムの上に挿入する
+    return this;
+  }
+
+  /**
+   * 指定されたパスの属性をコピーする
+   * paper.jsのItem.copyAttributes()を移植
+   * @param path コピー元のパス
+   * @param excludeMatrix 行列を除外するかどうか
+   * @returns このパス
+   */
+  copyAttributes(path: PathItem, excludeMatrix?: boolean): Path {
+    // 現在の実装では何もしない
+    // 実際のpaper.jsでは、スタイルや属性をコピーする
+    return this;
+  }
+  /**
+   * パスの向きを反転させる
+   * paper.jsのPath.reverse()を移植
+   * @returns このパス
+   */
+  reverse(): Path {
+    this._segments.reverse();
+    // ハンドルを反転
+    for (let i = 0, l = this._segments.length; i < l; i++) {
+      const segment = this._segments[i];
+      const handleIn = segment._handleIn;
+      segment._handleIn = segment._handleOut;
+      segment._handleOut = handleIn;
+      segment._index = i;
+    }
+    // カーブのキャッシュをクリア
+    this._curves = undefined;
+    this._changed(ChangeFlag.GEOMETRY);
+    return this;
   }
 }

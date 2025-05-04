@@ -72,6 +72,16 @@ export interface PathItem {
   contains(point: Point): boolean;
 
   /**
+   * パスが空かどうかを判定
+   */
+  isEmpty?(): boolean;
+
+  /**
+   * パスを削除する
+   */
+  remove?(): PathItem | null;
+
+  /**
    * パスの全Curveを取得
    */
   getCurves(): Curve[];
@@ -79,4 +89,45 @@ export interface PathItem {
    * 他のPathとの交点列挙
    */
   getIntersections(other: Path): CurveLocation[];
+
+  /**
+   * パスを簡略化する
+   * 単一のPathに変換できる場合は変換する
+   * paper.jsのPathItem.reduce()を移植
+   * @param options 簡略化オプション
+   * @returns 簡略化されたPathItemオブジェクト
+   */
+  reduce?(options?: { simplify?: boolean }): PathItem;
+
+  /**
+   * 指定されたパスが兄弟関係にあるかどうかを判定する
+   * paper.jsのItem.isSibling()を移植
+   * @param path 判定するパス
+   * @returns 兄弟関係にある場合はtrue
+   */
+  isSibling?(path: PathItem): boolean;
+
+  /**
+   * パスのインデックスを取得する
+   * paper.jsのItem.getIndex()を移植
+   * @returns インデックス
+   */
+  getIndex?(): number;
+
+  /**
+   * 指定されたパスの上に挿入する
+   * paper.jsのItem.insertAbove()を移植
+   * @param path 挿入する位置の基準となるパス
+   * @returns このパス
+   */
+  insertAbove?(path: PathItem): PathItem;
+
+  /**
+   * 指定されたパスの属性をコピーする
+   * paper.jsのItem.copyAttributes()を移植
+   * @param path コピー元のパス
+   * @param excludeMatrix 行列を除外するかどうか
+   * @returns このパス
+   */
+  copyAttributes?(path: PathItem, excludeMatrix?: boolean): PathItem;
 }
