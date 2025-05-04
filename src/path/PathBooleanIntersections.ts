@@ -172,20 +172,20 @@ export function divideLocations(
       } else {
         // カーブを時間で分割
         // paper.jsと同様に、_setHandlesパラメータを渡す
+        // divideAtTimeは新しいカーブオブジェクトを返す（Paper.jsと同様）
         const newCurve = curve.divideAtTime(time, clearHandles);
         
-        // TypeScript制約: paper.jsではclearHandlesがtrueの場合、
-        // 元のカーブと新しいカーブをclearCurvesに追加するが、
-        // Papyrus2Dでは型の制約があるため、Curveオブジェクトのみ追加
-        if (clearHandles && newCurve && typeof newCurve === 'object' && 'getPoint' in newCurve) {
+        // paper.jsと同様に、clearHandlesがtrueの場合、元のカーブと新しいカーブをclearCurvesに追加
+        if (clearHandles && newCurve) {
+          // 分割が成功した場合、元のカーブと新しいカーブを追加
           clearCurves.push(curve);
-          clearCurves.push(newCurve as Curve);
+          clearCurves.push(newCurve);
         }
         
-        // TypeScript制約: paper.jsでは新しいカーブの_segment1を取得するが、
-        // Papyrus2Dでは戻り値の型が異なる可能性があるため、型チェックが必要
-        if (newCurve && typeof newCurve === 'object' && '_segment1' in newCurve) {
-          segment = (newCurve as Curve)._segment1;
+        // 分割が成功した場合、新しいセグメントを取得
+        if (newCurve) {
+          // 新しいセグメントは新しいカーブの最初のセグメント
+          segment = newCurve._segment1;
           
           // 同じカーブ内の他の位置の時間パラメータを正規化
           for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
@@ -200,14 +200,15 @@ export function divideLocations(
       loc._setSegment(segment);
       
       // 交点間のリンクを作成
-      // TypeScript制約: paper.jsではSegmentに直接_intersectionプロパティを追加するが、
-      // TypeScriptでは型定義が必要なため、型キャストを使用
+      // paper.jsと同様に、Segmentに直接_intersectionプロパティを追加
+      // TypeScript制約: 型定義のためにキャストは必要だが、コメントで説明
       const segmentWithInter = segment as unknown as SegmentWithIntersection;
       const inter = segmentWithInter._intersection;
       const dest = loc._intersection;
       
       if (inter) {
-        // TypeScript制約: 型の不一致を避けるため、unknownを経由して変換
+        // paper.jsと同様に、直接リンク処理を行う
+        // TypeScript制約: 型の一致を確保するためにキャストが必要
         linkIntersections(inter as unknown as Intersection, dest as unknown as Intersection);
         // 新しいリンクを追加するたびに、他のすべてのエントリから新しいエントリへのリンクを追加
         let other = inter as unknown as Intersection;
@@ -215,10 +216,10 @@ export function divideLocations(
           if (other._intersection) {
             linkIntersections(other._intersection, inter as unknown as Intersection);
           }
-          other = other.next!;
+          other = other.next!; // next!を使用してnullチェックエラーを回避
         }
       } else {
-        // TypeScript制約: 型の不一致を避けるため、unknownを経由して変換
+        // paper.jsと同様に、直接プロパティを設定
         segmentWithInter._intersection = dest as unknown as Intersection;
       }
     }
@@ -244,9 +245,9 @@ export function dividePathAtIntersections(path: Path, intersections: Intersectio
   for (const inter of intersections) {
     const curve = path.getCurves()[inter.curve1Index];
     const loc = new CurveLocation(curve, inter.t1 || 0);
-    // TypeScript制約: paper.jsでは直接プロパティを追加するが、
-    // TypeScriptでは型定義が必要なため、anyを使用
-    (loc as any)._intersection = inter;
+    // paper.jsと同様に、直接プロパティを設定
+    // TypeScript制約: 型定義のためにキャストは必要だが、コメントで説明
+    (loc as any)._intersection = inter; // TypeScript制約: paper.jsと同様に直接プロパティを設定
     locations.push(loc);
   }
   

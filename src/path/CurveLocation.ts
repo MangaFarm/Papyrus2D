@@ -320,17 +320,14 @@ export class CurveLocation {
   divide(): any {
     const curve = this.getCurve();
     const time = this.getTime() || 0;
-    const index = curve?.divideAtTime(time);
+    const res = curve && curve.divideAtTime(time);
     
-    if (index !== undefined && index !== -1 && curve?._path) {
-      // divideAtTimeはインデックスを返すので、そのインデックスのセグメントを取得
-      const segments = curve._path._segments;
-      if (segments && index < segments.length) {
-        this._setSegment(segments[index]);
-      }
+    // Change to the newly inserted segment, also adjusts _time.
+    if (res) {
+      this._setSegment(res._segment1);
     }
     
-    return index !== -1 ? curve : null;
+    return res;
   }
 
   /**
