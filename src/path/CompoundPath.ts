@@ -324,20 +324,26 @@ export class CompoundPath implements PathItem {
    * @param point 判定する点
    */
   contains(point: Point): boolean {
-    // paper.jsの実装では、_hitTestChildrenメソッドを使用していますが、
-    // Papyrus2Dではそれに相当する実装がないため、同等の機能を実装します
-    
     if (this._children.length === 0) {
       return false;
     }
     
     // 子パスを面積でソート（大きい順）
-    const children = [...this._children];
-    for (let i = children.length - 1; i >= 0; i--) {
-      if (children[i].contains(point))
-        return !children[i].isClockwise();
+    const children = [...this._children].sort((a, b) =>
+      Math.abs(b.getArea()) - Math.abs(a.getArea())
+    );
+    
+    // paper.jsの実装に合わせて、外側から内側へ順に判定
+    // 奇数番目のパスに含まれる場合は内部、偶数番目のパスに含まれる場合は外部
+    let winding = 0;
+    for (let i = 0; i < children.length; i++) {
+      if (children[i].contains(point)) {
+        winding += children[i].isClockwise() ? -1 : 1;
+      }
     }
-    return false;
+    
+    // 巻き数が0でなければ内部
+    return winding !== 0;
   }
 
   /**
@@ -360,7 +366,13 @@ export class CompoundPath implements PathItem {
    * パスの方向を再設定
    * 最も外側のパスは時計回り、内側のパスは反時計回りに設定
    */
-  reorient(): CompoundPath {
+  /**
+   * パスの方向を再設定
+   * 最も外側のパスは時計回り、内側のパスは反時計回りに設定
+   * @param nonZero 非ゼロ塗りつぶしルールを適用するかどうか
+   * @param clockwise 指定された場合、ルートパスの向きを設定
+   */
+  reorient(nonZero?: boolean, clockwise?: boolean): CompoundPath {
     const children = this._children;
     if (children.length === 0) {
       return this;
@@ -369,20 +381,35 @@ export class CompoundPath implements PathItem {
     // 面積でソート（大きい順）
     children.sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
     
-    // 最も外側のパスは時計回りに
+    // 最も外側のパスの向きを決定
     const outermostChild = children[0];
+    if (clockwise === undefined) {
+      clockwise = true; // paper.jsではデフォルトで時計回り
+    }
+    
+    // 最も外側のパスは指定された向きに
     if (!outermostChild.isClosed()) {
       outermostChild.setClosed(true);
     }
     
-    // 内側のパスは反時計回りに
+    if (outermostChild.isClockwise() !== clockwise) {
+      outermostChild.reverse();
+    }
+    
+    // 内側のパスは外側と逆向きに
     for (let i = 1, l = children.length; i < l; i++) {
       const child = children[i];
       if (!child.isClosed()) {
         child.setClosed(true);
       }
-      // 外側と内側で方向を逆にする
-      if (child.isClockwise() === outermostChild.isClockwise()) {
+      
+      // nonZeroが指定されている場合は、巻き数に基づいて向きを決定
+      // そうでない場合は、内側のパスは外側と逆向きに
+      const desiredClockwise = nonZero ?
+        (i % 2 === 0) === clockwise : // 非ゼロルールでは偶数番目は外側と同じ向き
+        !clockwise; // 偶奇ルールでは内側は外側と逆向き
+      
+      if (child.isClockwise() !== desiredClockwise) {
         child.reverse();
       }
     }
