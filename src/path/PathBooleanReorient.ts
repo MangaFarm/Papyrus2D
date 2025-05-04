@@ -9,6 +9,7 @@ import { Numerical } from '../util/Numerical';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { CurveSubdivision } from './CurveSubdivision';
 import { CurveCalculation } from './CurveCalculation';
+import { CurveLocationUtils } from './CurveLocationUtils';
 
 /**
  * パスの方向を再設定し、内部/外部の関係を考慮してパスを整理する
@@ -108,7 +109,7 @@ export function reorientPaths(
       const container = entry1.container;
       
       path1.setClockwise(
-        container ? !container.isClockwise() : !!clockwise
+        container ? !container.isClockwise() : clockwise
       );
     }
   }
@@ -161,12 +162,12 @@ export function getInteriorPoint(path: Path): Point {
               x = mv[6];
             } else {
               // 曲線上のy座標に対応するx座標を求める
-              const count = Numerical.solveCubic(
-                3 * (-mv[1] + 3 * mv[3] - 3 * mv[5] + mv[7]),
-                6 * (mv[1] - 2 * mv[3] + mv[5]),
-                3 * (-mv[1] + mv[3]),
-                mv[1] - y,
-                roots, { min: 0, max: 1 }
+              const count = CurveLocationUtils.solveCubic(
+                mv,
+                1,
+                y,
+                roots,
+                { min: 0, max: 1 }
               );
               x = count === 1
                 ? CurveCalculation.getPoint(mv, roots[0])!.x

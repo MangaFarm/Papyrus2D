@@ -6,7 +6,7 @@
 import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { CurveLocation } from './CurveLocation';
-import { Numerical } from '../util/Numerical';
+import { Numerical, RangeConstraint } from '../util/Numerical';
 import { CurveCalculation } from './CurveCalculation';
 import { CurveGeometry } from './CurveGeometry';
 
@@ -119,9 +119,24 @@ export class CurveLocationUtils {
    * 三次方程式を解く
    * paper.jsのsolveCubic実装を移植
    */
-  static solveCubic(a: number, b: number, c: number, d: number, roots: number[], min?: number, max?: number): number {
-    // Numerical.solveCubicを使用
-    return Numerical.solveCubic(a, b, c, d, roots, min !== undefined && max !== undefined ? { min, max } : undefined);
+  static solveCubic(v: number[], coord: number, val: number, roots: number[], range?: RangeConstraint): number {
+    const v0 = v[coord];
+    const v1 = v[coord + 2];
+    const v2 = v[coord + 4];
+    const v3 = v[coord + 6];
+    let res = 0;
+    
+    // 値が曲線の範囲外にある場合、解は存在しない
+    if (!(v0 < val && v3 < val && v1 < val && v2 < val ||
+          v0 > val && v3 > val && v1 > val && v2 > val)) {
+      const c = 3 * (v1 - v0);
+      const b = 3 * (v2 - v1) - c;
+      const a = v3 - v0 - c - b;
+      
+      res = Numerical.solveCubic(a, b, c, v0 - val, roots, range);
+    }
+    
+    return res;
   }
 
   /**
