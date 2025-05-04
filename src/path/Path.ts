@@ -950,6 +950,34 @@ export class Path extends PathItemBase {
   }
 
   /**
+   * パスを閉じる（paper.js互換）
+   * @param tolerance 許容誤差
+   */
+  closePath(tolerance: number = 0): Path {
+    // 最初と最後のセグメントの距離が許容誤差以内なら、そのまま閉じる
+    // そうでなければ、最初のセグメントへの線を追加してから閉じる
+    const firstSegment = this.getFirstSegment();
+    const lastSegment = this.getLastSegment();
+    
+    if (firstSegment && lastSegment && !this._closed) {
+      const firstPoint = firstSegment.point;
+      const lastPoint = lastSegment.point;
+      
+      if (firstPoint && lastPoint && !firstPoint.equals(lastPoint)) {
+        // 距離が許容誤差より大きい場合は線を追加
+        if (firstPoint.getDistance(lastPoint) > tolerance) {
+          this.lineTo(firstPoint);
+        }
+      }
+      
+      this._closed = true;
+      this._changed(ChangeFlag.SEGMENTS);
+    }
+    
+    return this;
+  }
+
+  /**
    * 円弧を描画する
    *
    * 3つの形式で呼び出すことができます：
@@ -1274,6 +1302,24 @@ export class Path extends PathItemBase {
   }
 
   /**
+   * パスのクローンを作成する
+   * paper.jsのclone関数を移植
+   *
+   * @param deep 深いクローンを作成するかどうか
+   * @returns クローンされたパス
+   */
+  clone(deep: boolean = false): Path {
+    // 新しいパスを作成
+    const segments = this.getSegments().map(segment => segment.clone());
+    const clonedPath = new Path(segments, this.closed);
+    
+    // 属性をコピー
+    clonedPath.copyAttributes(this);
+    
+    return clonedPath;
+  }
+
+  /**
    * パスを平坦化（フラット化）します。
    * 曲線を直線セグメントに変換し、ハンドルを持たないパスにします。
    * @param flatness 許容される最大誤差（デフォルト: 0.25）
@@ -1442,6 +1488,16 @@ export class Path extends PathItemBase {
     this._curves = undefined;
     this._changed(ChangeFlag.GEOMETRY);
     return this;
+  }
+
+  /**
+   * パスの配列を取得する
+   * Pathの場合は自身を含む配列を返す
+   * paper.jsのgetPaths関数を移植
+   * @returns パスの配列
+   */
+  getPaths(): Path[] {
+    return [this];
   }
 
   // setClockwiseメソッドは基底クラスから継承

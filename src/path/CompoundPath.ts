@@ -673,4 +673,44 @@ export class CompoundPath extends PathItemBase {
     return 0;
   }
 
+  /**
+   * パスの配列を取得する
+   * CompoundPathの場合は子パスの配列を返す
+   * paper.jsのgetPaths関数を移植
+   * @returns パスの配列
+   */
+  getPaths(): Path[] {
+    return this._children;
+  }
+
+  /**
+   * パスのクローンを作成する
+   * paper.jsのItem.clone()を移植
+   * @param deep 深いクローンを作成するかどうか
+   * @returns クローンされたパス
+   */
+  clone(deep: boolean = false): PathItem {
+    const copy = new CompoundPath();
+    
+    // 子パスをクローン
+    for (const child of this._children) {
+      copy.addChild(deep ? child.clone(true) as Path : child.clone(false) as Path);
+    }
+    
+    // 属性をコピー
+    if (this._matrix) {
+      copy._matrix = this._matrix.clone();
+    }
+    
+    // その他の属性をコピー
+    if (this._name) {
+      copy._name = this._name;
+    }
+    
+    if (this._data) {
+      copy._data = JSON.parse(JSON.stringify(this._data));
+    }
+    
+    return copy;
+  }
 }

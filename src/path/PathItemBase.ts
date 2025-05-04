@@ -11,6 +11,7 @@ import { Curve } from './Curve';
 import { Segment } from './Segment';
 import { CurveLocation } from './CurveLocation';
 import { PathItem } from './PathItem';
+import type { Path } from './Path';
 
 export abstract class PathItemBase implements PathItem {
   // PathItemインターフェースの実装
@@ -29,6 +30,8 @@ export abstract class PathItemBase implements PathItem {
   abstract getCurves(): Curve[];
   abstract getArea(): number;
   abstract reverse(): PathItemBase;
+  abstract getPaths(): Path[];
+  abstract clone(deep?: boolean): PathItem;
 
   /**
    * パスが時計回りかどうかを判定

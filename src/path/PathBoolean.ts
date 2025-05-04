@@ -13,6 +13,7 @@ import { PathItem } from './PathItem';
 import { CurveLocation } from './CurveLocation';
 import { reorientPaths } from './PathBooleanReorient';
 import { CollisionDetection } from '../util/CollisionDetection';
+import { preparePath } from './PathBooleanPreparation';
 
 /**
  * 交点情報
@@ -271,8 +272,7 @@ export class PathBoolean {
         function(winding: number) {
           return !!operator[winding.toString()];
         },
-        undefined,
-        operator
+        undefined
       );
       
       // 結果を返す
@@ -453,9 +453,9 @@ export class PathBoolean {
    * パスの合成（unite）
    */
   static unite(path1: PathItem, path2: PathItem): PathItem {
-    // PathItemをPathにキャスト
-    const p1 = path1 as Path;
-    const p2 = path2 as Path;
+    // パスを準備
+    const p1 = preparePath(path1, true) as Path;
+    const p2 = preparePath(path2, true) as Path;
     
     // 交点計算
     const intersections = this.getIntersections(p1, p2);
@@ -478,9 +478,9 @@ export class PathBoolean {
    * パスの交差（intersect）
    */
   static intersect(path1: PathItem, path2: PathItem): PathItem {
-    // PathItemをPathにキャスト
-    const p1 = path1 as Path;
-    const p2 = path2 as Path;
+    // パスを準備
+    const p1 = preparePath(path1, true) as Path;
+    const p2 = preparePath(path2, true) as Path;
     
     // 交点計算
     const intersections = this.getIntersections(p1, p2);
@@ -503,9 +503,9 @@ export class PathBoolean {
    * パスの差分（subtract）
    */
   static subtract(path1: PathItem, path2: PathItem): PathItem {
-    // PathItemをPathにキャスト
-    const p1 = path1 as Path;
-    const p2 = path2 as Path;
+    // パスを準備
+    const p1 = preparePath(path1, true) as Path;
+    const p2 = preparePath(path2, true) as Path;
     
     // 交点計算
     const intersections = this.getIntersections(p1, p2);
@@ -528,9 +528,9 @@ export class PathBoolean {
    * パスの排他的論理和（exclude）
    */
   static exclude(path1: PathItem, path2: PathItem): PathItem {
-    // PathItemをPathにキャスト
-    const p1 = path1 as Path;
-    const p2 = path2 as Path;
+    // パスを準備
+    const p1 = preparePath(path1, true) as Path;
+    const p2 = preparePath(path2, true) as Path;
     
     // 交点計算
     const intersections = this.getIntersections(p1, p2);
@@ -553,9 +553,9 @@ export class PathBoolean {
    * パスの分割（divide）
    */
   static divide(path1: PathItem, path2: PathItem): PathItem {
-    // PathItemをPathにキャスト
-    const p1 = path1 as Path;
-    const p2 = path2 as Path;
+    // パスを準備
+    const p1 = preparePath(path1, true) as Path;
+    const p2 = preparePath(path2, true) as Path;
     
     // 交点計算
     const intersections = this.getIntersections(p1, p2);

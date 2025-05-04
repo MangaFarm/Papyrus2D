@@ -100,6 +100,37 @@ export interface PathItem {
   reduce?(options?: { simplify?: boolean }): PathItem;
 
   /**
+   * パスのクローンを作成する
+   * paper.jsのItem.clone()を移植
+   * @param deep 深いクローンを作成するかどうか
+   * @returns クローンされたパス
+   */
+  clone(deep?: boolean): PathItem;
+
+  /**
+   * 交差を解決する
+   * paper.jsのPathItem.resolveCrossings()を移植
+   * @returns 交差が解決されたパス
+   */
+  resolveCrossings?(): PathItem;
+
+  /**
+   * パスの向きを再設定する
+   * paper.jsのPathItem.reorient()を移植
+   * @param nonZero 非ゼロ塗りつぶしルールを適用するかどうか
+   * @param clockwise 時計回りにするかどうか
+   * @returns このパス
+   */
+  reorient?(nonZero?: boolean, clockwise?: boolean): PathItem;
+
+  /**
+   * 塗りつぶしルールを取得する
+   * paper.jsのItem.getFillRule()を移植
+   * @returns 塗りつぶしルール
+   */
+  getFillRule?(): string;
+
+  /**
    * 指定されたパスが兄弟関係にあるかどうかを判定する
    * paper.jsのItem.isSibling()を移植
    * @param path 判定するパス
@@ -130,4 +161,22 @@ export interface PathItem {
    * @returns このパス
    */
   copyAttributes?(path: PathItem, excludeMatrix?: boolean): PathItem;
+
+  /**
+   * 変換行列を適用する
+   * paper.jsのItem.transform()を移植
+   * @param matrix 変換行列
+   * @param applyRecursively 再帰的に適用するかどうか
+   * @param setApplyMatrix 行列を適用するかどうか
+   * @returns このパス
+   */
+  transform?(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem;
+
+  /**
+   * パスの配列を取得する
+   * CompoundPathの場合は子パスの配列、Pathの場合は自身を含む配列を返す
+   * paper.jsのgetPaths関数を移植
+   * @returns パスの配列
+   */
+  getPaths(): Path[];
 }
