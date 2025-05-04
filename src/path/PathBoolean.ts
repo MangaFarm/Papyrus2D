@@ -18,6 +18,9 @@ import { preparePath } from './PathBooleanPreparation';
 /**
  * 交点情報
  */
+/**
+ * 交点情報
+ */
 export interface Intersection {
   // 交点の座標
   point: Point;
@@ -41,6 +44,38 @@ export interface Intersection {
   prev?: Intersection;
   // 交点のセグメント
   segment?: Segment;
+  // 交点が重なりかどうか
+  _overlap?: boolean;
+}
+
+/**
+ * セグメント拡張情報
+ * paper.jsのSegmentクラスに追加されるプロパティを定義
+ */
+interface SegmentInfo {
+  // セグメントが訪問済みかどうか
+  _visited?: boolean;
+  // セグメントの交点情報
+  _intersection?: Intersection | null;
+  // セグメントのwinding情報
+  _winding?: {
+    winding: number;
+    windingL?: number;
+    windingR?: number;
+  };
+  // セグメントのパス
+  _path?: Path & {
+    _overlapsOnly?: boolean;
+    _closed?: boolean;
+    _id?: number;
+    compare?: (path: Path) => boolean;
+  };
+}
+
+// 型安全性のためのヘルパー関数
+// 注意: paper.jsとの互換性のため、型キャストを使用
+function asSegmentInfo(segment: Segment | null | undefined): Segment & SegmentInfo | null | undefined {
+  return segment as (Segment & SegmentInfo) | null | undefined;
 }
 
 /**
@@ -231,255 +266,379 @@ export class PathBoolean {
   }
 
   /**
+   * 交点情報をリンクリストとして連結する
+   * paper.jsのlinkIntersections関数を移植
+   */
+  private static linkIntersections(from: Intersection, to: Intersection): void {
+    // 既存のチェーンに既にtoが含まれていないか確認
+    let prev = from;
+    while (prev) {
+      if (prev === to) return;
+      prev = prev.prev!;
+    }
+
+    // 既存のチェーンの末尾を探す
+    while (from.next && from.next !== to) {
+      from = from.next;
+    }
+
+    // チェーンの末尾に到達したら、toを連結
+    if (!from.next) {
+      // toのチェーンの先頭に移動
+      let toStart = to;
+      while (toStart.prev) {
+        toStart = toStart.prev;
+      }
+      from.next = toStart;
+      toStart.prev = from;
+    }
+  }
+
+  /**
+   * カーブのハンドルをクリア
+   * paper.jsのclearCurveHandlesメソッドを移植
+   */
+  private static clearCurveHandles(curves: Curve[]): void {
+    // 各カーブのセグメントのハンドルをクリア
+    for (let i = curves.length - 1; i >= 0; i--) {
+      const curve = curves[i];
+      if (curve._segment1) curve._segment1.clearHandles();
+      if (curve._segment2) curve._segment2.clearHandles();
+    }
+  }
+
+  /**
    * マーチングアルゴリズムによるパス構築
+   * paper.jsのtracePathsアルゴリズムを忠実に移植
    */
   private static tracePaths(
-    path1: Path,
-    path2: Path,
-    intersections: Intersection[],
-    operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
+    segments: Segment[],
+    operator: Record<string, boolean>
   ): Path[] {
-    if (intersections.length === 0) {
-      // 交点がない場合は、paper.jsと同様にreorientPathsを使用して結果を決定
-      // reorientPathsは、パスの方向を再設定し、内部/外部の関係を考慮してパスを整理する
-      console.log('DEBUG: No intersections, using reorientPaths for operation:', operation);
-      
-      // paper.jsの実装に合わせて、交点がない場合の処理を行う
-      
-      // getInteriorPointメソッドが存在するか確認するヘルパー関数
-      const getInteriorPoint = (path: PathItem): Point => {
-        if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
-          return (path as any).getInteriorPoint();
-        }
-        // フォールバック: バウンディングボックスの中心を使用
-        const bounds = path.getBounds();
-        return new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-      };
-      
-      // 演算子に応じたフィルタ関数を定義
-      const operators: Record<string, Record<string, boolean>> = {
-        'unite':     { '1': true, '2': true },
-        'intersect': { '2': true },
-        'subtract':  { '1': true },
-        'exclude':   { '1': true, '-1': true }
-      };
-      
-      // 現在の演算に対応するフィルタ関数
-      const operator = operators[operation];
-      
-      // paper.jsと同様に、operatorにoperationプロパティを追加
-      // これにより、reorientPaths関数でunite操作かどうかを判定できる
-      operator[operation] = true;
-      
-      // path2がnullの場合は、path1のみを返す
-      if (!path2) {
-        return [path1];
+    const paths: Path[] = [];
+    let starts: Segment[] = [];
+
+    // セグメントが有効かどうかを判定する関数
+    // paper.jsのisValid関数と同等の機能
+    function isValid(seg: Segment | null | undefined): boolean {
+      const segInfo = asSegmentInfo(seg);
+      if (!segInfo || segInfo._visited) return false;
+
+      if (!operator) return true;
+
+      const winding = segInfo._winding;
+      if (!winding) return false;
+
+      return !!(
+        operator[winding.winding] &&
+        !(
+          operator.unite &&
+          winding.winding === 2 &&
+          winding.windingL &&
+          winding.windingR
+        )
+      );
+    }
+
+    // セグメントが開始点かどうかを判定する関数
+    function isStart(seg: Segment | null | undefined): boolean {
+      if (!seg) return false;
+      for (let i = 0, l = starts.length; i < l; i++) {
+        if (seg === starts[i]) return true;
       }
-      
-      // 操作に応じた特別な処理
-      // paper.jsの実装では、交点がない場合、特定の操作に対して特別な処理を行っている
-      switch (operation) {
-        case 'unite':
-          // 合成：両方のパスを含む
-          if (path1.contains(getInteriorPoint(path2))) {
-            // path2がpath1に含まれる場合、path1のみを返す
-            return [path1];
-          } else if (path2.contains(path1.getInteriorPoint())) {
-            // path1がpath2に含まれる場合、path2のみを返す
-            return [path2];
-          } else {
-            // どちらも含まれない場合、両方のパスを返す
-            return [path1, path2];
-          }
-        
-        case 'intersect':
-          // 交差：両方のパスに含まれる部分
-          if (path1.contains(path2.getInteriorPoint())) {
-            // path2がpath1に含まれる場合、path2を返す
-            return [path2];
-          } else if (path2.contains(path1.getInteriorPoint())) {
-            // path1がpath2に含まれる場合、path1を返す
-            return [path1];
-          } else {
-            // どちらも含まれない場合、空の配列を返す
-            return [];
-          }
-        
-        case 'subtract':
-          // 差分：path1からpath2を引く
-          // getInteriorPointメソッドが存在するか確認
-          const getInteriorPoint = (path: PathItem): Point => {
-            if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
-              return (path as any).getInteriorPoint();
-            }
-            // フォールバック: バウンディングボックスの中心を使用
-            const bounds = path.getBounds();
-            return new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-          };
-          
-          if (path2.contains(getInteriorPoint(path1))) {
-            // path1がpath2に含まれる場合、空の配列を返す
-            return [];
-          } else if (path1.contains(path2.getInteriorPoint())) {
-            // path2がpath1に含まれる場合、path1からpath2を引いた結果を返す
-            // これはCompoundPathになる
-            const result = new Path();
-            result.copyAttributes(path1);
-            const hole = new Path();
-            hole.copyAttributes(path2);
-            hole.reverse(); // 穴は逆向きにする
-            const compound = new CompoundPath();
-            compound.addChild(result);
-            compound.addChild(hole);
-            return [result, hole];
-          } else {
-            // どちらも含まれない場合、path1を返す
-            return [path1];
-          }
-        
-        case 'exclude':
-          // 排他的論理和：両方のパスの和から共通部分を引く
-          if (path1.contains(path2.getInteriorPoint()) || path2.contains(path1.getInteriorPoint())) {
-            // どちらかが他方に含まれる場合、両方のパスを返す
-            return [path1, path2];
-          } else {
-            // どちらも含まれない場合、両方のパスを返す
-            return [path1, path2];
-          }
-        
-        case 'divide':
-          // 分割：両方のパスを返す
-          return [path1, path2];
-        
-        default:
-          // デフォルト：path1を返す
-          return [path1];
+      return false;
+    }
+
+    // パスを訪問済みにする関数
+    // paper.jsのvisitPath関数と同等の機能
+    function visitPath(path: Path): void {
+      const pathSegments = path._segments;
+      for (let i = 0, l = pathSegments.length; i < l; i++) {
+        asSegmentInfo(pathSegments[i])!._visited = true;
       }
     }
 
-    // 交点がある場合のマーチングアルゴリズム
-    // 結果パスを格納する配列
-    const resultPaths: Path[] = [];
-    
-    // 交点をすべて未訪問状態にする
-    for (const intersection of intersections) {
-      intersection.visited = false;
-    }
-    
-    // 各交点から開始して、パスをトレース
-    for (let i = 0; i < intersections.length; i++) {
-      const intersection = intersections[i];
-      if (intersection.visited || !intersection.segment) continue;
+    // 交差するセグメントを取得する関数
+    // paper.jsのgetCrossingSegments関数と同等の機能
+    function getCrossingSegments(segment: Segment, collectStarts: boolean): Segment[] {
+      const segInfo = asSegmentInfo(segment);
+      const inter = segInfo?._intersection;
+      const start = inter || undefined; // nullの場合はundefinedに変換
+      const crossings: Segment[] = [];
       
-      // 新しいパスを開始
-      const segments: Segment[] = [];
-      let currentIntersection = intersection;
-      let currentPath = path1;
-      let otherPath = path2;
-      let isInside = false;
-      
-      // パスをトレース
-      do {
-        // 現在の交点を訪問済みにする
-        currentIntersection.visited = true;
-        
-        // 交点の座標をセグメントとして追加
-        if (currentIntersection.segment) {
-          segments.push(currentIntersection.segment);
-        } else {
-          segments.push(new Segment(currentIntersection.point));
-        }
-        
-        // パスを切り替え
-        const temp = currentPath;
-        currentPath = otherPath;
-        otherPath = temp;
-        
-        // 内部/外部状態を切り替え
-        isInside = !isInside;
-        
-        // 次の交点を探す
-        let nextIntersection: Intersection | null = null;
-        
-        // 現在のパス上で次の交点を探す
-        for (const inter of intersections) {
-          if (!inter.visited && inter.segment) {
-            // 交点が現在のパス上にあるか確認
-            const segment = inter.segment;
-            const path = segment._path;
+      if (collectStarts) {
+        starts = [segment];
+      }
+
+      function collect(inter: Intersection | null, end?: Intersection): void {
+        while (inter && inter !== end) {
+          const other = inter.segment;
+          const otherInfo = asSegmentInfo(other);
+          const path = other && otherInfo?._path;
+          
+          if (path) {
+            const next = other.getNext() || path.getFirstSegment();
+            const nextInfo = asSegmentInfo(next);
+            const nextInter = nextInfo?._intersection;
             
-            if (path === currentPath) {
-              // 次の交点として選択
-              if (!nextIntersection) {
-                nextIntersection = inter;
-              }
+            if (
+              other !== segment &&
+              (isStart(other) ||
+                isStart(next) ||
+                (next &&
+                  (isValid(other) &&
+                    (isValid(next) || (nextInter && isValid(nextInter.segment))))))
+            ) {
+              crossings.push(other);
+            }
+            
+            if (collectStarts) {
+              starts.push(other);
             }
           }
+          
+          inter = inter.next!;
         }
-        
-        // 次の交点が見つからない場合は終了
-        if (!nextIntersection) break;
-        
-        // 次の交点に移動
-        currentIntersection = nextIntersection;
-        
-      } while (segments.length < 1000); // 無限ループ防止
+      }
+
+      if (inter) {
+        collect(inter);
+        // リンクリストの先頭に移動
+        let interStart = inter;
+        while (interStart && interStart.prev) {
+          interStart = interStart.prev;
+        }
+        collect(interStart, start);
+      }
       
-      // 閉じたパスを作成
-      if (segments.length > 2) {
-        const resultPath = new Path(segments, true);
+      return crossings;
+    }
+
+    // セグメントをソート
+    // paper.jsのソートロジックと同等の機能
+    segments.sort((seg1, seg2) => {
+      const seg1Info = asSegmentInfo(seg1);
+      const seg2Info = asSegmentInfo(seg2);
+      const inter1 = seg1Info?._intersection;
+      const inter2 = seg2Info?._intersection;
+      const over1 = !!(inter1 && inter1._overlap);
+      const over2 = !!(inter2 && inter2._overlap);
+      const path1 = seg1Info?._path;
+      const path2 = seg2Info?._path;
+      
+      // 重なりとインターセクションの優先順位でソート
+      if (over1 !== over2) {
+        return over1 ? 1 : -1;
+      }
+      
+      if (!inter1 !== !inter2) {
+        return inter1 ? 1 : -1;
+      }
+      
+      // パスIDとセグメントインデックスでソート
+      if (path1 !== path2) {
+        // paper.jsとの互換性のため、_idプロパティを使用
+        // 型安全性のため、デフォルト値を使用
+        const id1 = path1 && path1._id !== undefined ? path1._id : 0;
+        const id2 = path2 && path2._id !== undefined ? path2._id : 0;
+        return id1 - id2;
+      }
+      
+      return seg1._index - seg2._index;
+    });
+
+    // 各セグメントからパスをトレース
+    for (let i = 0, l = segments.length; i < l; i++) {
+      const segStart = segments[i];
+      let validStart = isValid(segStart);
+      let path: Path | null = null;
+      let finished = false;
+      let closed = true;
+      const branches: any[] = [];
+      let branch: any;
+      let visited: Segment[] = [];
+      let handleIn: Point | null = null;
+
+      // すべてのセグメントが重なりの場合の特別処理
+      // paper.jsの重なり処理と同等の機能
+      const segStartInfo = asSegmentInfo(segStart);
+      const path1 = segStartInfo?._path;
+      
+      if (validStart && path1 && path1._overlapsOnly) {
+        const segmentPath = segStartInfo._intersection?.segment ?
+          asSegmentInfo(segStartInfo._intersection.segment)?._path : undefined;
         
-        // 操作に応じてパスを追加するかどうか判断
-        let addPath = false;
-        
-        switch (operation) {
-          case 'unite':
-            // 合成：すべてのパスを追加
-            addPath = true;
-            break;
-          case 'intersect':
-            // 交差：内部のパスのみ追加
-            addPath = isInside;
-            break;
-          case 'subtract':
-            // 差分：path1の内部かつpath2の外部のパスのみ追加
-            addPath = !isInside;
-            break;
-          case 'exclude':
-            // 排他的論理和：片方のパスの内部のみ追加
-            addPath = true;
-            break;
-          case 'divide':
-            // 分割：すべてのパスを追加
-            addPath = true;
-            break;
+        // paper.jsとの互換性のため、compareメソッドを使用
+        if (path1 && segmentPath && path1.compare && path1.compare(segmentPath)) {
+          if (path1.getArea()) {
+            paths.push(path1.clone(false));
+          }
+          visitPath(path1);
+          if (segmentPath) {
+            visitPath(segmentPath);
+          }
+          validStart = false;
         }
+      }
+
+      // 有効なセグメントからパスをトレース
+      let currentSeg = segStart;
+      while (validStart && currentSeg) {
+        const first = !path;
+        const crossings = getCrossingSegments(currentSeg, first);
+        const other = crossings.shift();
+        const isFinished = !first && (isStart(currentSeg) || isStart(other));
+        const cross = !isFinished && other;
+
+        if (first) {
+          path = new Path();
+          branch = null;
+        }
+
+        if (isFinished) {
+          if (currentSeg.isFirst() || currentSeg.isLast()) {
+            const currentSegInfo = asSegmentInfo(currentSeg);
+            closed = currentSegInfo?._path._closed || false;
+          }
+          asSegmentInfo(currentSeg)!._visited = true;
+          finished = true;
+          break;
+        }
+
+        if (cross && branch) {
+          branches.push(branch);
+          branch = null;
+        }
+
+        if (!branch) {
+          if (cross) {
+            crossings.push(currentSeg);
+          }
+          branch = {
+            start: path!._segments.length,
+            crossings: crossings,
+            visited: visited = [],
+            handleIn: handleIn
+          };
+        }
+
+        let nextSeg = currentSeg;
+        if (cross && other) {
+          nextSeg = other;
+        }
+
+        if (!isValid(nextSeg)) {
+          // 無効なセグメントに遭遇した場合、分岐点に戻る
+          // paper.jsのバックトラック処理と同等の機能
+          path!.removeSegments(branch.start);
+          for (let j = 0, k = visited.length; j < k; j++) {
+            asSegmentInfo(visited[j])!._visited = false;
+          }
+          visited.length = 0;
+
+          // 他の交差を試す
+          let foundValid = false;
+          do {
+            const branchSeg = branch && branch.crossings.shift() || null;
+            const branchSegInfo = asSegmentInfo(branchSeg);
+            if (!branchSeg || !branchSegInfo?._path) {
+              nextSeg = currentSeg; // 現在のセグメントを維持
+              branch = branches.pop();
+              if (branch) {
+                visited = branch.visited;
+                handleIn = branch.handleIn;
+              }
+            } else if (isValid(branchSeg)) {
+              nextSeg = branchSeg;
+              foundValid = true;
+            } else {
+              nextSeg = currentSeg; // 現在のセグメントを維持
+            }
+          } while (branch && !foundValid);
+
+          if (!branch) {
+            break;
+          }
+        }
+
+        // セグメントをパスに追加
+        const next = nextSeg.getNext();
+        path!.add(new Segment(nextSeg._point, handleIn, next && nextSeg._handleOut));
+        asSegmentInfo(nextSeg)!._visited = true;
+        visited.push(nextSeg);
         
-        if (addPath) {
-          resultPaths.push(resultPath);
+        // 次のセグメントに移動
+        const nextSegInfo = asSegmentInfo(nextSeg);
+        const nextPath = nextSegInfo?._path;
+        // paper.jsとの互換性のため、getFirstSegmentメソッドを使用
+        currentSeg = next || (nextPath ? nextPath.getFirstSegment() : undefined) || currentSeg;
+        handleIn = next && (next._handleIn as unknown as Point);
+      }
+
+      if (finished && path) {
+        if (closed) {
+          // open/closedパス混在時の端点ハンドル処理
+          // paper.jsと同様に、最初のセグメントのhandleInを設定
+          const firstSegment = path.getFirstSegment();
+          if (firstSegment && handleIn) {
+            firstSegment.setHandleIn(handleIn);
+          }
+          path.setClosed(closed);
+        }
+
+        // 面積が0でないパスのみ追加
+        // paper.jsと同様の処理
+        if (path.getArea() !== 0) {
+          paths.push(path);
         }
       }
     }
-    
-    // 結果がない場合は元のパスを返す
-    if (resultPaths.length === 0) {
-      switch (operation) {
-        case 'unite':
-          return [path1, path2];
-        case 'intersect':
-          return [];
-        case 'subtract':
-          return [path1];
-        case 'exclude':
-          return [path1, path2];
-        case 'divide':
-          return [path1, path2];
-        default:
-          return [path1];
+
+    return paths;
+  }
+
+  /**
+   * 交点がない場合のパス処理
+   */
+  private static handleNoIntersections(
+    path1: Path,
+    path2: Path,
+    operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
+  ): Path[] {
+    // getInteriorPointメソッドが存在するか確認するヘルパー関数
+    const getInteriorPoint = (path: PathItem): Point => {
+      if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
+        return (path as any).getInteriorPoint();
       }
+      // フォールバック: バウンディングボックスの中心を使用
+      const bounds = path.getBounds();
+      return new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+    };
+    
+    // 演算子に応じたフィルタ関数を定義
+    const operators: Record<string, Record<string, boolean>> = {
+      'unite':     { '1': true, '2': true },
+      'intersect': { '2': true },
+      'subtract':  { '1': true },
+      'exclude':   { '1': true, '-1': true }
+    };
+    
+    // 現在の演算に対応するフィルタ関数
+    const operator = operators[operation];
+    
+    // paper.jsと同様に、operatorにoperationプロパティを追加
+    operator[operation] = true;
+    
+    // path2の処理
+    if (path1 === path2) {
+      return [path1];
     }
     
-    return resultPaths;
+    // reorientPathsを使用して結果を決定
+    return reorientPaths(
+      path2 ? [path1, path2] : [path1],
+      (w: number) => !!operator[w]
+    );
   }
   
   /**
@@ -550,127 +709,117 @@ export class PathBoolean {
   }
 
   /**
+   * Boolean演算の実行
+   * paper.jsのtraceBoolean関数を移植
+   */
+  private static traceBoolean(
+    path1: PathItem,
+    path2: PathItem,
+    operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide',
+    options?: { insert?: boolean, trace?: boolean, stroke?: boolean }
+  ): PathItem {
+    // ストロークベースのBoolean演算の場合は別の処理を行う
+    if (options && (options.trace === false || options.stroke) &&
+        /^(subtract|intersect)$/.test(operation)) {
+      // TODO: splitBooleanの実装
+      // return splitBoolean(path1, path2, operation);
+    }
+
+    // パスを準備
+    const _path1 = preparePath(path1, true) as Path;
+    const _path2 = preparePath(path2, true) as Path;
+
+    // 演算子に応じたフィルタ関数を定義
+    const operators: Record<string, Record<string, boolean>> = {
+      'unite':     { '1': true, '2': true },
+      'intersect': { '2': true },
+      'subtract':  { '1': true },
+      'exclude':   { '1': true, '-1': true }
+    };
+    
+    // 現在の演算に対応するフィルタ関数
+    const operator = operators[operation];
+    
+    // paper.jsと同様に、operatorにoperationプロパティを追加
+    operator[operation] = true;
+
+    // 減算と排他的論理和の場合、パスの向きを調整
+    if (_path2 && ((operator.subtract || operator.exclude)
+        !== (_path2.isClockwise() !== _path1.isClockwise()))) {
+      _path2.reverse();
+    }
+
+    // 交点計算
+    function filterIntersection(inter: CurveLocation): boolean {
+      return inter.hasOverlap() || inter.isCrossing();
+    }
+
+    // 交点を取得
+    const intersections = _path2 ? this.getIntersections(_path1, _path2) : [];
+
+    if (intersections.length === 0) {
+      // 交点がない場合は、reorientPathsを使用して結果を決定
+      return this.createResult(
+        this.handleNoIntersections(_path1, _path2, operation),
+        true, path1, path2 as PathItem, options
+      );
+    }
+
+    // 交点でパスを分割
+    const dividedPath1 = this.dividePathAtIntersections(_path1, intersections);
+    const dividedPath2 = _path2 ? this.dividePathAtIntersections(_path2, intersections) : null;
+    
+    // 交点のwinding number計算
+    if (dividedPath2) {
+      this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
+    }
+
+    // セグメントを収集
+    const segments: Segment[] = [];
+    segments.push(...dividedPath1._segments);
+    if (dividedPath2) {
+      segments.push(...dividedPath2._segments);
+    }
+
+    // マーチングアルゴリズムで結果パスを構築
+    const paths = this.tracePaths(segments, operator);
+
+    // 結果パスを結合
+    return this.createResult(paths, true, path1, path2 as PathItem, options);
+  }
+
+  /**
    * パスの合成（unite）
    */
   static unite(path1: PathItem, path2: PathItem): PathItem {
-    // パスを準備
-    const p1 = preparePath(path1, true) as Path;
-    const p2 = preparePath(path2, true) as Path;
-    
-    // 交点計算
-    const intersections = this.getIntersections(p1, p2);
-    
-    // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
-    
-    // 交点のwinding number計算
-    this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
-    
-    // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'unite');
-    
-    // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, true, path1, path2);
+    return this.traceBoolean(path1, path2, 'unite');
   }
   
   /**
    * パスの交差（intersect）
    */
   static intersect(path1: PathItem, path2: PathItem): PathItem {
-    // パスを準備
-    const p1 = preparePath(path1, true) as Path;
-    const p2 = preparePath(path2, true) as Path;
-    
-    // 交点計算
-    const intersections = this.getIntersections(p1, p2);
-    
-    // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
-    
-    // 交点のwinding number計算
-    this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
-    
-    // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'intersect');
-    
-    // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, true, path1, path2);
+    return this.traceBoolean(path1, path2, 'intersect');
   }
   
   /**
    * パスの差分（subtract）
    */
   static subtract(path1: PathItem, path2: PathItem): PathItem {
-    // パスを準備
-    const p1 = preparePath(path1, true) as Path;
-    const p2 = preparePath(path2, true) as Path;
-    
-    // 交点計算
-    const intersections = this.getIntersections(p1, p2);
-    
-    // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
-    
-    // 交点のwinding number計算
-    this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
-    
-    // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'subtract');
-    
-    // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, true, path1, path2);
+    return this.traceBoolean(path1, path2, 'subtract');
   }
   
   /**
    * パスの排他的論理和（exclude）
    */
   static exclude(path1: PathItem, path2: PathItem): PathItem {
-    // パスを準備
-    const p1 = preparePath(path1, true) as Path;
-    const p2 = preparePath(path2, true) as Path;
-    
-    // 交点計算
-    const intersections = this.getIntersections(p1, p2);
-    
-    // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
-    
-    // 交点のwinding number計算
-    this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
-    
-    // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'exclude');
-    
-    // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, true, path1, path2);
+    return this.traceBoolean(path1, path2, 'exclude');
   }
   
   /**
    * パスの分割（divide）
    */
   static divide(path1: PathItem, path2: PathItem): PathItem {
-    // パスを準備
-    const p1 = preparePath(path1, true) as Path;
-    const p2 = preparePath(path2, true) as Path;
-    
-    // 交点計算
-    const intersections = this.getIntersections(p1, p2);
-    
-    // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
-    
-    // 交点のwinding number計算
-    this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
-    
-    // マーチングアルゴリズムで結果パスを構築
-    const resultPaths = this.tracePaths(dividedPath1, dividedPath2, intersections, 'divide');
-    
-    // 結果パスを結合
-    return PathBoolean.createResult(resultPaths, true, path1, path2);
+    return this.traceBoolean(path1, path2, 'divide');
   }
 }
