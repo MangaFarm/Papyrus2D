@@ -90,7 +90,8 @@ export function propagateWinding(
         const path = curve._path;
         const parent = path._parent;
         const operand = parent instanceof CompoundPath ? parent : path;
-        const t = Numerical.clamp((length - chainLength) / curveLength, tMin, tMax);
+        // paper.jsと同じ方法で曲線上の点を計算
+        const t = Numerical.clamp(curve.getTimeAt(length), tMin, tMax);
         const pt = curve.getPointAtTime(t);
         
         // 接線の方向に基づいて、水平または垂直方向を決定
@@ -102,6 +103,7 @@ export function propagateWinding(
         if (operator.subtract && path2) {
           const otherPath = operand === path1 ? path2 : path1;
           // getWindingを使用して計算
+          // paper.jsと同じ挙動になるようにgetWindingを使用
           const pathWinding = getWinding(pt, otherPath.getCurves(), dir, true);
           
           // 曲線を省略すべきかチェック
@@ -220,8 +222,14 @@ export function getWinding(
     } else if (paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)) {
       t = 1;
     } else {
-      const count = Numerical.solveCubic(v[0], v[1], v[2], v[3], roots, { min: 0, max: 1 });
-      t = count === 1 ? roots[0] : 1;
+      // Papyrus2DのNumerical.solveCubicの引数に合わせて調整
+      // 三次方程式の係数を計算
+      const a = v[0];
+      const b = v[1];
+      const c = v[2];
+      const d = v[3] - po;
+      const count = Numerical.solveCubic(a, b, c, d, roots, { min: 0, max: 1 });
+      t = count > 0 ? roots[0] : 1;
     }
     
     // 曲線上の点の横座標を計算
@@ -231,6 +239,7 @@ export function getWinding(
     } else if (t === 1) {
       a = a3;
     } else {
+      // CurveCalculationを使用して点を取得
       const p = CurveCalculation.getPoint(v, t)!;
       a = p[dir ? 'y' : 'x'];
     }
@@ -281,6 +290,7 @@ export function getWinding(
     
     // 接線が方向に平行な場合、方向を反転して再計算
     if (!dontFlip && a > paL && a < paR) {
+      // CurveCalculationを使用して接線を取得
       const tangent = CurveCalculation.getTangent(v, t)!;
       if (tangent[dir ? 'x' : 'y'] === 0) {
         return getWinding(point, curves, !dir, closed, true);
@@ -305,6 +315,7 @@ export function getWinding(
       const a3 = v[ia + 6];
       
       // 単調曲線を取得
+      // CurveSubdivisionを使用して単調曲線を取得
       const monoCurves = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
         ? [v]
         : CurveSubdivision.getMonoCurves(v);
@@ -330,6 +341,7 @@ export function getWinding(
       
       // パスが閉じていない場合、最初と最後のセグメントを接続
       if (!path._closed) {
+        // CurveSubdivisionを使用して閉じる曲線を計算
         vClose = CurveSubdivision.getValues(
           path.getLastCurve()._segment2,
           curve._segment1,
