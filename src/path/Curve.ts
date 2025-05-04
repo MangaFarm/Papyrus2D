@@ -339,6 +339,15 @@ export class Curve {
   }
 
   /**
+   * カーブのハンドルをクリア
+   * paper.jsのCurve.clearHandlesメソッドと同等の実装
+   */
+  clearHandles(): void {
+    if (this._segment1) this._segment1.clearHandles();
+    if (this._segment2) this._segment2.clearHandles();
+  }
+
+  /**
    * この曲線が直線かどうかを判定
    * @returns 直線ならtrue
    */
