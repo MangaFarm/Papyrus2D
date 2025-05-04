@@ -157,13 +157,12 @@ export function isOnPath(
   // 辺上判定
   for (let i = 0, l = curves.length; i < l; i++) {
     const curve = curves[i];
-    const values = curve.getValues();
     
     // 曲線の値を取得
-    const curveValues = curve.getValues();
+    const v = curve.getValues();
     
     // 直線の場合は簡易判定
-    if (Curve.isStraight(curveValues)) {
+    if (Curve.isStraight(v)) {
       const p1 = curve._segment1.point;
       const p2 = curve._segment2.point;
       const dx = p2.x - p1.x;
@@ -180,48 +179,10 @@ export function isOnPath(
         }
       }
     } else {
-      // 曲線の場合は最近接点を求める
-      // Paper.jsのCurve.getNearestLocationと同様のアプローチ
-      
-      // まず端点との距離をチェック
-      const p0 = new Point(curveValues[0], curveValues[1]);
-      const p3 = new Point(curveValues[6], curveValues[7]);
-
-      // 端点が十分近い場合は早期リターン
-      if (point.isClose(p0, epsilon) || point.isClose(p3, epsilon)) {
+      // 曲線の場合はNearestLocationを使用
+      const loc = curve.getNearestLocation(point);
+      if (loc && loc.getDistance()! <= epsilon) {
         return true;
-      }
-
-      // 曲線上の最近接点を求める
-      // Papyrus2Dでは直接getNearestLocationが実装されていないので、
-      // 同等の処理を行う
-      const coords = [point.x, point.y];
-      const roots: number[] = [];
-      
-      for (let c = 0; c < 2; c++) {
-        // 三次方程式を解く
-        const tempRoots: number[] = [];
-        const a = 3 * (-values[c] + 3 * values[c + 2] - 3 * values[c + 4] + values[c + 6]);
-        const b = 6 * (values[c] - 2 * values[c + 2] + values[c + 4]);
-        const c2 = 3 * (-values[c] + values[c + 2]);
-        const d = values[c] - coords[c];
-
-        // 三次方程式を解く
-        const count = Numerical.solveCubic(a, b, c2, d, tempRoots, { min: 0, max: 1 });
-
-        // rootsに追加
-        for (let i = 0; i < count; i++) {
-          roots.push(tempRoots[i]);
-        }
-      }
-
-      // 各解について、曲線上の点と与えられた点の距離をチェック
-      for (let i = 0; i < roots.length; i++) {
-        const t = roots[i];
-        const p = CurveCalculation.evaluate(values, t, 0, false);
-        if (p && point.subtract(p).getLength() <= epsilon) {
-          return true;
-        }
       }
     }
   }
@@ -279,11 +240,10 @@ export function getIntersections(
   
   // 境界ボックスチェック
   if (self || (curves2 && curves1.length > 0 && curves2.length > 0)) {
-    // 自己交差でない場合のみ境界ボックスチェックを行う
-    if (!self) {
-      const bounds1 = getBoundsFromCurves(curves1, matrix1Null);
+    // paper.jsと同様に常に境界ボックスチェックを行う
+    const bounds1 = getBoundsFromCurves(curves1, matrix1Null);
+    if (curves2 && !self) {
       const bounds2 = getBoundsFromCurves(curves2, matrix2Null);
-      
       if (!bounds1.intersects(bounds2, Numerical.EPSILON)) {
         return [];
       }
@@ -350,12 +310,6 @@ export function contains(
   
   // デフォルトはeven-oddルール
   const rule = options?.rule || 'evenodd';
-
-  // 境界チェック（高速化のため）
-  const bounds = computeBounds(segments, closed, 0);
-  if (!point.isInside(bounds)) {
-    return false;
-  }
   
   // winding numberを計算
   const wind = getWinding(point, curves);

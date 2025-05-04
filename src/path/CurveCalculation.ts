@@ -33,52 +33,39 @@ export class CurveCalculation {
       cy2 = y3;
     }
     
+    // Calculate the polynomial coefficients.
+    const cx = 3 * (cx1 - x0),
+          bx = 3 * (cx2 - cx1) - cx,
+          ax = x3 - x0 - cx - bx,
+          cy = 3 * (cy1 - y0),
+          by = 3 * (cy2 - cy1) - cy,
+          ay = y3 - y0 - cy - by;
+    
+    let x, y;
+    
     if (type === 0) {
       // type === 0: getPoint()
       // Calculate the curve point at parameter value t
       // Use special handling at t === 0 / 1, to avoid imprecisions.
-      if (t === 0) return new Point(x0, y0);
-      if (t === 1) return new Point(x3, y3);
-      
-      const mt = 1 - t;
-      const mt2 = mt * mt;
-      const t2 = t * t;
-      const a = mt2 * mt;
-      const b = 3 * mt2 * t;
-      const c = 3 * mt * t2;
-      const d = t * t2;
-      const x = a * x0 + b * cx1 + c * cx2 + d * x3;
-      const y = a * y0 + b * cy1 + c * cy2 + d * y3;
-      return new Point(x, y);
+      x = t === 0 ? x0 : t === 1 ? x3
+              : ((ax * t + bx) * t + cx) * t + x0;
+      y = t === 0 ? y0 : t === 1 ? y3
+              : ((ay * t + by) * t + cy) * t + y0;
     } else {
       // type === 1: getTangent()
       // type === 2: getNormal()
       // type === 3: getCurvature()
       const tMin = Numerical.CURVETIME_EPSILON,
             tMax = 1 - tMin;
-      let x, y;
       
       // Prevent tangents and normals of length 0:
-      // paper.jsと同じ境界条件処理を行う
       if (t < tMin) {
-        // 3 * (x1 - x0), 3 * (y1 - y0)
-        const cx = 3 * (cx1 - x0);
-        const cy = 3 * (cy1 - y0);
         x = cx;
         y = cy;
       } else if (t > tMax) {
-        // 3 * (x3 - x2), 3 * (y3 - y2)
         x = 3 * (x3 - cx2);
         y = 3 * (y3 - cy2);
       } else {
-        // Calculate the polynomial coefficients.
-        const cx = 3 * (cx1 - x0),
-              bx = 3 * (cx2 - cx1) - cx,
-              ax = x3 - x0 - cx - bx,
-              cy = 3 * (cy1 - y0),
-              by = 3 * (cy2 - cy1) - cy,
-              ay = y3 - y0 - cy - by;
-              
         x = (3 * ax * t + 2 * bx) * t + cx;
         y = (3 * ay * t + 2 * by) * t + cy;
       }
@@ -102,13 +89,6 @@ export class CurveCalculation {
       if (type === 3) {
         // Calculate 2nd derivative, and curvature from there:
         // k = |dx * d2y - dy * d2x| / (( dx^2 + dy^2 )^(3/2))
-        const cx = 3 * (cx1 - x0),
-              bx = 3 * (cx2 - cx1) - cx,
-              ax = x3 - x0 - cx - bx,
-              cy = 3 * (cy1 - y0),
-              by = 3 * (cy2 - cy1) - cy,
-              ay = y3 - y0 - cy - by;
-              
         const x2 = 6 * ax * t + 2 * bx,
               y2 = 6 * ay * t + 2 * by,
               d = Math.pow(x * x + y * y, 3 / 2);
@@ -117,10 +97,10 @@ export class CurveCalculation {
         x = d !== 0 ? (x * y2 - y * x2) / d : 0;
         y = 0;
       }
-      
-      // The normal is simply the rotated tangent:
-      return type === 2 ? new Point(y, -x) : new Point(x, y);
     }
+    
+    // The normal is simply the rotated tangent:
+    return type === 2 ? new Point(y, -x) : new Point(x, y);
   }
 
   /**

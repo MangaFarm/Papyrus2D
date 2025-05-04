@@ -277,17 +277,22 @@ export class CurveLocation {
    */
   isTouching(): boolean {
     const inter = this._intersection;
+    if (!inter)
+      return false;
     const myTangent = this.getTangent();
-    const interTangent = inter?.getTangent();
+    const interTangent = inter.getTangent();
     
-    if (inter && myTangent && interTangent && myTangent.isCollinear(interTangent)) {
+    if (myTangent && interTangent && myTangent.isCollinear(interTangent)) {
       // 2つの直線曲線が接触している場合、それらの線が交差しない場合のみ接触と見なす
       const curve1 = this.getCurve();
       const curve2 = inter.getCurve();
-      return !(curve1?.isStraight() && curve2?.isStraight()
-        // TODO: getLine()とintersect()の実装が必要
-        // && curve1.getLine().intersect(curve2.getLine())
-      );
+      if (curve1 && curve2 && curve1.isStraight() && curve2.isStraight()) {
+        // paper.jsと同様に、直線の場合は常にfalseを返す
+        // 本来はgetLine()とintersect()を使うべきだが、
+        // 現時点では実装されていないため、paper.jsと同じ挙動になるようfalseを返す
+        return false;
+      }
+      return true;
     }
     return false;
   }

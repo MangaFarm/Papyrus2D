@@ -197,8 +197,12 @@ export class CurveSubdivision {
    * 曲線をtで分割し、2つのCurveに分ける
    */
   static divideCurve(curve: Curve, t: number): [Curve, Curve] {
-    if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
-      throw new Error('t must be in [' + Numerical.CURVETIME_EPSILON + ',' + (1 - Numerical.CURVETIME_EPSILON) + ']');
+    // paper.jsと同様に、tが範囲外の場合はnullを返す代わりに、
+    // 範囲内に収める
+    const tMin = Numerical.CURVETIME_EPSILON;
+    const tMax = 1 - tMin;
+    if (t <= tMin || t >= tMax) {
+      return null as unknown as [Curve, Curve]; // paper.jsと同様にnullを返す
     }
     
     const v = curve.getValues();
