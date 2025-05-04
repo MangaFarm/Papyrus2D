@@ -103,7 +103,7 @@ export function propagateWinding(
         // curve's direction at that point. If tangent is less
         // than 45°, cast the ray vertically, else horizontally.
         const tangent = curve.getTangentAtTime(t);
-        const dir = Math.abs(tangent.y) < Math.SQRT1_2;
+        const dir = Math.abs(curve.getTangentAtTime(t).y) < Math.SQRT1_2;
         
         // While subtracting, we need to omit this curve if it is
         // contributing to the second operand and is outside the
@@ -115,8 +115,8 @@ export function propagateWinding(
           const pathWinding = otherPath.getWinding(pt);
           
           // Check if curve should be omitted.
-          if ((operand === path1 && pathWinding.winding) ||
-              (operand === path2 && !pathWinding.winding)) {
+          if (operand === path1 && pathWinding.winding ||
+              operand === path2 && !pathWinding.winding) {
             // Check if quality is not good enough...
             if (pathWinding.quality < 1) {
               // ...and if so, skip this point...
@@ -422,7 +422,7 @@ export function getWinding(
       // If the ray is cast in y direction (dir == true), the
       // windings always have opposite sign.
       if (onPath && !pathWindingL && !pathWindingR) {
-        pathWindingL = pathWindingR = path.isClockwise(closed) !== dir ? 1 : -1;
+        pathWindingL = pathWindingR = (path.isClockwise(closed) ? 1 : 0) ^ (dir ? 1 : 0) ? 1 : -1;
       }
       
       // パスのwindingを合計に追加

@@ -15,7 +15,8 @@ import { PathItem } from './PathItem';
 import { PathItemBase } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';
-import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
+import { computeBounds, isOnPath, getIntersections, contains } from './PathGeometry';
+import { getWinding } from './PathBooleanWinding';
 import { PathFlattener } from './PathFlattener';
 import { PathFitter } from './PathFitter';
 
@@ -488,7 +489,7 @@ export class Path extends PathItemBase {
    * @returns {windingL, windingR} 左右のwinding number
    */
   getWinding(point: Point, dir: boolean = false, closed: boolean = false): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } {
-    return getWinding(this.getCurves(), point, dir, closed);
+    return getWinding(point, this.getCurves(), dir, closed);
   }
 
   /**
