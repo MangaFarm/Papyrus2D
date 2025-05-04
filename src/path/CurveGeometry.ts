@@ -11,11 +11,15 @@ export class CurveGeometry {
    * 直線判定 - paper.jsの実装と完全に同じ
    */
   static isStraight(v: number[]): boolean {
-    // ハンドルがゼロ or 全てcollinear
-    const p1 = new Point(v[0], v[1]);
-    const h1 = new Point(v[2] - v[0], v[3] - v[1]);
-    const h2 = new Point(v[4] - v[6], v[5] - v[7]);
-    const p2 = new Point(v[6], v[7]);
+    // paper.jsの実装と完全に同じアルゴリズム
+    const x0 = v[0], y0 = v[1],
+          x3 = v[6], y3 = v[7];
+    
+    // ハンドルを相対座標で取得
+    const p1 = new Point(x0, y0);
+    const h1 = new Point(v[2] - x0, v[3] - y0);
+    const h2 = new Point(v[4] - x3, v[5] - y3);
+    const p2 = new Point(x3, y3);
     
     // ハンドルがゼロの場合
     if (h1.isZero() && h2.isZero()) return true;
@@ -54,6 +58,17 @@ export class CurveGeometry {
     }
     
     return false;
+  }
+
+  /**
+   * 線形判定 - paper.jsのisLinear実装と同じ
+   */
+  static isLinear(v: number[]): boolean {
+    const x0 = v[0], y0 = v[1],
+          x3 = v[6], y3 = v[7];
+    const third = new Point((x3 - x0) / 3, (y3 - y0) / 3);
+    return new Point(v[2] - x0, v[3] - y0).equals(third) &&
+           new Point(v[4] - x3, v[5] - y3).negate().equals(third);
   }
 
   /**

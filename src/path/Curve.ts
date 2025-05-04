@@ -44,17 +44,15 @@ export class Curve {
   }
 
   getPrevious(): Curve | null {
-    const path = this._path;
-    return path ? (path._closed && this.getIndex() === 0
-            ? path._curves[path._curves.length - 1]
-            : path._curves[this.getIndex() - 1]) || null : null;
+    const curves = this._path && this._path._curves;
+    return curves && (curves[this._segment1._index - 1]
+            || this._path._closed && curves[curves.length - 1]) || null;
   }
 
   getNext(): Curve | null {
-    const path = this._path;
-    return path ? (path._closed && this.getIndex() === path._curves.length - 1
-            ? path._curves[0]
-            : path._curves[this.getIndex() + 1]) || null : null;
+    const curves = this._path && this._path._curves;
+    return curves && (curves[this._segment1._index + 1]
+            || this._path._closed && curves[0]) || null;
   }
 
   /**
@@ -204,15 +202,15 @@ export class Curve {
   /**
    * 曲線をtで分割し、2つのCurveに分ける
    */
-  divide(t: number): [Curve, Curve] {
-    return CurveSubdivision.divideCurve(this, t);
+  divide(t: number = 0.5, isTime: boolean = false): [Curve, Curve] {
+    return CurveSubdivision.divideCurve(this, isTime ? t : this.getTimeAt(t));
   }
 
   /**
    * tで分割し、前半部分のCurveを返す
    */
-  split(t: number): Curve {
-    return this.divide(t)[0];
+  split(t: number = 0.5, isTime: boolean = false): Curve {
+    return this.divide(t, isTime)[0];
   }
 
   /**
@@ -312,7 +310,7 @@ export class Curve {
    * 曲線上の点のtパラメータを取得
    */
   getTimeOf(point: Point): number | null {
-    return CurveLocationUtils.getTimeOf(this.getValues(), point);
+    return Curve.getTimeOf(this.getValues(), point);
   }
   
   /**
@@ -342,15 +340,32 @@ export class Curve {
    * この曲線が直線かどうかを判定
    * @returns 直線ならtrue
    */
-  isStraight(): boolean {
-    return Curve.isStraight(this.getValues());
+  isStraight(epsilon?: number): boolean {
+    // CurveGeometryのisStraightメソッドを使用
+    return CurveGeometry.isStraight(this.getValues());
+  }
+
+  isLinear(epsilon?: number): boolean {
+    // CurveGeometryのisLinearメソッドを使用
+    return CurveGeometry.isLinear(this.getValues());
   }
 
   /**
    * 直線判定
    */
-  static isStraight(v: number[]): boolean {
+  static isStraight(v: number[], epsilon?: number): boolean {
+    // CurveGeometryのisStraightメソッドを使用
     return CurveGeometry.isStraight(v);
+  }
+
+  static getTimeOf(v: number[], point: Point): number | null {
+    // CurveLocationUtilsのgetTimeOfメソッドを使用
+    return CurveLocationUtils.getTimeOf(v, point);
+  }
+
+  static isLinear(v: number[]): boolean {
+    // CurveGeometryのisLinearメソッドを使用
+    return CurveGeometry.isLinear(v);
   }
 
   /**
@@ -400,7 +415,7 @@ export class Curve {
    */
   static getIntersections(
     curves1: Curve[] | number[],
-    curves2: Curve[] | number[] | null,
+    curves2: Curve[] | number[] | null = null,
     include?: (loc: CurveLocation) => boolean,
     matrix1?: Matrix | null | undefined,
     matrix2?: Matrix | null | undefined,
@@ -408,5 +423,12 @@ export class Curve {
   ): CurveLocation[] {
     // CurveIntersectionMainモジュールの関数を使用
     return getIntersections(curves1, curves2, include, matrix1, matrix2, _returnFirst);
+  }
+
+  getIntersections(curve: Curve | null): CurveLocation[] {
+    const v1 = this.getValues();
+    const v2 = curve && curve !== this && curve.getValues();
+    return v2 ? Curve.getIntersections([this], [curve], undefined, null, null, false)
+              : Curve.getIntersections([this], null, undefined, null, null, false);
   }
 }
