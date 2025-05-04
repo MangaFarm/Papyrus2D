@@ -14,6 +14,9 @@ import { CurveLocation } from './CurveLocation';
 import { reorientPaths } from './PathBooleanReorient';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { preparePath } from './PathBooleanPreparation';
+import { CurveCalculation } from './CurveCalculation';
+import { CurveSubdivision } from './CurveSubdivision';
+import { CurveGeometry } from './CurveGeometry';
 
 /**
  * 交点情報
@@ -184,85 +187,364 @@ export class PathBoolean {
   }
 
   /**
-   * 交点のwinding numberを計算
+   * winding numberを伝播する
+   * paper.jsのpropagateWinding関数を移植
    */
-  private static calculateWindingNumbers(path1: Path, path2: Path, intersections: Intersection[]): void {
-    for (const intersection of intersections) {
-      const point = intersection.point;
+  private static propagateWinding(
+    segment: Segment,
+    path1: Path,
+    path2: Path | null,
+    curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>>,
+    operator: Record<string, boolean>
+  ): void {
+    // セグメントから始まる曲線チェーンを追跡
+    const chain: { segment: Segment; curve: Curve; length: number }[] = [];
+    let start = segment;
+    let totalLength = 0;
+    
+    // 交点または始点に戻るまで曲線チェーンを構築
+    do {
+      const curve = segment.getCurve();
+      if (curve) {
+        const length = curve.getLength();
+        chain.push({ segment, curve, length });
+        totalLength += length;
+      }
+      segment = segment.getNext() || segment;
+    } while (segment && !(segment as any)._intersection && segment !== start);
+    
+    // チェーン上の3点でwinding numberを計算
+    const offsets = [0.5, 0.25, 0.75];
+    let windingResult = { winding: 0, quality: -1, windingL: 0, windingR: 0, onPath: false };
+    const tMin = 1e-3;
+    const tMax = 1 - tMin;
+    
+    // 十分な品質のwinding numberが見つかるまで計算
+    for (let i = 0; i < offsets.length && windingResult.quality < 0.5; i++) {
+      const length = totalLength * offsets[i];
+      let chainLength = 0;
       
-      // path1上の点におけるpath2のwinding number
-      const winding2 = this.getWindingNumber(path2, point);
-      
-      // 交点の種類（entry/exit）を決定
-      // winding numberが奇数なら内部、偶数なら外部
-      const isInside2 = (winding2 & 1) === 1;
-      
-      // 交点の種類を決定
-      intersection.type = isInside2 ? 'exit' : 'entry';
-      intersection.winding = winding2;
+      for (let j = 0, l = chain.length; j < l; j++) {
+        const entry = chain[j];
+        const curveLength = entry.length;
+        
+        if (length <= chainLength + curveLength) {
+          // 曲線上の点を計算
+          const curve = entry.curve;
+          const path = curve._path;
+          const parent = path._parent;
+          const operand = parent instanceof CompoundPath ? parent : path;
+          const t = Numerical.clamp((length - chainLength) / curveLength, tMin, tMax);
+          const pt = curve.getPointAtTime(t);
+          
+          // 接線の方向に基づいて、水平または垂直方向を決定
+          const tangent = curve.getTangentAtTime(t);
+          const dir = Math.abs(tangent.y) < Math.SQRT1_2;
+          
+          // 減算演算の場合の特殊処理
+          let wind: { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } | null = null;
+          if (operator.subtract && path2) {
+            const otherPath = operand === path1 ? path2 : path1;
+            // getWindingを使用して計算
+            const pathWinding = this.getWinding(pt, otherPath.getCurves(), dir, true);
+            
+            // 曲線を省略すべきかチェック
+            if ((operand === path1 && pathWinding.winding) ||
+                (operand === path2 && !pathWinding.winding)) {
+              if (pathWinding.quality < 1) {
+                continue;
+              } else {
+                wind = { winding: 0, windingL: 0, windingR: 0, quality: 1, onPath: false };
+              }
+            }
+          }
+          
+          // winding numberを計算
+          wind = wind || this.getWinding(
+            pt,
+            curveCollisionsMap[path._id][curve.getIndex()],
+            dir,
+            true
+          );
+          
+          // より高品質なwinding numberを採用
+          if (wind.quality > windingResult.quality) {
+            windingResult = wind;
+          }
+          
+          break;
+        }
+        
+        chainLength += curveLength;
+      }
+    }
+    
+    // 曲線チェーン全体にwinding numberを割り当て
+    for (let j = chain.length - 1; j >= 0; j--) {
+      const segmentInfo = asSegmentInfo(chain[j].segment);
+      if (segmentInfo) {
+        segmentInfo._winding = windingResult;
+      }
     }
   }
 
   /**
    * 指定した点でのwinding numberを計算
+   * paper.jsのgetWinding関数を移植
    */
-  private static getWindingNumber(path: Path, point: Point): number {
-    // 簡易実装：レイキャスティングによるwinding number計算
-    const curves = path.getCurves();
-    let winding = 0;
+  private static getWinding(
+    point: Point,
+    curves: Curve[] | { hor: Curve[]; ver: Curve[] },
+    dir: boolean = false,
+    closed: boolean = false,
+    dontFlip: boolean = false
+  ): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } {
+    const min = Math.min;
+    const max = Math.max;
+    const abs = Math.abs;
     
-    for (const curve of curves) {
-      // カーブの値を取得
-      const v = [
-        curve._segment1.point.x,
-        curve._segment1.point.y,
-        curve._segment1.point.x + curve._segment1.handleOut.x,
-        curve._segment1.point.y + curve._segment1.handleOut.y,
-        curve._segment2.point.x + curve._segment2.handleIn.x,
-        curve._segment2.point.y + curve._segment2.handleIn.y,
-        curve._segment2.point.x,
-        curve._segment2.point.y
-      ];
+    // 曲線リストを取得
+    const curvesList = Array.isArray(curves)
+      ? curves
+      : curves[dir ? 'hor' : 'ver'];
+    
+    // 座標インデックスを設定
+    const ia = dir ? 1 : 0; // 横座標インデックス
+    const io = ia ^ 1;      // 縦座標インデックス
+    const pv = [point.x, point.y];
+    const pa = pv[ia];      // 点の横座標
+    const po = pv[io];      // 点の縦座標
+    
+    // winding計算用のイプシロン
+    const windingEpsilon = 1e-9;
+    const qualityEpsilon = 1e-6;
+    const paL = pa - windingEpsilon;
+    const paR = pa + windingEpsilon;
+    
+    let windingL = 0;
+    let windingR = 0;
+    let pathWindingL = 0;
+    let pathWindingR = 0;
+    let onPath = false;
+    let onAnyPath = false;
+    let quality = 1;
+    const roots: number[] = [];
+    let vPrev: number[] | undefined;
+    let vClose: number[] | undefined;
+    
+    // windingを追加する関数
+    function addWinding(v: number[]): any {
+      const o0 = v[io + 0];
+      const o3 = v[io + 6];
       
-      // 点のy座標
-      const y = point.y;
+      // 点が曲線の縦座標範囲外なら処理しない
+      if (po < min(o0, o3) || po > max(o0, o3)) {
+        return;
+      }
       
-      // カーブのy座標の範囲をチェック
-      const minY = Math.min(v[1], v[3], v[5], v[7]);
-      const maxY = Math.max(v[1], v[3], v[5], v[7]);
+      const a0 = v[ia + 0];
+      const a1 = v[ia + 2];
+      const a2 = v[ia + 4];
+      const a3 = v[ia + 6];
       
-      if (y < minY || y > maxY) continue;
+      // 水平曲線の特殊処理
+      if (o0 === o3) {
+        if ((a0 < paR && a3 > paL) || (a3 < paR && a0 > paL)) {
+          onPath = true;
+        }
+        return;
+      }
       
-      // カーブとレイの交点を計算
-      const roots: number[] = [];
-      Numerical.solveCubic(
-        -v[1] + 3 * v[3] - 3 * v[5] + v[7],
-        3 * v[1] - 6 * v[3] + 3 * v[5],
-        -3 * v[1] + 3 * v[3],
-        v[1] - y,
-        roots,
-        { min: 0, max: 1 }
-      );
+      // 曲線上の時間パラメータを計算
+      let t: number;
+      if (po === o0) {
+        t = 0;
+      } else if (po === o3) {
+        t = 1;
+      } else if (paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)) {
+        t = 1;
+      } else {
+        const count = Numerical.solveCubic(v[0], v[1], v[2], v[3], roots, { min: 0, max: 1 });
+        t = count === 1 ? roots[0] : 1;
+      }
       
-      for (const t of roots) {
-        if (t < Numerical.CURVETIME_EPSILON || t > 1 - Numerical.CURVETIME_EPSILON) {
-          continue;
+      // 曲線上の点の横座標を計算
+      let a: number;
+      if (t === 0) {
+        a = a0;
+      } else if (t === 1) {
+        a = a3;
+      } else {
+        const p = CurveCalculation.getPoint(v, t);
+        a = p ? p[dir ? 'y' : 'x'] : 0;
+      }
+      
+      // winding方向を決定
+      const winding = o0 > o3 ? 1 : -1;
+      const windingPrev = vPrev ? (vPrev[io] > vPrev[io + 6] ? 1 : -1) : 0;
+      const a3Prev = vPrev ? vPrev[ia + 6] : 0;
+      
+      // 曲線の始点でない場合の処理
+      if (po !== o0) {
+        // 標準的なケース
+        if (a < paL) {
+          pathWindingL += winding;
+        } else if (a > paR) {
+          pathWindingR += winding;
+        } else {
+          onPath = true;
         }
         
-        // 交点のx座標を計算
-        const mt = 1 - t;
-        const x = mt * mt * mt * v[0] + 3 * mt * mt * t * v[2] + 3 * mt * t * t * v[4] + t * t * t * v[6];
-        
-        // 点のx座標より左側の交点のみカウント
-        if (x < point.x) {
-          // 交差方向を判定
-          const dy = 3 * (mt * mt * (v[3] - v[1]) + 2 * mt * t * (v[5] - v[3]) + t * t * (v[7] - v[5]));
-          winding += dy > 0 ? 1 : -1;
+        // 精度を下げる（点が曲線に非常に近い場合）
+        if (a > pa - qualityEpsilon && a < pa + qualityEpsilon) {
+          quality /= 2;
+        }
+      } else {
+        // 曲線の始点での処理
+        if (winding !== windingPrev) {
+          // 前の曲線からwinding方向が変わった場合
+          if (a0 < paL) {
+            pathWindingL += winding;
+          } else if (a0 > paR) {
+            pathWindingR += winding;
+          }
+        } else if (a0 !== a3Prev) {
+          // 水平曲線の特殊処理
+          if (a3Prev < paR && a > paR) {
+            pathWindingR += winding;
+            onPath = true;
+          } else if (a3Prev > paL && a < paL) {
+            pathWindingL += winding;
+            onPath = true;
+          }
+        }
+        quality /= 4;
+      }
+      
+      vPrev = v;
+      
+      // 接線が方向に平行な場合、方向を反転して再計算
+      if (!dontFlip && a > paL && a < paR) {
+        const tangent = CurveCalculation.getTangent(v, t);
+        if (tangent && tangent[dir ? 'x' : 'y'] === 0) {
+          return PathBoolean.getWinding(point, curves, !dir, closed, true);
         }
       }
     }
     
-    return Math.abs(winding);
+    // 曲線を処理する関数
+    function handleCurve(v: number[]): any {
+      // 縦座標を取得
+      const o0 = v[io + 0];
+      const o1 = v[io + 2];
+      const o2 = v[io + 4];
+      const o3 = v[io + 6];
+      
+      // 点の縦座標が曲線の範囲内にある場合のみ処理
+      if (po <= max(o0, o1, o2, o3) && po >= min(o0, o1, o2, o3)) {
+        // 横座標を取得
+        const a0 = v[ia + 0];
+        const a1 = v[ia + 2];
+        const a2 = v[ia + 4];
+        const a3 = v[ia + 6];
+        
+        // 単調曲線を取得
+        const monoCurves = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
+          ? [v]
+          : CurveSubdivision.getMonoCurves(v);
+        
+        // 各単調曲線に対してwinding計算
+        for (let i = 0, l = monoCurves.length; i < l; i++) {
+          const res = addWinding(monoCurves[i]);
+          if (res) return res;
+        }
+      }
+    }
+    
+    // 各曲線に対して処理
+    for (let i = 0, l = curvesList.length; i < l; i++) {
+      const curve = curvesList[i];
+      const path = curve._path;
+      const v = curve.getValues();
+      let res;
+      
+      // 新しいパスの開始時の処理
+      if (!i || curvesList[i - 1]._path !== path) {
+        vPrev = undefined;
+        
+        // パスが閉じていない場合、最初と最後のセグメントを接続
+        if (!path._closed) {
+          vClose = CurveSubdivision.getValues(
+            path.getLastCurve()._segment2,
+            curve._segment1,
+            null,
+            !closed
+          );
+          
+          // この閉じる曲線が水平でない場合、前の曲線として使用
+          if (vClose[io] !== vClose[io + 6]) {
+            vPrev = vClose;
+          }
+        }
+        
+        // 前の曲線が見つからない場合、パスの最後から水平でない曲線を探す
+        if (!vPrev) {
+          vPrev = v;
+          let prev = path.getLastCurve();
+          while (prev && prev !== curve) {
+            const v2 = prev.getValues();
+            if (v2[io] !== v2[io + 6]) {
+              vPrev = v2;
+              break;
+            }
+            prev = prev.getPrevious();
+          }
+        }
+      }
+      
+      // 曲線を処理
+      if ((res = handleCurve(v))) {
+        return res;
+      }
+      
+      // パスの最後の曲線の処理
+      if (i + 1 === l || curvesList[i + 1]._path !== path) {
+        // 閉じる曲線がある場合は処理
+        if (vClose && (res = handleCurve(vClose))) {
+          return res;
+        }
+        
+        // パス上にあり、windingが相殺された場合の処理
+        if (onPath && !pathWindingL && !pathWindingR) {
+          pathWindingL = pathWindingR = path.isClockwise(closed) !== dir ? 1 : -1;
+        }
+        
+        // パスのwindingを合計に追加
+        windingL += pathWindingL;
+        windingR += pathWindingR;
+        pathWindingL = pathWindingR = 0;
+        
+        if (onPath) {
+          onAnyPath = true;
+          onPath = false;
+        }
+        
+        vClose = undefined;
+      }
+    }
+    
+    // 符号なしのwinding値を使用
+    windingL = abs(windingL);
+    windingR = abs(windingR);
+    
+    // 計算結果を返す
+    return {
+      winding: max(windingL, windingR),
+      windingL: windingL,
+      windingR: windingR,
+      quality: quality,
+      onPath: onAnyPath
+    };
   }
 
   /**
@@ -361,9 +643,9 @@ export class PathBoolean {
     // 交差するセグメントを取得する関数
     // paper.jsのgetCrossingSegments関数と同等の機能
     function getCrossingSegments(segment: Segment, collectStarts: boolean): Segment[] {
-      const segInfo = asSegmentInfo(segment);
-      const inter = segInfo?._intersection;
-      const start = inter || undefined; // nullの場合はundefinedに変換
+      const segInfo = asSegmentInfo(segment)!;
+      const inter = segInfo._intersection;
+      const start = inter as Intersection;
       const crossings: Segment[] = [];
       
       if (collectStarts) {
@@ -372,14 +654,14 @@ export class PathBoolean {
 
       function collect(inter: Intersection | null, end?: Intersection): void {
         while (inter && inter !== end) {
-          const other = inter.segment;
-          const otherInfo = asSegmentInfo(other);
-          const path = other && otherInfo?._path;
+          const other = inter.segment!;
+          const otherInfo = asSegmentInfo(other)!;
+          const path = otherInfo._path;
           
           if (path) {
             const next = other.getNext() || path.getFirstSegment();
-            const nextInfo = asSegmentInfo(next);
-            const nextInter = nextInfo?._intersection;
+            const nextInfo = asSegmentInfo(next)!;
+            const nextInter = nextInfo._intersection;
             
             if (
               other !== segment &&
@@ -408,7 +690,7 @@ export class PathBoolean {
         while (interStart && interStart.prev) {
           interStart = interStart.prev;
         }
-        collect(interStart, start);
+        collect(interStart, start as Intersection);
       }
       
       return crossings;
@@ -465,24 +747,25 @@ export class PathBoolean {
       const path1 = segStartInfo?._path;
       
       if (validStart && path1 && path1._overlapsOnly) {
-        const segmentPath = segStartInfo._intersection?.segment ?
-          asSegmentInfo(segStartInfo._intersection.segment)?._path : undefined;
+        // paper.jsと同様に、交差するパスを取得
+        const path2 = segStartInfo._intersection &&
+                      segStartInfo._intersection.segment &&
+                      asSegmentInfo(segStartInfo._intersection.segment)!._path;
         
-        // paper.jsとの互換性のため、compareメソッドを使用
-        if (path1 && segmentPath && path1.compare && path1.compare(segmentPath)) {
+        if (path1.compare && path2 && path1.compare(path2)) {
+          // 面積がある場合のみパスを結果に追加
           if (path1.getArea()) {
             paths.push(path1.clone(false));
           }
+          // 関連するすべてのセグメントを訪問済みにマーク
           visitPath(path1);
-          if (segmentPath) {
-            visitPath(segmentPath);
-          }
+          visitPath(path2);
           validStart = false;
         }
       }
 
       // 有効なセグメントからパスをトレース
-      let currentSeg = segStart;
+      let currentSeg = segStart as Segment | null;
       while (validStart && currentSeg) {
         const first = !path;
         const crossings = getCrossingSegments(currentSeg, first);
@@ -529,36 +812,28 @@ export class PathBoolean {
 
         if (!isValid(nextSeg)) {
           // 無効なセグメントに遭遇した場合、分岐点に戻る
-          // paper.jsのバックトラック処理と同等の機能
+          // paper.jsのバックトラック処理と同じ実装
           path!.removeSegments(branch.start);
           for (let j = 0, k = visited.length; j < k; j++) {
             asSegmentInfo(visited[j])!._visited = false;
           }
           visited.length = 0;
-
+          
           // 他の交差を試す
-          let foundValid = false;
           do {
-            const branchSeg = branch && branch.crossings.shift() || null;
-            const branchSegInfo = asSegmentInfo(branchSeg);
-            if (!branchSeg || !branchSegInfo?._path) {
-              nextSeg = currentSeg; // 現在のセグメントを維持
+            nextSeg = branch && branch.crossings.shift() || null;
+            if (!nextSeg || !asSegmentInfo(nextSeg)!._path) {
+              nextSeg = null as unknown as Segment;
               branch = branches.pop();
               if (branch) {
                 visited = branch.visited;
                 handleIn = branch.handleIn;
               }
-            } else if (isValid(branchSeg)) {
-              nextSeg = branchSeg;
-              foundValid = true;
-            } else {
-              nextSeg = currentSeg; // 現在のセグメントを維持
             }
-          } while (branch && !foundValid);
-
-          if (!branch) {
+          } while (branch && !isValid(nextSeg));
+          
+          if (!nextSeg)
             break;
-          }
         }
 
         // セグメントをパスに追加
@@ -568,28 +843,21 @@ export class PathBoolean {
         visited.push(nextSeg);
         
         // 次のセグメントに移動
-        const nextSegInfo = asSegmentInfo(nextSeg);
-        const nextPath = nextSegInfo?._path;
-        // paper.jsとの互換性のため、getFirstSegmentメソッドを使用
-        currentSeg = next || (nextPath ? nextPath.getFirstSegment() : undefined) || currentSeg;
-        handleIn = next && (next._handleIn as unknown as Point);
+        const nextPath = asSegmentInfo(nextSeg)!._path;
+        currentSeg = (next || nextPath.getFirstSegment()) as Segment;
+        handleIn = next && next._handleIn as unknown as Point;
       }
 
-      if (finished && path) {
+      if (finished) {
         if (closed) {
           // open/closedパス混在時の端点ハンドル処理
-          // paper.jsと同様に、最初のセグメントのhandleInを設定
-          const firstSegment = path.getFirstSegment();
-          if (firstSegment && handleIn) {
-            firstSegment.setHandleIn(handleIn);
-          }
-          path.setClosed(closed);
+          path!.getFirstSegment()!.setHandleIn(handleIn as Point);
+          path!.setClosed(closed);
         }
 
         // 面積が0でないパスのみ追加
-        // paper.jsと同様の処理
-        if (path.getArea() !== 0) {
-          paths.push(path);
+        if (path!.getArea() !== 0) {
+          paths.push(path!);
         }
       }
     }
@@ -771,7 +1039,47 @@ export class PathBoolean {
     
     // 交点のwinding number計算
     if (dividedPath2) {
-      this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
+      // 曲線の衝突マップを作成
+      const segments: Segment[] = [];
+      segments.push(...dividedPath1._segments);
+      segments.push(...dividedPath2._segments);
+      
+      const curves: Curve[] = [];
+      for (const segment of segments) {
+        const curve = segment.getCurve();
+        if (curve) curves.push(curve);
+      }
+      
+      const curvesValues = curves.map(curve => curve.getValues());
+      const curveCollisions = CollisionDetection.findCurveBoundsCollisionsWithBothAxis(
+        curvesValues, curvesValues, 0
+      );
+      
+      const curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>> = {};
+      for (let i = 0; i < curves.length; i++) {
+        const curve = curves[i];
+        const id = curve._path._id;
+        const map = curveCollisionsMap[id] = curveCollisionsMap[id] || {};
+        map[curve.getIndex()] = {
+          hor: (curveCollisions[i]?.hor || []).filter(idx => idx !== null).map(idx => curves[idx!]),
+          ver: (curveCollisions[i]?.ver || []).filter(idx => idx !== null).map(idx => curves[idx!])
+        };
+      }
+      
+      // 交点からwinding numberを伝播
+      for (const intersection of intersections) {
+        if (intersection.segment) {
+          this.propagateWinding(intersection.segment, dividedPath1, dividedPath2, curveCollisionsMap, operator);
+        }
+      }
+      
+      // 残りのセグメントにもwinding numberを伝播
+      for (const segment of segments) {
+        const segInfo = asSegmentInfo(segment);
+        if (segInfo && !segInfo._winding) {
+          this.propagateWinding(segment, dividedPath1, dividedPath2, curveCollisionsMap, operator);
+        }
+      }
     }
 
     // セグメントを収集
