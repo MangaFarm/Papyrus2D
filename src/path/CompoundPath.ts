@@ -33,19 +33,28 @@ export class CompoundPath implements PathItem {
   constructor(paths?: Path[] | any) {
     this._children = [];
     
-    if (paths) {
-      if (Array.isArray(paths)) {
-        this.addChildren(paths);
-      } else if (typeof paths === 'string') {
+    if (!this._initialize(paths)) {
+      if (typeof paths === 'string') {
         // SVGパスデータからの作成はサポート外
         console.warn('SVG path data is not supported in Papyrus2D');
-      } else if (paths.children) {
-        this.addChildren(paths.children);
       } else {
-        // 引数が配列でない場合は引数リストとして扱う
-        this.addChildren(Array.prototype.slice.call(arguments));
+        if (Array.isArray(paths)) {
+          this.addChildren(paths);
+        } else {
+          // 引数が配列でない場合は引数リストとして扱う
+          this.addChildren(Array.prototype.slice.call(arguments) as Path[]);
+        }
       }
     }
+  }
+
+  // paper.jsのBase.each()の代わりに使用する内部メソッド
+  private _initialize(object: any): boolean {
+    if (object && object.children) {
+      this.addChildren(object.children);
+      return true;
+    }
+    return false;
   }
 
   /**
@@ -64,6 +73,7 @@ export class CompoundPath implements PathItem {
    */
   addChild(path: Path): Path {
     this._children.push(path);
+    this._changed(ChangeFlag.GEOMETRY);
     return path;
   }
 
@@ -74,6 +84,7 @@ export class CompoundPath implements PathItem {
   removeChildren(): Path[] {
     const children = this._children;
     this._children = [];
+    this._changed(ChangeFlag.GEOMETRY);
     return children;
   }
 
@@ -114,6 +125,7 @@ export class CompoundPath implements PathItem {
     for (let i = 0, l = children.length; i < l; i++) {
       children[i].setClosed(closed);
     }
+    this._changed(ChangeFlag.GEOMETRY);
   }
 
   /**
@@ -228,9 +240,17 @@ export class CompoundPath implements PathItem {
       return new Rectangle(0, 0, 0, 0);
     }
     
+    if (!matrix && this._bounds) {
+      return this._bounds;
+    }
+    
     let bounds = this._children[0].getBounds(matrix);
     for (let i = 1, l = this._children.length; i < l; i++) {
       bounds = bounds.unite(this._children[i].getBounds(matrix));
+    }
+    
+    if (!matrix) {
+      this._bounds = bounds;
     }
     return bounds;
   }
@@ -304,29 +324,20 @@ export class CompoundPath implements PathItem {
    * @param point 判定する点
    */
   contains(point: Point): boolean {
-    // paper.jsの実装に近い方法で判定
-    // 最も外側のパスに含まれ、内側のパスに含まれない場合に内部と判定
+    // paper.jsの実装では、_hitTestChildrenメソッドを使用していますが、
+    // Papyrus2Dではそれに相当する実装がないため、同等の機能を実装します
     
     if (this._children.length === 0) {
       return false;
     }
     
     // 子パスを面積でソート（大きい順）
-    const sortedChildren = [...this._children].sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
-    
-    // 最も外側のパス（面積最大）に含まれるかチェック
-    if (!sortedChildren[0].contains(point)) {
-      return false;
+    const children = [...this._children];
+    for (let i = children.length - 1; i >= 0; i--) {
+      if (children[i].contains(point))
+        return !children[i].isClockwise();
     }
-    
-    // 内側のパス（穴）に含まれるかチェック
-    for (let i = 1; i < sortedChildren.length; i++) {
-      if (sortedChildren[i].contains(point)) {
-        return false; // 穴の中にある場合は外部
-      }
-    }
-    
-    return true; // 外側のパスに含まれ、どの穴にも含まれない
+    return false;
   }
 
   /**
@@ -339,7 +350,7 @@ export class CompoundPath implements PathItem {
     
     for (let i = 0, l = children.length; i < l; i++) {
       const childIntersections = children[i].getIntersections(other);
-      intersections.push(...childIntersections);
+      intersections = intersections.concat(childIntersections);
     }
     
     return intersections;
@@ -391,6 +402,16 @@ export class CompoundPath implements PathItem {
       this.addChild(path);
     }
     path.moveTo(point);
+    return this;
+  }
+  
+  moveBy(point: Point): CompoundPath {
+    const current = this.getLastChild();
+    if (!current) {
+      throw new Error('Use a moveTo() command first');
+    }
+    const last = current.getLastSegment();
+    this.moveTo(last ? point.add(last.getPoint()) : point);
     return this;
   }
 
@@ -503,11 +524,9 @@ export class CompoundPath implements PathItem {
   reduce(options?: { simplify?: boolean }): PathItem {
     const children = this._children;
     for (let i = children.length - 1; i >= 0; i--) {
-      const path = children[i].reduce(options);
-      if (path && typeof path.isEmpty === 'function' && path.isEmpty()) {
-        if (typeof path.remove === 'function') {
-          path.remove();
-        }
+      const path = children[i].reduce(options) as Path;
+      if (path && path.isEmpty()) {
+        path.remove();
       }
     }
     if (!children.length) {
@@ -518,10 +537,11 @@ export class CompoundPath implements PathItem {
       return path;
     }
     if (children.length === 1) {
-      return children[0];
+      const child = children[0];
+      child.insertAbove(this);
+      this.remove();
+      return child;
     }
-    // paper.jsでは reduce.base.call(this) を呼び出しているが、
-    // TypeScriptでは継承の仕組みが異なるため、このまま自身を返す
     return this;
   }
 
@@ -540,6 +560,9 @@ export class CompoundPath implements PathItem {
    * ダミーremove（グループ管理がないため）
    */
   remove(): PathItem | null {
+    // 実際のpaper.jsでは親からの削除処理があるが、
+    // 現在の実装では親子関係の管理がないため、自身を返す
+    this._changed(ChangeFlag.GEOMETRY);
     return this;
   }
 
@@ -547,6 +570,9 @@ export class CompoundPath implements PathItem {
    * ダミー_insertAt（グループ管理がないため）
    */
   _insertAt(item: PathItem, offset: number): PathItem {
+    // 実際のpaper.jsでは親子関係の管理があるが、
+    // 現在の実装ではダミー実装
+    this._changed(ChangeFlag.GEOMETRY);
     return this;
   }
 
@@ -555,6 +581,14 @@ export class CompoundPath implements PathItem {
    */
   insertAbove(path: PathItem): CompoundPath {
     return this._insertAt(path, 1) as CompoundPath;
+  }
+  
+  _changed(flags?: number): void {
+    if (flags === ChangeFlag.GEOMETRY) {
+      // 境界ボックスをリセット
+      this._bounds = undefined;
+      this._version++;
+    }
   }
 
   /**
@@ -570,7 +604,9 @@ export class CompoundPath implements PathItem {
       }
     }
     // 行列
-    this._matrix = !excludeMatrix && path._matrix ? Matrix.fromMatrix(path._matrix) : undefined;
+    if (!excludeMatrix && path._matrix) {
+      this._matrix = path._matrix.clone();
+    }
     // データと名前
     if ('_data' in path) {
       // @ts-ignore
@@ -578,10 +614,7 @@ export class CompoundPath implements PathItem {
     }
     if ('_name' in path) {
       // @ts-ignore
-      const name = path._name;
-      if (name && typeof name === 'string') {
-        this._name = name;
-      }
+      this._name = path._name;
     }
     return this;
   }
