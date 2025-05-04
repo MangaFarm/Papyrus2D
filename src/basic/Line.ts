@@ -222,7 +222,7 @@ export class Line {
         }
       }
     }
-    // 直線が平行の場合はundefinedを返す
+    // 直線が平行または交差しない場合はundefinedを返す
     return undefined;
   }
 
