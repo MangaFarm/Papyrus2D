@@ -149,6 +149,21 @@ export class CompoundPath implements PathItem {
   }
 
   /**
+   * すべてのセグメントを取得
+   */
+  getSegments(): Segment[] {
+    const children = this._children;
+    const segments: Segment[] = [];
+    for (let i = 0, l = children.length; i < l; i++) {
+      const childSegments = children[i].getSegments();
+      for (let j = 0, m = childSegments.length; j < m; j++) {
+        segments.push(childSegments[j]);
+      }
+    }
+    return segments;
+  }
+
+  /**
    * すべての曲線を取得
    */
   getCurves(): Curve[] {

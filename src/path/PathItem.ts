@@ -9,6 +9,7 @@ import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
+import { Segment } from './Segment';
 import type { Path } from './Path';
 import type { CurveLocation } from './CurveLocation';
 
@@ -39,9 +40,19 @@ export interface PathItem {
   getLength(): number;
 
   /**
+   * パスの面積
+   */
+  getArea(): number;
+
+  /**
    * パスの外接矩形
    */
   getBounds(): Rectangle;
+
+  /**
+   * パスのセグメントを取得
+   */
+  getSegments(): Segment[];
 
   /**
    * 指定位置の点を取得

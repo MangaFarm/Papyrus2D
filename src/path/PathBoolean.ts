@@ -9,6 +9,7 @@ import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CompoundPath } from './CompoundPath';
+import { PathItem } from './PathItem';
 
 /**
  * 交点情報
@@ -411,7 +412,7 @@ export class PathBoolean {
   static createResult(
     paths: Path[],
     operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
-  ): Path {
+  ): PathItem {
     if (paths.length === 0) {
       return new Path();
     }
@@ -431,20 +432,24 @@ export class PathBoolean {
       return compoundPath._children[0] as Path;
     }
     
-    // CompoundPathをPathとして返す（型キャスト）
-    return compoundPath as unknown as Path;
+    // CompoundPathをそのまま返す
+    return compoundPath;
   }
 
   /**
    * パスの合成（unite）
    */
-  static unite(path1: Path, path2: Path): Path {
+  static unite(path1: PathItem, path2: PathItem): PathItem {
+    // PathItemをPathにキャスト
+    const p1 = path1 as Path;
+    const p2 = path2 as Path;
+    
     // 交点計算
-    const intersections = this.getIntersections(path1, path2);
+    const intersections = this.getIntersections(p1, p2);
     
     // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(path1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(path2, intersections);
+    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
+    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
     
     // 交点のwinding number計算
     this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
@@ -459,13 +464,17 @@ export class PathBoolean {
   /**
    * パスの交差（intersect）
    */
-  static intersect(path1: Path, path2: Path): Path {
+  static intersect(path1: PathItem, path2: PathItem): PathItem {
+    // PathItemをPathにキャスト
+    const p1 = path1 as Path;
+    const p2 = path2 as Path;
+    
     // 交点計算
-    const intersections = this.getIntersections(path1, path2);
+    const intersections = this.getIntersections(p1, p2);
     
     // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(path1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(path2, intersections);
+    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
+    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
     
     // 交点のwinding number計算
     this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
@@ -480,13 +489,17 @@ export class PathBoolean {
   /**
    * パスの差分（subtract）
    */
-  static subtract(path1: Path, path2: Path): Path {
+  static subtract(path1: PathItem, path2: PathItem): PathItem {
+    // PathItemをPathにキャスト
+    const p1 = path1 as Path;
+    const p2 = path2 as Path;
+    
     // 交点計算
-    const intersections = this.getIntersections(path1, path2);
+    const intersections = this.getIntersections(p1, p2);
     
     // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(path1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(path2, intersections);
+    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
+    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
     
     // 交点のwinding number計算
     this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
@@ -501,13 +514,17 @@ export class PathBoolean {
   /**
    * パスの排他的論理和（exclude）
    */
-  static exclude(path1: Path, path2: Path): Path {
+  static exclude(path1: PathItem, path2: PathItem): PathItem {
+    // PathItemをPathにキャスト
+    const p1 = path1 as Path;
+    const p2 = path2 as Path;
+    
     // 交点計算
-    const intersections = this.getIntersections(path1, path2);
+    const intersections = this.getIntersections(p1, p2);
     
     // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(path1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(path2, intersections);
+    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
+    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
     
     // 交点のwinding number計算
     this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);
@@ -522,13 +539,17 @@ export class PathBoolean {
   /**
    * パスの分割（divide）
    */
-  static divide(path1: Path, path2: Path): Path {
+  static divide(path1: PathItem, path2: PathItem): PathItem {
+    // PathItemをPathにキャスト
+    const p1 = path1 as Path;
+    const p2 = path2 as Path;
+    
     // 交点計算
-    const intersections = this.getIntersections(path1, path2);
+    const intersections = this.getIntersections(p1, p2);
     
     // 交点でパスを分割
-    const dividedPath1 = this.dividePathAtIntersections(path1, intersections);
-    const dividedPath2 = this.dividePathAtIntersections(path2, intersections);
+    const dividedPath1 = this.dividePathAtIntersections(p1, intersections);
+    const dividedPath2 = this.dividePathAtIntersections(p2, intersections);
     
     // 交点のwinding number計算
     this.calculateWindingNumbers(dividedPath1, dividedPath2, intersections);

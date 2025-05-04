@@ -3,6 +3,7 @@ import { Path } from '../src/path/Path';
 import { Point } from '../src/basic/Point';
 import { PathBoolean } from '../src/path/PathBoolean';
 import { Segment } from '../src/path/Segment';
+import { PathItem } from '../src/path/PathItem';
 
 describe('PathBoolean', () => {
   // テスト用のヘルパー関数
@@ -120,7 +121,7 @@ describe('PathBoolean', () => {
   }
   
   // パスを文字列表現に変換するヘルパー関数
-  function pathToString(path: Path): string {
+  function pathToString(path: PathItem): string {
     if (!path || path.getSegments().length === 0) {
       return '';
     }
@@ -139,7 +140,7 @@ describe('PathBoolean', () => {
       }
     }
     
-    if (path.isClosed()) {
+    if (path.closed) {
       result += 'Z';
     }
     
