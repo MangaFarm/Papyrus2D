@@ -62,8 +62,9 @@ export class CompoundPath implements PathItem {
    * 子パスを追加
    * @param path 追加するパス
    */
-  addChild(path: Path): void {
+  addChild(path: Path): Path {
     this._children.push(path);
+    return path;
   }
 
   /**
@@ -158,9 +159,7 @@ export class CompoundPath implements PathItem {
     const segments: Segment[] = [];
     for (let i = 0, l = children.length; i < l; i++) {
       const childSegments = children[i].getSegments();
-      for (let j = 0, m = childSegments.length; j < m; j++) {
-        segments.push(childSegments[j]);
-      }
+      segments.push(...childSegments);
     }
     return segments;
   }
@@ -173,9 +172,7 @@ export class CompoundPath implements PathItem {
     const curves: Curve[] = [];
     for (let i = 0, l = children.length; i < l; i++) {
       const childCurves = children[i].getCurves();
-      for (let j = 0, m = childCurves.length; j < m; j++) {
-        curves.push(childCurves[j]);
-      }
+      curves.push(...childCurves);
     }
     return curves;
   }
@@ -315,7 +312,7 @@ export class CompoundPath implements PathItem {
     }
     
     // 子パスを面積でソート（大きい順）
-    const sortedChildren = [...this._children].sort((a, b) => b.getArea() - a.getArea());
+    const sortedChildren = [...this._children].sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
     
     // 最も外側のパス（面積最大）に含まれるかチェック
     if (!sortedChildren[0].contains(point)) {
@@ -342,7 +339,7 @@ export class CompoundPath implements PathItem {
     
     for (let i = 0, l = children.length; i < l; i++) {
       const childIntersections = children[i].getIntersections(other);
-      intersections = intersections.concat(childIntersections);
+      intersections.push(...childIntersections);
     }
     
     return intersections;
@@ -359,7 +356,7 @@ export class CompoundPath implements PathItem {
     }
     
     // 面積でソート（大きい順）
-    children.sort((a, b) => b.getArea() - a.getArea());
+    children.sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
     
     // 最も外側のパスは時計回りに
     const outermostChild = children[0];
@@ -374,9 +371,8 @@ export class CompoundPath implements PathItem {
         child.setClosed(true);
       }
       // 外側と内側で方向を逆にする
-      if (child.isClosed() === outermostChild.isClosed()) {
-        child.setClosed(!child.isClosed());
-        child.setClosed(!child.isClosed());
+      if (child.isClockwise() === outermostChild.isClockwise()) {
+        child.reverse();
       }
     }
     
@@ -390,7 +386,7 @@ export class CompoundPath implements PathItem {
   moveTo(point: Point): CompoundPath {
     // paper.jsと同様に、現在のパスが空かどうかをチェックして再利用
     const current = this.getLastChild();
-    const path = current && current.isEmpty!() ? current : new Path();
+    const path = current && current.isEmpty() ? current : new Path();
     if (path !== current) {
       this.addChild(path);
     }
@@ -431,7 +427,7 @@ export class CompoundPath implements PathItem {
   /**
    * パスを閉じる
    */
-  closePath(): CompoundPath {
+  closePath(tolerance?: number): CompoundPath {
     // 最後の子パスを閉じる
     const current = this.getLastChild();
     if (!current) {
@@ -458,9 +454,6 @@ export class CompoundPath implements PathItem {
     return this;
   }
 
-  /**
-   * パスの平滑化
-   */
   /**
    * パスの平滑化
    */
@@ -494,14 +487,13 @@ export class CompoundPath implements PathItem {
    * @param tolerance 許容誤差（デフォルト: 2.5）
    * @returns 単純化が成功した場合はtrue、失敗した場合はfalse
    */
-  simplify(tolerance?: number): boolean {
-    let success = false;
+  simplify(tolerance?: number): CompoundPath {
+    let res;
     const children = this._children;
     for (let i = 0, l = children.length; i < l; i++) {
-      const result = children[i].simplify(tolerance);
-      success = success || result;
+      res = children[i].simplify(tolerance) || res;
     }
-    return success;
+    return res ? this : this;
   }
 
   /**
@@ -512,8 +504,10 @@ export class CompoundPath implements PathItem {
     const children = this._children;
     for (let i = children.length - 1; i >= 0; i--) {
       const path = children[i].reduce(options);
-      if (path!.isEmpty!()) {
-        path!.remove!();
+      if (path && typeof path.isEmpty === 'function' && path.isEmpty()) {
+        if (typeof path.remove === 'function') {
+          path.remove();
+        }
       }
     }
     if (!children.length) {
