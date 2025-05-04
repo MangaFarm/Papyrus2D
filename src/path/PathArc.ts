@@ -123,7 +123,7 @@ export class PathArc {
         const transformedTo = matrix.inverseTransform(to);
         if (transformedTo) {
           extent = vector.getDirectedAngle(transformedTo);
-          
+
           // 円弧の方向を調整
           if (!clockwise && extent > 0) {
             extent -= 360;
@@ -161,7 +161,7 @@ export class PathArc {
       
       vector = from.subtract(center);
       extent = vector.getDirectedAngle(to.subtract(center));
-      
+
       const centerSide = line.getSide(center);
       if (centerSide === 0) {
         // 中心が線上にある場合、through点の側に基づいて範囲の符号を決定
