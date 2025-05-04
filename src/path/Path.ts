@@ -493,6 +493,17 @@ export class Path extends PathItemBase {
   }
 
   /**
+   * 内部用のwinding number計算メソッド（paper.jsとの互換性のため）
+   * @param point 判定する点
+   * @param dir 方向（falseならx方向、trueならy方向）
+   * @param closed パスが閉じているかどうか
+   * @returns winding情報
+   */
+  _getWinding(point: Point, dir: boolean = false, closed: boolean = false): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } {
+    return getWinding(point, this.getCurves(), dir, closed);
+  }
+
+  /**
    * 変換行列を設定
    * @param matrix 変換行列
    */

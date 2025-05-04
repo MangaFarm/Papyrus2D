@@ -76,7 +76,7 @@ export function propagateWinding(
   // sufficient quality is found, use it. Otherwise use the winding with
   // the best quality.
   const offsets = [0.5, 0.25, 0.75];
-  let windingResult = { winding: 0, quality: -1, windingL: 0, windingR: 0, onPath: false };
+  let windingResult = { winding: 0, quality: -1 };
   // Don't go too close to segments, to avoid special winding cases:
   const tMin = 1e-3;
   const tMax = 1 - tMin;
@@ -111,7 +111,7 @@ export function propagateWinding(
         if (operator.subtract && path2) {
           // Calculate path winding at point depending on operand.
           const otherPath = operand === path1 ? path2 : path1;
-          const pathWinding = otherPath.getWinding(pt);
+          const pathWinding = otherPath._getWinding(pt, dir, true);
           
           // Check if curve should be omitted.
           if (operand === path1 && pathWinding.winding ||
@@ -337,7 +337,7 @@ export function getWinding(
       // abscissa, it can be treated as a monotone curve:
       const monoCurves = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
         ? [v]
-        : CurveSubdivision.getMonoCurves(v, dir);
+        : Curve.getMonoCurves(v, dir);
       
       let res;
       for (let i = 0, l = monoCurves.length; i < l; i++) {
@@ -421,7 +421,7 @@ export function getWinding(
       // If the ray is cast in y direction (dir == true), the
       // windings always have opposite sign.
       if (onPath && !pathWindingL && !pathWindingR) {
-        pathWindingL = pathWindingR = (path.isClockwise(closed) ? 1 : 0) ^ (dir ? 1 : 0) ? 1 : -1;
+        pathWindingL = pathWindingR = path.isClockwise(closed) ^ dir ? 1 : -1;
       }
       
       // パスのwindingを合計に追加

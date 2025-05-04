@@ -635,4 +635,15 @@ export class Curve {
       }
     }
   }
+
+  /**
+   * モノトーン分割: 曲線をx方向またはy方向に単調な部分曲線に分割
+   * paper.jsのCurve.getMonoCurves()と同じ
+   * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
+   * @param dir 方向（falseならx方向、trueならy方向）
+   * @returns 分割された制御点配列の配列
+   */
+  static getMonoCurves(v: number[], dir = false): number[][] {
+    return CurveSubdivision.getMonoCurves(v, dir);
+  }
 }
