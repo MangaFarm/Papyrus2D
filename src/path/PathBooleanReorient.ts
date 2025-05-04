@@ -110,8 +110,9 @@ export function reorientPaths(
     }
   }
 
-  // nullでないパスのみを返す
-  return paths.filter(path => path !== null);
+  // paper.jsの実装に合わせて、nullを含む配列をそのまま返す
+  // CompoundPath.addChildrenメソッドがnullの要素を無視するため
+  return paths;
 }
 /**
  * パスの内部点を取得する

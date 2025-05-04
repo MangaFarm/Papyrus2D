@@ -61,7 +61,10 @@ export class CompoundPath extends PathItemBase {
    */
   addChildren(paths: Path[]): void {
     for (let i = 0; i < paths.length; i++) {
-      this.addChild(paths[i]);
+      // nullの要素を無視
+      if (paths[i] !== null) {
+        this.addChild(paths[i]);
+      }
     }
   }
 
@@ -554,25 +557,49 @@ export class CompoundPath extends PathItemBase {
    */
   reduce(options?: { simplify?: boolean }): PathItem {
     const children = this._children;
-    for (let i = children.length - 1; i >= 0; i--) {
-      const path = children[i].reduce(options) as Path;
-      if (path && path.isEmpty()) {
-        path.remove();
-      }
-    }
-    if (!children.length) {
+    // nullの要素をフィルタリング
+    const validChildren = children.filter(child => child !== null);
+    
+    // 有効な子パスがない場合は空のパスを返す
+    if (validChildren.length === 0) {
       const path = new Path();
       path.copyAttributes(this);
       path.insertAbove(this);
       this.remove();
       return path;
     }
-    if (children.length === 1) {
-      const child = children[0];
+    
+    // 有効な子パスを処理
+    for (let i = validChildren.length - 1; i >= 0; i--) {
+      const path = validChildren[i].reduce(options) as Path;
+      if (path && path.isEmpty()) {
+        path.remove();
+      }
+    }
+    
+    // 処理後に残った子パスを再度フィルタリング
+    const remainingChildren = this._children.filter(child => child !== null);
+    
+    if (remainingChildren.length === 0) {
+      const path = new Path();
+      path.copyAttributes(this);
+      path.insertAbove(this);
+      this.remove();
+      return path;
+    }
+    
+    if (remainingChildren.length === 1) {
+      const child = remainingChildren[0];
       child.insertAbove(this);
       this.remove();
       return child;
     }
+    
+    // 子パスの配列を更新
+    if (remainingChildren.length !== children.length) {
+      this._children = remainingChildren;
+    }
+    
     return this;
   }
 

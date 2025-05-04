@@ -10,6 +10,7 @@ import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Curve } from './Curve';
+import { reorientPaths } from './PathBooleanReorient';
 
 /**
  * パスの配列を取得する
@@ -168,13 +169,20 @@ export function resolveCrossings(path: PathItem): PathItem {
  * @returns 準備されたパス
  */
 export function preparePath(path: PathItem, resolve: boolean = false): PathItem {
-  // paper.jsと完全に同じ実装
+  // paper.jsと同様の実装だが、メソッド呼び出しを修正
   // 1. クローン、簡略化、変換を一連の操作で行う
   // 直接メソッドを呼び出す
-  let res = path
-    .clone(false)
-    .reduce!({ simplify: true })
-    .transform!(null, true, true);
+  let res = path.clone(false);
+  
+  // reduceメソッドが実装されている場合は呼び出す
+  if (res.reduce) {
+    res = res.reduce({ simplify: true });
+  }
+  
+  // transformメソッドが実装されている場合は呼び出す
+  if (res.transform) {
+    res = res.transform(null);
+  }
   
   if (resolve) {
     // 2. 正確な結果を得るために、開いたパスを直線で閉じる
@@ -190,13 +198,37 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
     }
     
     // 3. 交差を解決し、向きを再設定
-    const resolvedPath = res.resolveCrossings!();
+    // スタンドアロン関数のresolveCrossingsを使用
+    const resolvedPath = resolveCrossings(res);
     
     // getFillRuleがない場合はデフォルトで'nonzero'と仮定
     const nonZero = resolvedPath.getFillRule ?
       resolvedPath.getFillRule() === 'nonzero' : true;
     
-    return resolvedPath.reorient!(nonZero, true);
+    // スタンドアロン関数のreorientPathsを使用
+    const reorientedPaths = reorientPaths(
+      resolvedPath.getPaths(),
+      (w) => nonZero ? !!w : !!(w & 1),
+      true
+    );
+    
+    // reorientPathsの結果が空の場合は元のパスを返す
+    if (reorientedPaths.length === 0) {
+      console.log('reorientPaths returned empty array, using original path');
+      return resolvedPath;
+    }
+    
+    // 複数のパスが返された場合はCompoundPathを作成
+    if (reorientedPaths.length > 1) {
+      const compoundPath = new CompoundPath();
+      for (const path of reorientedPaths) {
+        compoundPath.addChild(path);
+      }
+      return compoundPath;
+    }
+    
+    // 単一のパスの場合はそのまま返す
+    return reorientedPaths[0];
   }
   
   return res;

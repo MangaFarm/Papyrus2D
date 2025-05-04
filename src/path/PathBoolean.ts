@@ -244,6 +244,18 @@ export class PathBoolean {
       // reorientPathsは、パスの方向を再設定し、内部/外部の関係を考慮してパスを整理する
       console.log('DEBUG: No intersections, using reorientPaths for operation:', operation);
       
+      // paper.jsの実装に合わせて、交点がない場合の処理を行う
+      
+      // getInteriorPointメソッドが存在するか確認するヘルパー関数
+      const getInteriorPoint = (path: PathItem): Point => {
+        if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
+          return (path as any).getInteriorPoint();
+        }
+        // フォールバック: バウンディングボックスの中心を使用
+        const bounds = path.getBounds();
+        return new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+      };
+      
       // 演算子に応じたフィルタ関数を定義
       const operators: Record<string, Record<string, boolean>> = {
         'unite':     { '1': true, '2': true },
@@ -264,19 +276,85 @@ export class PathBoolean {
         return [path1];
       }
       
-      // reorientPathsを使用してパスを整理
-      const paths = reorientPaths(
-        // 元のパスの配列をコピーして渡す
-        [path1, path2],
-        // windingに基づいてパスを保持するかどうかを判定する関数
-        function(winding: number) {
-          return !!operator[winding.toString()];
-        },
-        undefined
-      );
-      
-      // 結果を返す
-      return paths;
+      // 操作に応じた特別な処理
+      // paper.jsの実装では、交点がない場合、特定の操作に対して特別な処理を行っている
+      switch (operation) {
+        case 'unite':
+          // 合成：両方のパスを含む
+          if (path1.contains(getInteriorPoint(path2))) {
+            // path2がpath1に含まれる場合、path1のみを返す
+            return [path1];
+          } else if (path2.contains(path1.getInteriorPoint())) {
+            // path1がpath2に含まれる場合、path2のみを返す
+            return [path2];
+          } else {
+            // どちらも含まれない場合、両方のパスを返す
+            return [path1, path2];
+          }
+        
+        case 'intersect':
+          // 交差：両方のパスに含まれる部分
+          if (path1.contains(path2.getInteriorPoint())) {
+            // path2がpath1に含まれる場合、path2を返す
+            return [path2];
+          } else if (path2.contains(path1.getInteriorPoint())) {
+            // path1がpath2に含まれる場合、path1を返す
+            return [path1];
+          } else {
+            // どちらも含まれない場合、空の配列を返す
+            return [];
+          }
+        
+        case 'subtract':
+          // 差分：path1からpath2を引く
+          // getInteriorPointメソッドが存在するか確認
+          const getInteriorPoint = (path: PathItem): Point => {
+            if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
+              return (path as any).getInteriorPoint();
+            }
+            // フォールバック: バウンディングボックスの中心を使用
+            const bounds = path.getBounds();
+            return new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+          };
+          
+          if (path2.contains(getInteriorPoint(path1))) {
+            // path1がpath2に含まれる場合、空の配列を返す
+            return [];
+          } else if (path1.contains(path2.getInteriorPoint())) {
+            // path2がpath1に含まれる場合、path1からpath2を引いた結果を返す
+            // これはCompoundPathになる
+            const result = new Path();
+            result.copyAttributes(path1);
+            const hole = new Path();
+            hole.copyAttributes(path2);
+            hole.reverse(); // 穴は逆向きにする
+            const compound = new CompoundPath();
+            compound.addChild(result);
+            compound.addChild(hole);
+            return [result, hole];
+          } else {
+            // どちらも含まれない場合、path1を返す
+            return [path1];
+          }
+        
+        case 'exclude':
+          // 排他的論理和：両方のパスの和から共通部分を引く
+          if (path1.contains(path2.getInteriorPoint()) || path2.contains(path1.getInteriorPoint())) {
+            // どちらかが他方に含まれる場合、両方のパスを返す
+            return [path1, path2];
+          } else {
+            // どちらも含まれない場合、両方のパスを返す
+            return [path1, path2];
+          }
+        
+        case 'divide':
+          // 分割：両方のパスを返す
+          return [path1, path2];
+        
+        default:
+          // デフォルト：path1を返す
+          return [path1];
+      }
     }
 
     // 交点がある場合のマーチングアルゴリズム
@@ -415,6 +493,28 @@ export class PathBoolean {
     path2?: PathItem,
     options?: { insert?: boolean }
   ): PathItem {
+    // パスの配列が空の場合のフォールバック処理
+    if (paths.length === 0) {
+      console.log('DEBUG: createResult received empty paths array, creating empty path');
+      
+      // paper.jsの実装に合わせて、空のパスを作成
+      const emptyPath = new Path();
+      
+      // path1の属性をコピー
+      if (path1 && emptyPath.copyAttributes) {
+        emptyPath.copyAttributes(path1, true);
+      }
+      
+      // 挿入オプションが明示的にfalseでない場合、結果を挿入
+      if (!(options && options.insert === false)) {
+        if (path1 && emptyPath.insertAbove) {
+          emptyPath.insertAbove(path1);
+        }
+      }
+      
+      return emptyPath;
+    }
+    
     // 結果のCompoundPathを作成
     const result = new CompoundPath();
     
