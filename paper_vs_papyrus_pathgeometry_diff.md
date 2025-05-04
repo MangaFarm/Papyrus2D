@@ -1,49 +1,76 @@
-# paper.js と Papyrus2D の PathGeometry 実装の違い分析
+# Paper.js と Papyrus2D の PathGeometry 実装の違いと修正方針
 
-## 概要
+このドキュメントでは、Paper.js と Papyrus2D の PathGeometry 関連の実装の違いを分析し、Paper.js の挙動に完全に一致させるための修正方針を示します。
 
-paper.jsとPapyrus2DのPathGeometry実装における挙動の違いを分析し、修正しました。主な違いは以下の点でした：
+## 1. computeBounds 関数
 
-1. **境界ボックスの計算と利用**
-2. **交点計算の最適化**
-3. **contains関数の境界チェック**
+### 現在の実装の違い
 
-## 詳細な分析と修正
+Papyrus2D の `computeBounds` 関数は、各曲線区間ごとに三次ベジェの極値を明示的に計算し、それらをAABBに含めています。一方、Paper.js は `Curve._addBounds` 関数を使用して境界を計算しています。
 
-### 1. 境界ボックスの計算と利用
+### 修正方針
 
-#### 問題点
-- Papyrus2DではCurveクラスに`getBounds`メソッドが実装されていませんでした
-- paper.jsでは曲線の境界ボックスを計算するための詳細な実装があります
+Paper.js の実装に合わせるために、以下の修正が必要です：
 
-#### 修正内容
-- Curve.tsに`getBounds`メソッドを追加
-- 静的な`getBounds`メソッドと`_addBounds`ヘルパーメソッドを追加
-- 曲線の境界ボックスを計算するためのアルゴリズムをpaper.jsと同じにしました
+1. 現在の極値計算ロジックを Paper.js の `Curve._addBounds` 関数に基づく実装に置き換える
+2. 再帰的な分割アプローチを採用する
+3. 境界計算の順序を Paper.js と同じにする
 
-### 2. 交点計算の最適化
+## 2. isOnPath 関数
 
-#### 問題点
-- Papyrus2Dの`getIntersections`関数では、境界ボックスの交差チェックが簡略化されていました
-- paper.jsでは境界ボックスの交差チェックを行い、交差しない場合は早期に処理を終了します
+### 現在の実装の違い
 
-#### 修正内容
-- `getIntersections`関数に境界ボックスの交差チェックを追加
-- 境界ボックスが交差しない場合は空の配列を返すように修正
-- `getBoundsFromCurves`ヘルパー関数を追加して、カーブ配列から境界ボックスを計算できるようにしました
+Papyrus2D の `isOnPath` 関数は、曲線上の点と与えられた点の距離が最小になる時間パラメータを求めるために、x座標とy座標それぞれについて三次方程式を解いています。Paper.js は同様のアプローチですが、実装の詳細が異なります。
 
-### 3. contains関数の境界チェック
+### 修正方針
 
-#### 問題点
-- Papyrus2Dの`contains`関数では、境界チェックの方法がpaper.jsと異なっていました
-- paper.jsでは`point.isInside(bounds)`を使用していますが、Papyrus2Dでは座標の直接比較を行っていました
+Paper.js の実装に合わせるために、以下の修正が必要です：
 
-#### 修正内容
-- `contains`関数の境界チェックをpaper.jsと同じ方法に修正
-- `point.isInside(bounds)`を使用するように変更
+1. 曲線の分割方法と距離計算の方法を Paper.js と同じにする
+2. エッジケースの処理を Paper.js と同じにする
+3. TypeScript の nullable エラーが出る場合は、Paper.js で判定していないなら `!` を使用する
+
+## 3. getIntersections 関数
+
+### 現在の実装の違い
+
+Papyrus2D の `getIntersections` 関数は、`getBoundsFromCurves` 関数を使用して境界ボックスを計算し、それらの交差をチェックしています。Paper.js は同様のアプローチですが、境界ボックスの計算方法が異なります。
+
+### 修正方針
+
+Paper.js の実装に合わせるために、以下の修正が必要です：
+
+1. 境界ボックスの計算方法を Paper.js と同じにする
+2. 行列変換の処理を Paper.js と同じにする
+3. 自己交差の場合の処理を Paper.js と同じにする
+
+## 4. contains 関数
+
+### 現在の実装の違い
+
+Papyrus2D の `contains` 関数は、`getWinding` 関数を使用して winding number を計算し、その結果に基づいて判定しています。Paper.js は同様のアプローチですが、winding number の計算方法に微妙な違いがあります。
+
+### 修正方針
+
+Paper.js の実装に合わせるために、以下の修正が必要です：
+
+1. winding number の計算方法を Paper.js と同じにする
+2. 判定ロジックを Paper.js と同じにする
+3. 境界チェックの方法を Paper.js と同じにする
+
+## 5. getBoundsFromCurves 関数 (内部関数)
+
+### 現在の実装の違い
+
+Papyrus2D の `getBoundsFromCurves` 関数は、各曲線の境界ボックスを計算し、それらを統合しています。Paper.js は同様のアプローチですが、より多くの最適化が実装されています。
+
+### 修正方針
+
+Paper.js の実装に合わせるために、以下の修正が必要です：
+
+1. 境界ボックスの計算と統合の方法を Paper.js と同じにする
+2. Paper.js の最適化を取り入れる
 
 ## 結論
 
-これらの修正により、paper.jsとPapyrus2Dの実装が一致し、挙動の違いがなくなりました。特に境界ボックスの計算と利用に関する部分が重要で、これにより性能と正確性が向上しました。
-
-修正後のコードは、paper.jsのアルゴリズムを忠実に再現しており、同じ入力に対して同じ結果を返すことが期待されます。
+Papyrus2D の PathGeometry.ts を Paper.js の挙動に完全に一致させるためには、上記の修正が必要です。これらの修正により、アルゴリズムの違いによる挙動の差異を解消することができます。

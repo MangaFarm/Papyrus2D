@@ -471,11 +471,85 @@ export class Curve {
     return getIntersections(curves1, curves2, include, matrix1, matrix2, _returnFirst);
   }
 
+  /**
+   * 指定された点に最も近い曲線上の位置を返す
+   * @param point 点
+   * @returns 曲線上の位置
+   */
+  getNearestLocation(point: Point): CurveLocation {
+    const values = this.getValues();
+    const t = Curve.getNearestTime(values, point);
+    const pt = Curve.getPoint(values, t);
+    return new CurveLocation(this, t, pt, false, point.subtract(pt).getLength());
+  }
+
+  /**
+   * 指定された点に最も近い曲線上の点を返す
+   * @param point 点
+   * @returns 曲線上の点
+   */
+  getNearestPoint(point: Point): Point {
+    const loc = this.getNearestLocation(point);
+    return loc ? loc.getPoint() : loc;
+  }
+
   getIntersections(curve: Curve | null): CurveLocation[] {
     const v1 = this.getValues();
     const v2 = curve && curve !== this && curve.getValues();
     return v2 ? Curve.getIntersections([this], [curve], undefined, null, null, false)
               : Curve.getIntersections([this], null, undefined, null, null, false);
+  }
+
+  /**
+   * 指定された点に最も近い曲線上の時間パラメータを計算
+   * paper.jsのCurve.getNearestTimeメソッドの実装
+   */
+  static getNearestTime(v: number[], point: Point): number {
+    if (Curve.isStraight(v)) {
+      const x0 = v[0], y0 = v[1],
+            x3 = v[6], y3 = v[7],
+            vx = x3 - x0, vy = y3 - y0,
+            det = vx * vx + vy * vy;
+      // ゼロ除算を避ける
+      if (det === 0)
+        return 0;
+      // 点を直線に投影し、線形パラメータuを計算: u = (point - p1).dot(v) / v.dot(v)
+      const u = ((point.x - x0) * vx + (point.y - y0) * vy) / det;
+      if (u < Numerical.EPSILON) return 0;
+      if (u > (1 - Numerical.EPSILON)) return 1;
+      
+      const timeOf = Curve.getTimeOf(v, new Point(x0 + u * vx, y0 + u * vy));
+      return timeOf !== null ? timeOf : 0;
+    }
+
+    const count = 100;
+    let minDist = Infinity;
+    let minT = 0;
+    
+    function refine(t: number): boolean {
+      if (t >= 0 && t <= 1) {
+        const pt = Curve.getPoint(v, t);
+        const dist = point.subtract(pt).getLength();
+        const squaredDist = dist * dist;
+        if (squaredDist < minDist) {
+          minDist = squaredDist;
+          minT = t;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    for (let i = 0; i <= count; i++)
+      refine(i / count);
+
+    // 精度を上げるために反復的に解を改良
+    let step = 1 / (count * 2);
+    while (step > Numerical.CURVETIME_EPSILON) {
+      if (!refine(minT - step) && !refine(minT + step))
+        step /= 2;
+    }
+    return minT;
   }
 
   /**

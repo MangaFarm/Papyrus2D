@@ -53,6 +53,14 @@ export class Point {
   }
 
   /**
+   * ベクトルの長さの二乗を取得
+   * 平方根計算を省略するため、距離比較などで使用
+   */
+  getSquaredLength(): number {
+    return this.x * this.x + this.y * this.y;
+  }
+
+  /**
    * ベクトルの角度を度数法で取得
    * 引数なしの場合は自身の角度を返す
    * 引数ありの場合は2つのベクトル間の角度を計算
