@@ -586,4 +586,99 @@ describe('Path', () => {
       }
     });
   });
+
+  describe('smooth', () => {
+    it('should smooth a path with default options', () => {
+      const path = new Path();
+      for (let i = 0; i < 5; i++) {
+        path.add(new Segment(new Point(i * 30, i % 2 ? 20 : 40)));
+      }
+      
+      // スムージング前はハンドルがない
+      expect(path.hasHandles()).toBe(false);
+      
+      // スムージング実行
+      path.smooth();
+      
+      // スムージング後はハンドルがある
+      expect(path.hasHandles()).toBe(true);
+      
+      // 中間セグメントのハンドルが設定されていることを確認
+      for (let i = 1; i < path.getSegments().length - 1; i++) {
+        const segment = path.getSegments()[i];
+        expect(segment.hasHandles()).toBe(true);
+        expect(!segment.handleIn.isZero() && !segment.handleOut.isZero()).toBe(true);
+      }
+    });
+    
+    it('should smooth a path with asymmetric type', () => {
+      const path = new Path();
+      for (let i = 0; i < 5; i++) {
+        path.add(new Segment(new Point(i * 30, i % 2 ? 20 : 40)));
+      }
+      
+      // asymmetricタイプでスムージング
+      path.smooth({ type: 'asymmetric' });
+      
+      // スムージング後はハンドルがある
+      expect(path.hasHandles()).toBe(true);
+    });
+    
+    it('should smooth a path with continuous type', () => {
+      const path = new Path();
+      for (let i = 0; i < 5; i++) {
+        path.add(new Segment(new Point(i * 30, i % 2 ? 20 : 40)));
+      }
+      
+      // continuousタイプでスムージング
+      path.smooth({ type: 'continuous' });
+      
+      // スムージング後はハンドルがある
+      expect(path.hasHandles()).toBe(true);
+    });
+    
+    it('should smooth a specific range of segments', () => {
+      const path = new Path();
+      for (let i = 0; i < 5; i++) {
+        path.add(new Segment(new Point(i * 30, i % 2 ? 20 : 40)));
+      }
+      
+      // 範囲を指定してスムージング（インデックス1から3まで）
+      path.smooth({ from: 1, to: 3 });
+      
+      // 範囲内のセグメントはハンドルがある
+      expect(path.getSegments()[1].hasHandles()).toBe(true);
+      expect(path.getSegments()[2].hasHandles()).toBe(true);
+      expect(path.getSegments()[3].hasHandles()).toBe(true);
+      
+      // 範囲外のセグメントはハンドルがない
+      expect(path.getSegments()[0].hasHandles()).toBe(false);
+      expect(path.getSegments()[4].hasHandles()).toBe(false);
+    });
+    
+    it('should handle closed paths correctly', () => {
+      const path = new Path();
+      for (let i = 0; i < 5; i++) {
+        path.add(new Segment(new Point(i * 30, i % 2 ? 20 : 40)));
+      }
+      path.setClosed(true);
+      
+      // 閉じたパスをスムージング
+      path.smooth();
+      
+      // すべてのセグメントにハンドルがある
+      const segments = path.getSegments();
+      for (let i = 0; i < segments.length; i++) {
+        expect(segments[i].hasHandles()).toBe(true);
+      }
+      
+      // 最初と最後のセグメントが適切に接続されている
+      const first = segments[0];
+      const last = segments[segments.length - 1];
+      
+      // 最初のセグメントのhandleInと最後のセグメントのhandleOutが適切に設定されている
+      expect(first.handleIn.getLength() > 0).toBe(true);
+      expect(last.handleOut.getLength() > 0).toBe(true);
+    });
+  });
 });

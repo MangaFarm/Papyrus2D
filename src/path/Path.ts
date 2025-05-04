@@ -780,23 +780,153 @@ export class Path implements PathItem {
   }
 
   /**
-   * 全セグメントのハンドルを自動補正（paper.jsのsmooth相当, Catmull-Rom的）
+   * パスのセグメントを滑らかにします。
+   *
+   * @param options スムージングのオプション
+   * @param options.type スムージングのタイプ: 'continuous'（連続的）または'asymmetric'（非対称）
+   * @param options.from スムージングを開始するセグメントのインデックスまたはセグメント
+   * @param options.to スムージングを終了するセグメントのインデックスまたはセグメント
+   * @returns このパスオブジェクト（メソッドチェーン用）
    */
-  /**
-   * 全セグメントのハンドルを自動補正（paper.jsのsmooth相当, Catmull-Rom的）
-   */
-  smooth(): Path {
-    if (this._segments.length < 3) return this;
-    
-    for (let i = 1; i < this._segments.length - 1; i++) {
-      const prev = this._segments[i - 1].point;
-      const curr = this._segments[i].point;
-      const next = this._segments[i + 1].point;
-      // ハンドルは前後点の差分を1/6ずつ
-      const handleIn = prev.subtract(next).multiply(-1 / 6);
-      const handleOut = next.subtract(prev).multiply(1 / 6);
-      this._segments[i].setHandleIn(handleIn);
-      this._segments[i].setHandleOut(handleOut);
+  smooth(options?: {
+    type?: 'asymmetric' | 'continuous';
+    from?: number | Segment;
+    to?: number | Segment;
+  }): Path {
+    const that = this;
+    const opts = options || {};
+    const type = opts.type || 'asymmetric';
+    const segments = this._segments;
+    const length = segments.length;
+    const closed = this._closed;
+
+    // インデックスを取得するヘルパー関数
+    function getIndex(value: number | Segment | undefined, _default: number): number {
+      // セグメントオブジェクトの場合はインデックスを取得
+      if (value && (value as Segment).point) {
+        const segment = value as Segment;
+        const path = segment._path;
+        if (path && path !== that) {
+          throw new Error(`Segment ${segment._index} of another path cannot be used as a parameter`);
+        }
+        return segment._index;
+      } else {
+        // 数値の場合はそのまま使用、未定義の場合はデフォルト値を使用
+        const index = typeof value === 'number' ? value : _default;
+        // 負のインデックスを処理
+        return Math.min(index < 0 && closed
+          ? index % length
+          : index < 0 ? index + length : index, length - 1);
+      }
+    }
+
+    // ループするかどうか（閉じたパスで範囲指定がない場合）
+    const loop = closed && opts.from === undefined && opts.to === undefined;
+    let from = getIndex(opts.from, 0);
+    let to = getIndex(opts.to, length - 1);
+
+    // fromがtoより大きい場合の処理
+    if (from > to) {
+      if (closed) {
+        from -= length;
+      } else {
+        const tmp = from;
+        from = to;
+        to = tmp;
+      }
+    }
+
+    if (/^(?:asymmetric|continuous)$/.test(type)) {
+      // 連続スムージングアプローチ（Lubos Briedaのアルゴリズムベース）
+      const asymmetric = type === 'asymmetric';
+      const min = Math.min;
+      const amount = to - from + 1;
+      let n = amount - 1;
+      
+      // 閉じたパスでは最大4点のオーバーラップを許可
+      const padding = loop ? min(amount, 4) : 1;
+      let paddingLeft = padding;
+      let paddingRight = padding;
+      const knots: Point[] = [];
+      
+      if (!closed) {
+        // 開いたパスで範囲が指定されている場合、両端に最大1のパディングを追加
+        paddingLeft = min(1, from);
+        paddingRight = min(1, length - to - 1);
+      }
+      
+      // パディングを考慮したknotsの配列を設定
+      n += paddingLeft + paddingRight;
+      if (n <= 1) return this;
+      
+      for (let i = 0, j = from - paddingLeft; i <= n; i++, j++) {
+        knots[i] = segments[(j < 0 ? j + length : j) % length].point;
+      }
+
+      // 連続スムージングアルゴリズム
+      // x = knots[0]._x + 2 * knots[1]._x
+      // y = knots[0]._y + 2 * knots[1]._y
+      // f = 2
+      const x = knots[0].x + 2 * knots[1].x;
+      const y = knots[0].y + 2 * knots[1].y;
+      let f = 2;
+      const n_1 = n - 1;
+      const rx: number[] = [x];
+      const ry: number[] = [y];
+      const rf: number[] = [f];
+      const px: number[] = [];
+      const py: number[] = [];
+      
+      // トーマスアルゴリズムで解く
+      for (let i = 1; i < n; i++) {
+        const internal = i < n_1;
+        //  internal--(I)  asymmetric--(R) (R)--continuous
+        const a = internal ? 1 : asymmetric ? 1 : 2;
+        const b = internal ? 4 : asymmetric ? 2 : 7;
+        const u = internal ? 4 : asymmetric ? 3 : 8;
+        const v = internal ? 2 : asymmetric ? 0 : 1;
+        const m = a / f;
+        f = rf[i] = b - m;
+        const knotX = knots[i].x;
+        const knotY = knots[i].y;
+        const nextKnotX = knots[i + 1]?.x || 0;
+        const nextKnotY = knots[i + 1]?.y || 0;
+        rx[i] = u * knotX + v * nextKnotX - m * x;
+        ry[i] = u * knotY + v * nextKnotY - m * y;
+      }
+
+      px[n_1] = rx[n_1] / rf[n_1];
+      py[n_1] = ry[n_1] / rf[n_1];
+      
+      for (let i = n - 2; i >= 0; i--) {
+        px[i] = (rx[i] - px[i + 1]) / rf[i];
+        py[i] = (ry[i] - py[i + 1]) / rf[i];
+      }
+      
+      px[n] = (3 * knots[n].x - px[n_1]) / 2;
+      py[n] = (3 * knots[n].y - py[n_1]) / 2;
+
+      // セグメントを更新
+      for (let i = paddingLeft, max = n - paddingRight, j = from; i <= max; i++, j++) {
+        const segment = segments[j < 0 ? j + length : j];
+        const pt = segment.point;
+        const hx = px[i] - pt.x;
+        const hy = py[i] - pt.y;
+        
+        if (loop || i < max) {
+          segment.setHandleOut(hx, hy);
+        }
+        
+        if (loop || i > paddingLeft) {
+          segment.setHandleIn(-hx, -hy);
+        }
+      }
+    } else {
+      // その他のスムージング方法はセグメントに直接適用
+      for (let i = from; i <= to; i++) {
+        segments[i < 0 ? i + length : i].smooth(opts,
+          !loop && i === from, !loop && i === to);
+      }
     }
     
     this._changed(ChangeFlag.GEOMETRY);
