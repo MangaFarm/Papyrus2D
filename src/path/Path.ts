@@ -16,6 +16,7 @@ import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';
 import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
 import { PathFlattener } from './PathFlattener';
+import { PathFitter } from './PathFitter';
 
 // PathConstructorsからメソッドをインポート
 import { PathConstructors } from './PathConstructors';
@@ -1292,5 +1293,26 @@ export class Path implements PathItem {
     // 新しいセグメントでパスを更新
     this.setSegments(segments);
     return this;
+  }
+
+  /**
+   * パスを単純化します。
+   * Philip J. Schneiderのアルゴリズムを使用して、パスのセグメント数を減らしながら
+   * 元の形状を近似します。
+   *
+   * @param tolerance 許容誤差（デフォルト: 2.5）- 値が小さいほど元の形状に近くなり、
+   *                  値が大きいほどセグメント数が少なくなります
+   * @returns 単純化が成功した場合はtrue、失敗した場合はfalse
+   */
+  simplify(tolerance?: number): boolean {
+    // PathFitterを使用してパスを単純化
+    const segments = new PathFitter(this).fit(tolerance || 2.5);
+    
+    // 単純化に成功した場合、新しいセグメントをパスに設定
+    if (segments) {
+      this.setSegments(segments);
+    }
+    
+    return !!segments;
   }
 }
