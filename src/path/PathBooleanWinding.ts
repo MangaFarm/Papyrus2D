@@ -8,7 +8,6 @@ import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
-import { CurveCalculation } from './CurveCalculation';
 import { CurveSubdivision } from './CurveSubdivision';
 import { Intersection } from './PathBooleanIntersections';
 

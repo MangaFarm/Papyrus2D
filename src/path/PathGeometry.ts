@@ -10,7 +10,6 @@ import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
 import { CurveCalculation } from './CurveCalculation';
-import { CurveSubdivision } from './CurveSubdivision';
 import { getWinding } from './PathBooleanWinding';
 
 /**
