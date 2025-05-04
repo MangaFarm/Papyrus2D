@@ -23,14 +23,6 @@ export function reorientPaths(
   clockwise?: boolean,
   operator?: { unite?: boolean; intersect?: boolean; subtract?: boolean; exclude?: boolean }
 ): Path[] {
-  console.log("DEBUG reorientPaths: Input paths:", paths.length);
-  for (let i = 0; i < paths.length; i++) {
-    const path = paths[i];
-    console.log(`DEBUG reorientPaths: Path[${i}] segments:`, path.getSegments().length);
-    const bounds = path.getBounds();
-    console.log(`DEBUG reorientPaths: Path[${i}] bounds:`, bounds);
-  }
-  
   const length = paths && paths.length;
   if (!length) {
     return [];
@@ -48,8 +40,7 @@ export function reorientPaths(
   // 各パスの情報を登録
   for (let i = 0; i < length; i++) {
     const path = paths[i];
-    // isClockwiseメソッドが存在しない場合はgetAreaを使用
-    const isClockwise = path.isClockwise ? path.isClockwise() : path.getArea() >= 0;
+    const isClockwise = path.isClockwise();
     lookup[path._id] = {
       container: null,
       winding: isClockwise ? 1 : -1,
@@ -58,7 +49,7 @@ export function reorientPaths(
   }
 
   // パスを面積でソート（大きい順）
-  const sorted = [...paths].sort((a, b) => {
+  const sorted = paths.slice().sort((a, b) => {
     return Math.abs(b.getArea()) - Math.abs(a.getArea());
   });
 
@@ -67,12 +58,10 @@ export function reorientPaths(
   
   // 時計回りの方向が指定されていない場合は最大のパスの方向を使用
   if (clockwise === undefined) {
-    // isClockwiseメソッドが存在しない場合はgetAreaを使用
-    clockwise = first.isClockwise ? first.isClockwise() : first.getArea() >= 0;
+    clockwise = first.isClockwise();
   }
 
   // パスの衝突検出のための境界ボックスを計算
-  // paper.jsのCollisionDetection.findItemBoundsCollisionsを使用
   const collisions = CollisionDetection.findItemBoundsCollisions(
     sorted, null, Numerical.GEOMETRIC_EPSILON);
 
@@ -109,32 +98,14 @@ export function reorientPaths(
     }
 
     // パスを保持するかどうかを判断
-    // paper.jsの実装では、「内部性」が変わる場合のみパスを保持
-    // unite, intersect, subtract, excludeの各操作に対して、
-    // isInside関数を通じてパスを保持するかどうかを判断する
-    
-    // デバッグ情報を追加
-    console.log(`DEBUG: path ${i}, winding=${entry1.winding}, containerWinding=${containerWinding}`);
-    console.log(`DEBUG: isInside(entry1.winding)=${isInside(entry1.winding)}, isInside(containerWinding)=${isInside(containerWinding)}`);
-    
-    // paper.jsと同様の実装
-    // unite操作の場合は、winding=2のパスも保持する特別な処理を行う
-    console.log(`DEBUG: operator:`, operator);
-    
-    // paper.jsのisValid関数の実装に合わせる
-    // unite操作の場合は特別な処理を行う
-    if (operator && operator.unite && entry1.winding === 2 && containerWinding === 0) {
-      // uniteの場合、winding=2のパスは、containerWindingが0の場合のみ保持する
-      console.log(`DEBUG: unite operation, keeping path with winding=${entry1.winding}, containerWinding=${containerWinding}`);
-    } else if (isInside(entry1.winding) === isInside(containerWinding)) {
-      // unite以外の操作では、「内部性」が変わる場合のみパスを保持
+    // 「内部性」が変わる場合のみパスを保持
+    if (isInside(entry1.winding) === isInside(containerWinding)) {
       entry1.exclude = true;
       paths[entry1.index] = null as unknown as Path; // 除外されたパスをnullに設定
     } else {
       // 含むパスが除外されていない場合、方向を設定
       const container = entry1.container;
       
-      // paper.jsの実装に合わせて方向を設定
       if (container) {
         // 含むパスがある場合、その逆方向に設定
         path1.setClockwise(!container.isClockwise());
@@ -146,25 +117,7 @@ export function reorientPaths(
   }
 
   // nullでないパスのみを返す
-  const result = paths.filter(path => path !== null);
-  
-  console.log("DEBUG reorientPaths: Result paths:", result.length);
-  for (let i = 0; i < result.length; i++) {
-    const path = result[i];
-    console.log(`DEBUG reorientPaths: Result[${i}] segments:`, path.getSegments().length);
-    const bounds = path.getBounds();
-    console.log(`DEBUG reorientPaths: Result[${i}] bounds:`, bounds);
-  }
-  
-  return result;
+  return paths.filter(path => path !== null);
 }
 
-/**
- * パスの内部点を取得するヘルパー関数
- * paper.jsのgetInteriorPoint関数を移植
- *
- * @deprecated このヘルパー関数は不要になりました。代わりにPath.getInteriorPoint()を使用してください。
- */
-function getInteriorPoint(path: Path): Point {
-  return path.getInteriorPoint();
-}
+// 不要な関数なので削除
