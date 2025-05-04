@@ -215,15 +215,11 @@ export function isOnPath(
           return true;
         }
       }
-
-      return false;
     }
   }
 
   return false;
 }
-
-// getWinding関数はPathBooleanWinding.tsからインポート
 
 /**
  * パスの交点を計算
@@ -271,76 +267,13 @@ export function getIntersections(
     matrix2Null = matrix2._orNullIfIdentity ? matrix2._orNullIfIdentity() : matrix2;
   }
   
-  // 境界ボックスの交差判定
-  let shouldCheck = self;
-  
-  if (!shouldCheck && curves2) {
-    try {
-      // 境界ボックスの計算（簡略化）
-      let bounds1MinX = Infinity, bounds1MinY = Infinity, bounds1MaxX = -Infinity, bounds1MaxY = -Infinity;
-      let bounds2MinX = Infinity, bounds2MinY = Infinity, bounds2MaxX = -Infinity, bounds2MaxY = -Infinity;
-      
-      // curves1の境界ボックスを計算
-      for (const curve of curves1) {
-        const p1 = curve._segment1.point;
-        const p2 = curve._segment2.point;
-        bounds1MinX = Math.min(bounds1MinX, p1.x, p2.x);
-        bounds1MinY = Math.min(bounds1MinY, p1.y, p2.y);
-        bounds1MaxX = Math.max(bounds1MaxX, p1.x, p2.x);
-        bounds1MaxY = Math.max(bounds1MaxY, p1.y, p2.y);
-      }
-      
-      // curves2の境界ボックスを計算
-      for (const curve of curves2) {
-        const p1 = curve._segment1.point;
-        const p2 = curve._segment2.point;
-        bounds2MinX = Math.min(bounds2MinX, p1.x, p2.x);
-        bounds2MinY = Math.min(bounds2MinY, p1.y, p2.y);
-        bounds2MaxX = Math.max(bounds2MaxX, p1.x, p2.x);
-        bounds2MaxY = Math.max(bounds2MaxY, p1.y, p2.y);
-      }
-      
-      // 境界ボックスの交差を確認
-      const boundsIntersect = 
-        bounds1MaxX + Numerical.EPSILON >= bounds2MinX &&
-        bounds1MinX - Numerical.EPSILON <= bounds2MaxX &&
-        bounds1MaxY + Numerical.EPSILON >= bounds2MinY &&
-        bounds1MinY - Numerical.EPSILON <= bounds2MaxY;
-      
-      // 境界ボックスが交差していない場合でも、制御点のハンドルを考慮した追加チェック
-      if (!boundsIntersect) {
-        // 特定のケースを検出（complex curve intersections）
-        if (curves1.length === 1 && curves2.length === 1) {
-          const c1 = curves1[0];
-          const c2 = curves2[0];
-          
-          // 制御点のハンドルの長さをチェック
-          const h1Out = c1._segment1.handleOut;
-          const h1In = c1._segment2.handleIn;
-          const h2Out = c2._segment1.handleOut;
-          const h2In = c2._segment2.handleIn;
-          
-          // ハンドルが長い場合は、境界ボックスが交差していなくても交点が存在する可能性がある
-          const longHandles =
-            (Math.abs(h1Out.x) > 20 || Math.abs(h1Out.y) > 20 ||
-             Math.abs(h1In.x) > 20 || Math.abs(h1In.y) > 20 ||
-             Math.abs(h2Out.x) > 20 || Math.abs(h2Out.y) > 20 ||
-             Math.abs(h2In.x) > 20 || Math.abs(h2In.y) > 20);
-          
-          if (longHandles) {
-            shouldCheck = true;
-          }
-        }
-      } else {
-        shouldCheck = true;
-      }
-    } catch (e) {
-      // 境界チェックでエラーが発生した場合は続行
-      shouldCheck = true;
-    }
-  }
-  
-  if (shouldCheck) {
+  // paper.jsと同様に境界ボックスチェックを行う
+  // 注意: paper.jsでは境界ボックスの交差チェックを行っているが、
+  // Papyrus2Dでは簡略化のためカーブの存在チェックのみを行っている
+  // 本来は以下のようなチェックが必要:
+  // return self || this.getBounds(matrix1).intersects(path.getBounds(matrix2), Numerical.EPSILON)
+  //        ? Curve.getIntersections(...) : [];
+  if (self || curves2 && curves1.length > 0 && curves2.length > 0) {
     return Curve.getIntersections(
       curves1,
       curves2 || null,
@@ -375,6 +308,7 @@ export function contains(
   const rule = options?.rule || 'evenodd';
 
   // 境界チェック（高速化のため）
+  // paper.jsでは point.isInside(this.getBounds({ internal: true, handle: true })) を使用
   const bounds = computeBounds(segments, closed, 0);
   if (
     point.x < bounds.topLeft.x ||
@@ -385,27 +319,14 @@ export function contains(
     return false;
   }
 
-  // パス上判定
-  const onPath = isOnPath(segments, curves, point);
-
   // winding numberを計算
-  const { windingL, windingR } = getWinding(point, curves);
-
-  // Paper.jsと同様の判定ロジック
-  // パス上の点は内部と見なす可能性がある
-  if (onPath) {
-    return true;
-  }
-
-  // ルールに応じて判定
-  if (rule === 'evenodd') {
-    // even-oddルール: Paper.jsと同様に左右どちらかが奇数なら内部
-    return !!(windingL & 1 || windingR & 1);
-  } else {
-    // nonzeroルール: winding!=0
-    // Paper.jsでは単一のwindingを使用するが、
-    // Papyrus2Dでは左右のwindingを別々に計算しているため、
-    // どちらかが0でなければ内部と見なす
-    return windingL !== 0 || windingR !== 0;
-  }
+  const wind = getWinding(point, curves);
+  
+  // paper.jsと同じ判定ロジック
+  // return winding.onPath || !!(this.getFillRule() === 'evenodd'
+  //         ? winding.windingL & 1 || winding.windingR & 1
+  //         : winding.winding);
+  return wind.onPath || !!(rule === 'evenodd'
+    ? wind.windingL & 1 || wind.windingR & 1
+    : wind.winding);
 }
