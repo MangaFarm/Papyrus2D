@@ -58,7 +58,7 @@
   - [x] サブパス操作（moveTo, lineTo, cubicCurveTo）
   - [x] 情報取得メソッド（getLength, getBounds）
   - [x] パス操作メソッド（splitAt, equals）の修正
-  - [ ] 3.2.3 CompoundPath クラスの実装
+  - [x] 3.2.3 CompoundPath クラスの実装
 - [ ] 3.3 パス操作メソッドの実装
   - [ ] 3.3.1 パス生成ファクトリメソッド（Circle, Rectangle, Star など）
   - [ ] 3.3.2 パス変換メソッド

@@ -444,11 +444,6 @@ export function contains(
   // デフォルトはeven-oddルール
   const rule = options?.rule || 'evenodd';
 
-  // パス上判定
-  if (isOnPath(segments, curves, point)) {
-    return false;
-  }
-
   // 境界チェック（高速化のため）
   const bounds = computeBounds(segments, closed, 0);
   if (
@@ -460,15 +455,27 @@ export function contains(
     return false;
   }
 
+  // パス上判定
+  const onPath = isOnPath(segments, curves, point);
+
   // winding numberを計算
   const { windingL, windingR } = getWinding(curves, point);
 
+  // Paper.jsと同様の判定ロジック
+  // パス上の点は内部と見なす可能性がある
+  if (onPath) {
+    return true;
+  }
+
   // ルールに応じて判定
   if (rule === 'evenodd') {
-    // even-oddルール: 交差数の偶奇
-    return ((windingL + windingR) & 1) === 1;
+    // even-oddルール: Paper.jsと同様に左右どちらかが奇数なら内部
+    return !!(windingL & 1 || windingR & 1);
   } else {
     // nonzeroルール: winding!=0
+    // Paper.jsでは単一のwindingを使用するが、
+    // Papyrus2Dでは左右のwindingを別々に計算しているため、
+    // どちらかが0でなければ内部と見なす
     return windingL !== 0 || windingR !== 0;
   }
 }

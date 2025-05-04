@@ -443,7 +443,6 @@ describe('Path', () => {
   });
   
   describe('splitAt', () => {
-    // このテストはスキップします。paper.jsからの移植が必要です。
     it('Splitting a straight path should produce segments without handles', () => {
       const path1 = Path.Line(new Point(0, 0), new Point(50, 50));
       console.log('Original path1:', path1.toString());
