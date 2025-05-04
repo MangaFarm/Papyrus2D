@@ -24,7 +24,6 @@ export function reorientPaths(
   paths: Path[],
   isInside: (winding: number) => boolean,
   clockwise?: boolean,
-  operator?: { unite?: boolean; intersect?: boolean; subtract?: boolean; exclude?: boolean }
 ): Path[] {
   const length = paths && paths.length;
   if (!length) {
@@ -32,23 +31,20 @@ export function reorientPaths(
   }
 
   // パスの情報を格納するルックアップテーブルを作成
-  const lookup: Record<string, {
+  const lookup = paths.reduce((lookup: Record<string, {
     container: Path | null;
     winding: number;
     index: number;
     exclude?: boolean;
-  }> = {};
-
-  // 各パスの情報を登録
-  for (let i = 0; i < length; i++) {
-    const path = paths[i];
-    const isClockwise = path.isClockwise();
+  }>, path, i) => {
+    // 各パスの情報を登録
     lookup[path._id] = {
       container: null,
-      winding: isClockwise ? 1 : -1,
+      winding: path.isClockwise() ? 1 : -1,
       index: i
     };
-  }
+    return lookup;
+  }, {});
 
   // パスを面積でソート（大きい順）
   const sorted = paths.slice().sort((a, b) => {
@@ -183,9 +179,7 @@ export function getInteriorPoint(path: Path): Point {
     if (intercepts.length > 1) {
       // x座標でソートし、最初の2つの交点の中間を選択
       intercepts.sort((a, b) => a - b);
-      // Pointはイミュータブルなので、新しいPointオブジェクトを作成
-      const newX = (intercepts[0] + intercepts[1]) / 2;
-      point = new Point(newX, point.y);
+      point = new Point((intercepts[0] + intercepts[1]) / 2, point.y);
     }
   }
   
