@@ -482,7 +482,7 @@ export function getWindingContribution(
   return operator.subtract && path2
     ? path1.isClockwise() !== path2.isClockwise()
       ? winding.winding
-      : (winding.windingL || 0) - (winding.windingR || 0)
+      : winding.windingL! - winding.windingR!
     : winding.winding;
 }
 

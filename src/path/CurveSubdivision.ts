@@ -72,7 +72,7 @@ export class CurveSubdivision {
     const curves: number[][] = [];
     // paper.jsと同じ方法でインデックスを決定
     // paper.jsではdir=trueはy方向、dir=falseはx方向を意味する
-    const io = dir ? 1 : 0;
+    const io = dir ? 0 : 1;
     const o0 = v[io + 0];
     const o1 = v[io + 2];
     const o2 = v[io + 4];
