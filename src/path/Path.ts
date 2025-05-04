@@ -12,6 +12,7 @@ import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
 import { PathItem } from './PathItem';
+import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';
 import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
 
@@ -808,6 +809,20 @@ export class Path implements PathItem {
     this._closed = true;
     this._changed(ChangeFlag.SEGMENTS);
     return this;
+  }
+
+  /**
+   * 円弧を描画する
+   *
+   * 3つの形式で呼び出すことができます：
+   * 1. arcTo(to, clockwise) - 現在の点から指定された点までの円弧を描画
+   * 2. arcTo(through, to) - 現在の点から、指定された中間点を通って、指定された終点までの円弧を描画
+   * 3. arcTo(to, radius, rotation, clockwise, large) - SVGスタイルの円弧を描画
+   *
+   * @returns 円弧が追加されたパス（this）
+   */
+  arcTo(...args: any[]): Path {
+    return PathArc.arcTo(this, ...args);
   }
 
   /**
