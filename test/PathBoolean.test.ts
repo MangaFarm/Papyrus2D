@@ -4,6 +4,7 @@ import { Point } from '../src/basic/Point';
 import { PathBoolean } from '../src/path/PathBoolean';
 import { Segment } from '../src/path/Segment';
 import { PathItem } from '../src/path/PathItem';
+import { CompoundPath } from '../src/path/CompoundPath';
 
 describe('PathBoolean', () => {
   // テスト用のヘルパー関数
@@ -121,30 +122,72 @@ describe('PathBoolean', () => {
   }
   
   // パスを文字列表現に変換するヘルパー関数
+  // paper.jsのgetPathDataメソッドを参考に実装
   function pathToString(path: PathItem): string {
+    // CompoundPathの場合は各子パスを個別に処理
+    if (path instanceof CompoundPath) {
+      const compoundPath = path as CompoundPath;
+      if (!compoundPath._children || compoundPath._children.length === 0) {
+        return '';
+      }
+      
+      // 各子パスのパスデータを連結
+      const parts: string[] = [];
+      for (const childPath of compoundPath._children) {
+        // 子パスが空の場合はスキップ
+        if (!childPath.getSegments().length) continue;
+        
+        // 各セグメントを処理
+        const segments = childPath.getSegments();
+        let part = '';
+        
+        for (let i = 0; i < segments.length; i++) {
+          const segment = segments[i];
+          const point = segment.getPoint();
+          
+          if (i === 0) {
+            part += `M${point.x.toFixed(0)},${point.y.toFixed(0)}`;
+          } else {
+            part += `L${point.x.toFixed(0)},${point.y.toFixed(0)}`;
+          }
+        }
+        
+        // 閉じたパスの場合は最後にZを追加
+        if (childPath.isClosed()) {
+          part += 'Z';
+        }
+        
+        parts.push(part);
+      }
+      
+      return parts.join('');
+    }
+    
+    // 通常のPathの場合
     if (!path || path.getSegments().length === 0) {
       return '';
     }
     
-    let result = '';
     const segments = path.getSegments();
+    const parts: string[] = [];
     
     for (let i = 0; i < segments.length; i++) {
       const segment = segments[i];
       const point = segment.getPoint();
       
       if (i === 0) {
-        result += `M${point.x.toFixed(0)},${point.y.toFixed(0)}`;
+        parts.push(`M${point.x.toFixed(0)},${point.y.toFixed(0)}`);
       } else {
-        result += `L${point.x.toFixed(0)},${point.y.toFixed(0)}`;
+        parts.push(`L${point.x.toFixed(0)},${point.y.toFixed(0)}`);
       }
     }
     
+    // 閉じたパスの場合は最後にZを追加
     if (path.closed) {
-      result += 'Z';
+      parts.push('Z');
     }
     
-    return result;
+    return parts.join('');
   }
   
   describe('Boolean operations with rectangles', () => {

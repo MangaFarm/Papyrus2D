@@ -423,8 +423,13 @@ export class PathBoolean {
     
     // 複数のパスをCompoundPathとして結合
     const compoundPath = new CompoundPath();
+    
+    // 各パスを独立したパスとして追加
+    // 各パスが閉じていることを確認
     for (const path of paths) {
-      compoundPath.addChild(path);
+      // パスのコピーを作成して閉じる
+      const newPath = new Path(path.getSegments(), true);
+      compoundPath.addChild(newPath);
     }
     
     // 結果を単一のPathに変換できる場合は変換
