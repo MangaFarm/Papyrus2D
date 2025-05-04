@@ -1,7 +1,7 @@
 /**
  * CompoundPath クラス
  * Paper.js の CompoundPath (src/path/CompoundPath.js) を参考にした実装。
- * 複数のパスから構成される複合パスを表現し、PathItem インターフェースを実装する。
+ * 複数のパスから構成される複合パスを表現し、PathItemBase クラスを継承する。
  */
 
 import { Point } from '../basic/Point';
@@ -11,15 +11,12 @@ import { Curve } from './Curve';
 import { Path } from './Path';
 import { Segment } from './Segment';
 import { PathItem } from './PathItem';
+import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
 import { ChangeFlag } from './ChangeFlag';
 
-export class CompoundPath implements PathItem {
-  // PathItemインターフェースの実装
-  _matrix?: Matrix;
-  _matrixDirty: boolean = false;
-  _bounds?: Rectangle;
-  _version: number = 0;
+export class CompoundPath extends PathItemBase {
+  // 追加のプロパティ
   _name?: string;
   _data?: any;
 
@@ -31,6 +28,7 @@ export class CompoundPath implements PathItem {
    * @param paths 子パスの配列または引数
    */
   constructor(paths?: Path[] | any) {
+    super();
     this._children = [];
     
     if (!this._initialize(paths)) {
@@ -350,7 +348,7 @@ export class CompoundPath implements PathItem {
    * 他のパスとの交点を取得
    * @param other 交点を求める相手のパス
    */
-  getIntersections(other: Path): CurveLocation[] {
+  getIntersections(other: PathItem): CurveLocation[] {
     const children = this._children;
     let intersections: CurveLocation[] = [];
     
@@ -487,19 +485,25 @@ export class CompoundPath implements PathItem {
 
   /**
    * パスの反転
-   */
-  // Pathクラスにreverseメソッドが実装されていないため、
-  // この機能は現在サポートされていません
-  /**
-   * パスの反転
    * 各子パスを反転させる
    */
-  reverse(): CompoundPath {
+  reverse(): PathItemBase {
     const children = this._children;
     for (let i = 0, l = children.length; i < l; i++) {
       children[i].reverse();
     }
     return this;
+  }
+
+  // setClockwiseメソッドは基底クラスから継承
+
+  /**
+   * パスが時計回りかどうかを判定
+   * 最初の子パスの方向を返す
+   * @returns 時計回りならtrue
+   */
+  isClockwise(): boolean {
+    return this._children.length > 0 ? this._children[0].isClockwise() : true;
   }
 
   /**

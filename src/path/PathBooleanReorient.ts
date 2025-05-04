@@ -133,12 +133,26 @@ export function reorientPaths(
     } else {
       // 含むパスが除外されていない場合、方向を設定
       const container = entry1.container;
+      // パスの型をチェックして適切なメソッドを呼び出す
+      // path1がPathItemインターフェースを実装していれば、setClockwiseメソッドを持っているはず
       if (container) {
-        path1.setClosed(!container.isClosed());
-        // paper.jsではsetClockwiseを使用するが、Papyrus2Dでは同等の機能をsetClosedで代用
-        // 本来はpath1.setClockwise(!container.isClockwise())を呼ぶべき
+        if (typeof path1.setClockwise === 'function') {
+          path1.setClockwise(!container.isClockwise());
+        } else {
+          // setClockwiseがない場合は、reverseメソッドを使用して方向を変更
+          if (path1.isClockwise() !== !container.isClockwise()) {
+            path1.reverse();
+          }
+        }
       } else {
-        path1.setClosed(!!clockwise);
+        if (typeof path1.setClockwise === 'function') {
+          path1.setClockwise(!!clockwise);
+        } else {
+          // setClockwiseがない場合は、reverseメソッドを使用して方向を変更
+          if (path1.isClockwise() !== !!clockwise) {
+            path1.reverse();
+          }
+        }
       }
     }
   }

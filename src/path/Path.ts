@@ -1,7 +1,7 @@
 /**
  * Path クラス
  * Paper.js の Path (src/path/Path.js) を参考にしたミュータブルなパス表現。
- * segments 配列と closed フラグを持ち、PathItem インターフェースを実装する。
+ * segments 配列と closed フラグを持ち、PathItemBase クラスを継承する。
  */
 
 import { Point } from '../basic/Point';
@@ -12,6 +12,7 @@ import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
 import { PathItem } from './PathItem';
+import { PathItemBase } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';
 import { computeBounds, isOnPath, getWinding, getIntersections, contains } from './PathGeometry';
@@ -21,7 +22,7 @@ import { PathFitter } from './PathFitter';
 // PathConstructorsからメソッドをインポート
 import { PathConstructors } from './PathConstructors';
 
-export class Path implements PathItem {
+export class Path extends PathItemBase {
   // 静的メソッド
   static Line = PathConstructors.Line;
   static Circle = PathConstructors.Circle;
@@ -30,22 +31,15 @@ export class Path implements PathItem {
   static Arc = PathConstructors.Arc;
   static RegularPolygon = PathConstructors.RegularPolygon;
   static Star = PathConstructors.Star;
+  // PathItemBaseから継承したプロパティ以外のプロパティ
   _segments: Segment[];
   _closed: boolean;
-
-  // PathItemインターフェースの実装
-  _matrix?: Matrix;
-  _matrixDirty: boolean = false;
   _curves?: Curve[];
-  _version: number = 0;
   _length?: number;
   _area?: number;
-  _bounds?: Rectangle;
-  
-  // paper.jsとの互換性のためのID
-  _id: string = Math.random().toString(36).substring(2, 15);
 
   constructor(segments: Segment[] = [], closed: boolean = false) {
+    super();
     this._segments = [];
     this._closed = false;
     this._curves = undefined;
@@ -1085,22 +1079,22 @@ export class Path implements PathItem {
    * @returns 交点情報の配列
    */
   getIntersections(
-    path?: Path,
+    path: PathItem,
     includeParam?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
     _matrix?: Matrix,
     _returnFirst?: boolean
   ): CurveLocation[] {
     const curves1 = this.getCurves();
-    const curves2 = path ? path.getCurves() : curves1;
+    const curves2 = path === this ? curves1 : path.getCurves();
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     
     let matrix2: Matrix | null = null;
-    if (this === path || !path) {
+    if (this === path) {
       matrix2 = matrix1;
     } else if (_matrix) {
       matrix2 = _matrix._orNullIfIdentity();
-    } else if (path && path._matrix) {
-      matrix2 = path._matrix._orNullIfIdentity();
+    } else if (path && (path as any)._matrix) {
+      matrix2 = (path as any)._matrix._orNullIfIdentity();
     }
     
     return getIntersections(curves1, curves2, includeParam, matrix1, matrix2, _returnFirst);
@@ -1434,7 +1428,7 @@ export class Path implements PathItem {
    * paper.jsのPath.reverse()を移植
    * @returns このパス
    */
-  reverse(): Path {
+  reverse(): PathItemBase {
     this._segments.reverse();
     // ハンドルを反転
     for (let i = 0, l = this._segments.length; i < l; i++) {
@@ -1449,4 +1443,6 @@ export class Path implements PathItem {
     this._changed(ChangeFlag.GEOMETRY);
     return this;
   }
+
+  // setClockwiseメソッドは基底クラスから継承
 }
