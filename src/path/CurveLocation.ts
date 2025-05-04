@@ -1,29 +1,36 @@
+/**
+ * Paper.jsのCurveLocationクラスを移植したもの
+ * 曲線上の位置を表すクラス
+ */
 import { Curve } from './Curve';
 import { Point } from '../basic/Point';
 import { Numerical } from '../util/Numerical';
 
 export class CurveLocation {
-  // 基本情報
-  curve1Index: number = -1;  // 曲線1のインデックス
-  curve2Index: number = -1;  // 曲線2のインデックス
-  curve: Curve | null;       // 曲線オブジェクト（paper.js互換）
-  curve1: Curve | null;      // 曲線1オブジェクト（Papyrus2D拡張）
-  curve2: Curve | null;      // 曲線2オブジェクト（Papyrus2D拡張）
-  time: number | null;       // 曲線上のパラメータ（paper.js互換）
-  t1: number | null;         // 曲線1上のパラメータ（Papyrus2D拡張）
-  t2: number | null;         // 曲線2上のパラメータ（Papyrus2D拡張）
-  point: Point;              // 交点の座標
+  // Paper.jsと同様のプロパティ
+  _curve: Curve | null;      // 曲線オブジェクト
+  _time: number | null;      // 曲線上のパラメータ
+  _point: Point;             // 交点の座標
+  _overlap: boolean;         // 重複フラグ
+  _distance?: number;        // 距離（近接判定用）
   
-  // 追加情報（重複判定・端点マージ用）
-  overlap: boolean;          // 重複フラグ
-  distance?: number;         // 距離（近接判定用）
-  tangent?: boolean;         // 接線共有フラグ
-  onPath?: boolean;          // パス上フラグ
+  // キャッシュ用プロパティ
+  _offset?: number;          // パス上のオフセット（キャッシュ）
+  _curveOffset?: number;     // 曲線上のオフセット（キャッシュ）
+  _version?: number;         // パスのバージョン（キャッシュ検証用）
+  _path?: any;               // パス参照（キャッシュ用）
   
-  // Paper.jsと同様のプロパティ（交点の相互参照用）
-  _intersection?: CurveLocation; // 対応する交点
-  _next?: CurveLocation;         // 連結リスト用
-  _previous?: CurveLocation;     // 連結リスト用
+  // セグメント参照用プロパティ
+  _segment?: any;            // 近接セグメント
+  _segment1?: any;           // 曲線の最初のセグメント
+  _segment2?: any;           // 曲線の2番目のセグメント
+  
+  // 交点の相互参照用
+  _intersection: CurveLocation | null = null; // 対応する交点
+  _next: CurveLocation | null = null;         // 連結リスト用
+  _previous: CurveLocation | null = null;     // 連結リスト用
+  
+  // getterプロパティは使用せず、直接プロパティにアクセス
 
   /**
    * Paper.js互換のコンストラクタ
@@ -49,26 +56,96 @@ export class CurveLocation {
       }
     }
     
-    this.curve = curve;
-    this.curve1 = curve;  // 互換性のため
-    this.curve2 = null;   // 互換性のため
-    this.time = time;
-    this.t1 = time;       // 互換性のため
-    this.t2 = null;       // 互換性のため
+    this._setCurve(curve);
+    this._time = time;
     
     // paper.jsと同様に、pointがnullの場合は自動的に計算
     if (point) {
-      this.point = point;
+      this._point = point;
     } else if (time !== null && curve) {
-      this.point = curve.getPointAtTime(time); // getPointAt -> getPointAtTime
+      this._point = curve.getPointAtTime(time);
     } else {
-      this.point = new Point(0, 0);
+      this._point = new Point(0, 0);
     }
     
-    this.overlap = overlap;
+    this._overlap = overlap;
     if (distance !== undefined) {
-      this.distance = distance;
+      this._distance = distance;
     }
+    
+    // 交点の相互参照用プロパティを初期化
+    this._intersection = null;
+    this._next = null;
+    this._previous = null;
+  }
+
+  /**
+   * この位置が属する曲線を取得
+   */
+  getCurve(): Curve | null {
+    const path = this._path;
+    const that = this;
+    if (path && path._version !== this._version) {
+      // パスのバージョンが変わった場合はキャッシュをクリア
+      this._time = null;
+      this._offset = undefined;
+      this._curveOffset = undefined;
+      this._curve = null;
+    }
+
+    // セグメントから曲線を取得して時間を計算する関数
+    function trySegment(segment: any) {
+      const curve = segment && segment.getCurve();
+      if (curve && (that._time = curve.getTimeOf(that._point)) != null) {
+        // 曲線が見つかった場合は設定して返す
+        that._setCurve(curve);
+        return curve;
+      }
+      return null;
+    }
+
+    return this._curve
+      || trySegment(this._segment)
+      || trySegment(this._segment1)
+      || trySegment(this._segment2 && this._segment2.getPrevious());
+  }
+
+  /**
+   * 曲線を設定する内部メソッド
+   */
+  _setCurve(curve: Curve | null): void {
+    if (curve) {
+      this._setPath(curve._path);
+      this._curve = curve;
+      this._segment = null;
+      this._segment1 = curve._segment1;
+      this._segment2 = curve._segment2;
+    } else {
+      this._setPath(null);
+      this._curve = null;
+      this._segment = null;
+      this._segment1 = null;
+      this._segment2 = null;
+    }
+  }
+
+  /**
+   * パスを設定する内部メソッド
+   */
+  _setPath(path: any): void {
+    this._path = path;
+    this._version = path ? path._version : 0;
+  }
+
+  /**
+   * 曲線上の時間パラメータを取得
+   */
+  getTime(): number | null {
+    const curve = this.getCurve();
+    const time = this._time;
+    return curve && time == null
+      ? this._time = curve.getTimeOf(this._point)
+      : time;
   }
 
   /**
@@ -76,8 +153,17 @@ export class CurveLocation {
    * @returns 曲線の長さ
    */
   getCurveOffset(): number {
-    if (this.time === null || !this.curve) return 0;
-    return this.curve.getLength() * this.time;
+    let offset = this._curveOffset;
+    if (offset == null) {
+      const curve = this.getCurve();
+      const time = this.getTime();
+      if (time != null && curve) {
+        this._curveOffset = offset = curve.getPartLength(0, time);
+      } else {
+        offset = 0;
+      }
+    }
+    return offset || 0;
   }
 
   /**
@@ -85,16 +171,17 @@ export class CurveLocation {
    * @returns パスの長さ
    */
   getOffset(): number {
-    let offset = this.getCurveOffset();
-    const path = this.getPath();
-    if (path && this.curve) {
-      const index = path.getCurves().indexOf(this.curve);
-      if (index > 0) {
+    let offset = this._offset;
+    if (offset == null) {
+      offset = 0;
+      const path = this.getPath();
+      const index = this.getIndex();
+      if (path && index != null) {
         const curves = path.getCurves();
-        for (let i = 0; i < index; i++) {
+        for (let i = 0; i < index; i++)
           offset += curves[i].getLength();
-        }
       }
+      this._offset = offset += this.getCurveOffset();
     }
     return offset;
   }
@@ -104,7 +191,8 @@ export class CurveLocation {
    * @returns パス
    */
   getPath(): any {
-    return this.curve ? (this.curve as any)._path : null;
+    const curve = this.getCurve();
+    return curve && curve._path;
   }
   
   /**
@@ -112,6 +200,7 @@ export class CurveLocation {
    * @returns 曲線のインデックス
    */
   getIndex(): number {
-    return this.curve ? this.curve.getIndex() : -1;
+    const curve = this.getCurve();
+    return curve ? curve.getIndex() : -1;
   }
 }
