@@ -137,6 +137,7 @@
     - [ ] tracePaths関数の交点がない場合の処理を修正
     - [ ] 詳細は documents/pathboolean_unite_issue.md を参照
   - [ ] subtract操作の修正
+  - [x] PathBooleanWinding.tsのpaper.jsとの挙動の違いを修正
 
 ## 実装方針
 - バグを減らすため、まずpaper.jsの既存コードを流用する

@@ -104,6 +104,7 @@ export function propagateWinding(
           const otherPath = operand === path1 ? path2 : path1;
           // getWindingを使用して計算
           // paper.jsと同じ挙動になるようにgetWindingを使用
+          // paper.jsと同じ挙動になるようにgetWindingを使用
           const pathWinding = getWinding(pt, otherPath.getCurves(), dir, true);
           
           // 曲線を省略すべきかチェック
@@ -222,14 +223,25 @@ export function getWinding(
     } else if (paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)) {
       t = 1;
     } else {
-      // Papyrus2DのNumerical.solveCubicの引数に合わせて調整
-      // 三次方程式の係数を計算
-      const a = v[0];
-      const b = v[1];
-      const c = v[2];
-      const d = v[3] - po;
-      const count = Numerical.solveCubic(a, b, c, d, roots, { min: 0, max: 1 });
-      t = count > 0 ? roots[0] : 1;
+      // paper.jsと同じ挙動になるように三次方程式を解く
+      t = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
+        ? 1
+        : (() => {
+            // paper.jsのCurve.solveCubicと同等の処理
+            // v[io+0], v[io+2], v[io+4], v[io+6]から三次方程式の係数を計算
+            const y0 = v[io+0];
+            const y1 = v[io+2];
+            const y2 = v[io+4];
+            const y3 = v[io+6];
+            // 三次ベジェ曲線の係数を計算
+            const a = -y0 + 3 * y1 - 3 * y2 + y3;
+            const b = 3 * y0 - 6 * y1 + 3 * y2;
+            const c = -3 * y0 + 3 * y1;
+            const d = y0 - po;
+            // Numerical.solveCubicを使用
+            const count = Numerical.solveCubic(a, b, c, d, roots, { min: 0, max: 1 });
+            return count > 0 ? roots[0] : 1;
+          })();
     }
     
     // 曲線上の点の横座標を計算
@@ -239,9 +251,10 @@ export function getWinding(
     } else if (t === 1) {
       a = a3;
     } else {
-      // CurveCalculationを使用して点を取得
-      const p = CurveCalculation.getPoint(v, t)!;
-      a = p[dir ? 'y' : 'x'];
+      // paper.jsと同じ挙動になるように点を計算
+      a = t === 0 ? a0
+        : t === 1 ? a3
+        : CurveCalculation.getPoint(v, t)![dir ? 'y' : 'x'];
     }
     
     // winding方向を決定
@@ -290,7 +303,7 @@ export function getWinding(
     
     // 接線が方向に平行な場合、方向を反転して再計算
     if (!dontFlip && a > paL && a < paR) {
-      // CurveCalculationを使用して接線を取得
+      // paper.jsと同じ挙動になるように接線を計算
       const tangent = CurveCalculation.getTangent(v, t)!;
       if (tangent[dir ? 'x' : 'y'] === 0) {
         return getWinding(point, curves, !dir, closed, true);
@@ -315,10 +328,11 @@ export function getWinding(
       const a3 = v[ia + 6];
       
       // 単調曲線を取得
-      // CurveSubdivisionを使用して単調曲線を取得
+      // paper.jsと同じ挙動になるように単調曲線を取得
+      // CurveSubdivision.getMonoCurvesはdirの解釈がpaper.jsと逆なので、!dirを渡す
       const monoCurves = paL > max(a0, a1, a2, a3) || paR < min(a0, a1, a2, a3)
         ? [v]
-        : CurveSubdivision.getMonoCurves(v);
+        : CurveSubdivision.getMonoCurves(v, !dir);
       
       // 各単調曲線に対してwinding計算
       for (let i = 0, l = monoCurves.length; i < l; i++) {
