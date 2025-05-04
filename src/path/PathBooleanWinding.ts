@@ -94,14 +94,13 @@ export function propagateWinding(
         const path = curve._path;
         const parent = path._parent;
         const operand = parent instanceof CompoundPath ? parent : path;
-        const t = Numerical.clamp(curve.getTimeAt(length), tMin, tMax);
+        const t = Numerical.clamp(curve.getTimeAt(length - chainLength), tMin, tMax);
         const pt = curve.getPointAtTime(t);
         
         // Determine the direction in which to check the winding
         // from the point (horizontal or vertical), based on the
         // curve's direction at that point. If tangent is less
         // than 45°, cast the ray vertically, else horizontally.
-        const tangent = curve.getTangentAtTime(t);
         const dir = Math.abs(curve.getTangentAtTime(t).y) < Math.SQRT1_2;
         
         // While subtracting, we need to omit this curve if it is
@@ -129,7 +128,7 @@ export function propagateWinding(
         
         wind = wind || getWinding(
           pt,
-          curveCollisionsMap[path._id][curve.getIndex()],
+          curveCollisionsMap[path._id!][curve.getIndex()],
           dir,
           true
         );
@@ -175,11 +174,11 @@ export function getWinding(
   
   // 座標インデックスを設定
   // paper.jsと同じ解釈: dir=trueはy方向、dir=falseはx方向
-  const ia = dir ? 1 : 0; // 横座標インデックス (abscissa)
-  const io = ia ^ 1;      // 縦座標インデックス (ordinate)
+  const ia = dir ? 1 : 0; // the abscissa index
+  const io = ia ^ 1;      // the ordinate index
   const pv = [point.x, point.y];
-  const pa = pv[ia];      // 点の横座標
-  const po = pv[io];      // 点の縦座標
+  const pa = pv[ia];      // the point's abscissa
+  const po = pv[io];      // the point's ordinate
   
   // winding計算用のイプシロン
   const windingEpsilon = 1e-9;
@@ -214,14 +213,8 @@ export function getWinding(
     const a3 = v[ia + 6];
     
     // 水平曲線の特殊処理
-    // A horizontal curve is not necessarily between two non-
-    // horizontal curves. We have to take cases like these into
-    // account:
-    //          +-----+
-    //     +----+     |
-    //          +-----+
     if (o0 === o3) {
-      if ((a0 < paR && a3 > paL) || (a3 < paR && a0 > paL)) {
+      if (a0 < paR && a3 > paL || a3 < paR && a0 > paL) {
         onPath = true;
       }
       // If curve does not change in ordinate direction, windings will
@@ -231,7 +224,6 @@ export function getWinding(
     }
     
     // 曲線上の時間パラメータを計算
-    // Determine the curve-time value corresponding to the point.
     let t: number;
     if (po === o0) {
       t = 0;
@@ -284,10 +276,9 @@ export function getWinding(
         } else if (a0 > paR) {
           pathWindingR += winding;
         }
-      } else if (a0 !== a3Prev) {
+      } else if (a0 != a3Prev) {
         // Handle a horizontal curve between the current and
-        // previous non-horizontal curve. See
-        // #1261#issuecomment-282726147 for a detailed explanation:
+        // previous non-horizontal curve.
         if (a3Prev < paR && a > paR) {
           // Right winding was not added before, so add it now.
           pathWindingR += winding;
@@ -304,17 +295,9 @@ export function getWinding(
     vPrev = v;
     
     // 接線が方向に平行な場合、方向を反転して再計算
-    // paper.jsと同じ挙動になるように接線を計算
-    // If we're on the curve, look at the tangent to decide whether to
-    // flip direction to better determine a reliable winding number:
-    // If the tangent is parallel to the direction, call getWinding()
-    // again with flipped direction and return that result instead.
-    if (!dontFlip && a > paL && a < paR) {
-      const tangent = Curve.getTangent(v, t);
-      if (tangent[dir ? 'x' : 'y'] === 0) {
-        return getWinding(point, curves, !dir, closed, true);
-      }
-    }
+    return !dontFlip && a > paL && a < paR
+            && Curve.getTangent(v, t)[dir ? 'x' : 'y'] === 0
+            && getWinding(point, curves, !dir, closed, true);
   }
   
   // 曲線を処理する関数
@@ -414,14 +397,11 @@ export function getWinding(
         return res;
       
       // パス上にあり、windingが相殺された場合の処理
-      // If the point is on the path and the windings canceled
-      // each other, we treat the point as if it was inside the
-      // path. A point inside a path has a winding of [+1,-1]
-      // for clockwise and [-1,+1] for counter-clockwise paths.
-      // If the ray is cast in y direction (dir == true), the
-      // windings always have opposite sign.
       if (onPath && !pathWindingL && !pathWindingR) {
-        pathWindingL = pathWindingR = path.isClockwise(closed) ^ dir ? 1 : -1;
+        // paper.jsでは path.isClockwise(closed) ^ dir ? 1 : -1 としているが
+        // TypeScriptではビット演算子^の右側は数値型である必要があるため、
+        // 条件式を書き換える
+        pathWindingL = pathWindingR = (path.isClockwise(closed) !== dir) ? 1 : -1;
       }
       
       // パスのwindingを合計に追加
@@ -439,14 +419,10 @@ export function getWinding(
   }
   
   // 符号なしのwinding値を使用
-  // Use the unsigned winding contributions when determining which areas
-  // are part of the boolean result.
   windingL = abs(windingL);
   windingR = abs(windingR);
   
   // 計算結果を返す
-  // Return the calculated winding contributions along with a quality
-  // value indicating how reliable the value really is.
   return {
     winding: max(windingL, windingR),
     windingL: windingL,

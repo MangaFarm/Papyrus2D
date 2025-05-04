@@ -46,7 +46,7 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
         coords[i + 2],      // segment.handleIn
         coords[i],          // segment.point
         i,
-        padding ? padding : 0,
+        padding,
         min,
         max,
         roots
@@ -208,8 +208,6 @@ export function getIntersections(
   matrix2?: Matrix | null,
   _returnFirst?: boolean
 ): CurveLocation[] {
-  // Paper.jsと同じアプローチを使用
-  
   // includeパラメータの処理
   let includeFn: ((loc: CurveLocation) => boolean) | undefined;
   
@@ -238,27 +236,17 @@ export function getIntersections(
     matrix2Null = matrix2._orNullIfIdentity ? matrix2._orNullIfIdentity() : matrix2;
   }
   
-  // 境界ボックスチェック
-  if (self || (curves2 && curves1.length > 0 && curves2.length > 0)) {
-    // paper.jsと同様に常に境界ボックスチェックを行う
-    const bounds1 = getBoundsFromCurves(curves1, matrix1Null);
-    if (curves2 && !self) {
-      const bounds2 = getBoundsFromCurves(curves2, matrix2Null);
-      if (!bounds1.intersects(bounds2, Numerical.EPSILON)) {
-        return [];
-      }
-    }
-    
-    return Curve.getIntersections(
-      curves1,
-      curves2 || null,
-      includeFn,
-      matrix1Null,
-      matrix2Null,
-      _returnFirst);
-  } else {
-    return [];
-  }
+  // paper.jsと同じ条件で境界ボックスチェックを行う
+  return self || (curves2 && getBoundsFromCurves(curves1, matrix1Null).intersects(
+          getBoundsFromCurves(curves2, matrix2Null), Numerical.EPSILON))
+          ? Curve.getIntersections(
+                  curves1,
+                  !self && curves2 || null,
+                  includeFn,
+                  matrix1Null,
+                  matrix2Null,
+                  _returnFirst)
+          : [];
 }
 
 /**
