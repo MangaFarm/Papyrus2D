@@ -52,7 +52,7 @@ export function divideLocations(
   clearLater?: Curve[]
 ): Segment[] {
     // paper.js PathItem.Boolean.js: divideLocations
-    const results = include ? [] as CurveLocation[] : undefined;
+    const results = include ? [] as Segment[] : undefined;
     const tMin = Numerical.CURVETIME_EPSILON;
     const tMax = 1 - tMin;
     let clearHandles = false;
@@ -110,7 +110,7 @@ export function divideLocations(
                 renormalizeLocs.push(loc);
             continue;
         } else if (include && results) {
-            results.unshift(loc);
+            if (results && segment) results.unshift(segment);
         }
         prevTime = origTime;
         if (time < tMin) {
@@ -120,7 +120,8 @@ export function divideLocations(
         } else {
             const newCurve = (curve as any).divideAtTime(time, true);
             if (!newCurve) {
-                throw new Error(`[Papyrus2D AssertionError] divideAtTime returned null: i=${i}, time=${time}, curveIndex=${curve && curve.getIndex && curve.getIndex()}, tMin=${tMin}, tMax=${tMax}, curve=${curve}`);
+                // paper.jsではnull判定せず!を使うので合わせる
+                segment = (newCurve! as any)._segment1;
             } else {
                 if (clearHandles)
                     clearCurves.push(curve!, newCurve!);
@@ -132,6 +133,9 @@ export function divideLocations(
             }
         }
         (loc as any)._setSegment(segment);
+        // デバッグ出力: segment生成状況
+        // eslint-disable-next-line no-console
+        console.log('[Papyrus2D Debug] divideLocations: i=', i, 'segment=', segment, 'isSegment=', segment instanceof Segment, 'curve=', curve, 'time=', time, 'exclude=', exclude, 'locations.length=', locations.length);
         const inter = (segment as any)._intersection;
         const dest = (loc as any)._intersection;
         if (inter) {
@@ -152,9 +156,19 @@ export function divideLocations(
     if (!clearLater)
         clearCurveHandles(clearCurves);
     // Segment型のみ返す
-    const arr = ((results as any) || locations) as any[];
+    let arr: any[];
+    if (results) {
+        arr = results;
+    } else {
+        // paper.js同様、locationsから_segmentを抽出
+        arr = locations.map(l => (l as any)._segment);
+    }
     // Segment型インスタンスのみ返す
-    return arr.filter(seg => seg instanceof Segment);
+    const filtered = arr.filter(seg => seg instanceof Segment);
+    // デバッグ出力
+    // eslint-disable-next-line no-console
+    console.log('[Papyrus2D Debug] divideLocations: filtered segments count =', filtered.length, filtered.map(s => s && s._index));
+    return filtered;
 }
 
 /**
