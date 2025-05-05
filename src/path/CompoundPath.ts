@@ -2,6 +2,7 @@
  * CompoundPath クラス
  * Paper.js の CompoundPath (src/path/CompoundPath.js) を参考にした実装。
  * 複数のパスから構成される複合パスを表現し、PathItemBase クラスを継承する。
+ * 名前付き子要素のようなシーン管理機能は削除されている
  */
 
 import { Point } from '../basic/Point';

@@ -273,8 +273,8 @@ export function tracePaths(
       const nextPath = getMeta(nextSeg)!.path!;
       // TypeScriptの制約: undefinedをSegmentに割り当てられないため、型アサーションを使用
       currentSeg = (next || nextPath.getFirstSegment()) as Segment;
-      // TypeScriptの制約: SegmentPointをPointに変換するため、型アサーションを使用
-      handleIn = next && (next._handleIn as unknown as Point);
+      // SegmentPoint を Point に変換
+      handleIn = next ? next._handleIn.toPoint() : null;
     }
 
     if (finished) {

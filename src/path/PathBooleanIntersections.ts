@@ -169,7 +169,7 @@ export function divideLocations(
       // SegmentMetaを使用して交点情報を管理
       const meta = getMeta(segment)!;
       const inter = meta.intersection;
-      const dest = loc._intersection as unknown as Intersection;
+      const dest = loc._intersection as unknown as Intersection; // 直そうとしたが大工事なので諦めた
       
       if (inter) {
         // リンク処理を行う

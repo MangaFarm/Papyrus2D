@@ -309,7 +309,7 @@ function divideLocations(
     // 交差点のリンクリストを作成
     const meta = getMeta(segment!);
     const inter = meta && meta.intersection;
-    const dest = loc._intersection as unknown as IntersectionInfo;
+    const dest = loc._intersection as unknown as IntersectionInfo; // 直そうとしたが大工事なので諦めた
     
     if (inter) {
       linkIntersections(inter, dest);
