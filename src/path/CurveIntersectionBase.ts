@@ -24,9 +24,11 @@ export function getSelfIntersection(
   
   // ループ型の曲線の場合のみ交点を検出（paper.jsと同様）
   if (info.type === 'loop') {
+    // 自己交差の場合はoverlapをfalseに設定
     addLocation(locations, include,
       c1, info.roots![0],
-      c1, info.roots![1]);
+      c1, info.roots![1],
+      false);
   }
   
   return locations;
@@ -45,6 +47,7 @@ export function addLocation(
   t2: number | null,
   overlap: boolean = false
 ): void {
+  console.log("addLocation called - overlap:", overlap, "t1:", t1, "t2:", t2);
   // Paper.jsと同様の実装
   // 端点の除外判定
   const excludeStart = !overlap && c1.getPrevious() === c2;

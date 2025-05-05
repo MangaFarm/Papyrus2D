@@ -48,6 +48,7 @@ export class CurveLocation {
     overlap: boolean = false,
     distance?: number
   ) {
+    console.log("CurveLocation constructor - overlap:", overlap);
     // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
     if (time !== null && time >= (1 - Numerical.CURVETIME_EPSILON) && curve) {
       const next = curve.getNext();
@@ -310,6 +311,7 @@ export class CurveLocation {
    * @returns 重複していればtrue
    */
   hasOverlap(): boolean {
+    console.log("hasOverlap called, _overlap =", this._overlap);
     return !!this._overlap;
   }
 
