@@ -72,7 +72,14 @@ export function divideLocations(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean,
   clearLater?: Curve[]
-): CurveLocation[] {
+): Segment[] {
+// デバッグ: divideLocations開始時の各CurveLocationのpath
+  for (const loc of locations) {
+    const path = loc.getPath();
+    if (path && path._id) {
+      console.log('[divideLocations][debug] location path id:', path._id, 'segments:', path.getSegments().map(s => s.getPoint().toString()));
+    }
+  }
   const results = include ? [] as CurveLocation[] : null;
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
@@ -152,6 +159,15 @@ export function divideLocations(
         if (newCurve) {
           // 新しいセグメントは新しいカーブの最初のセグメント
           segment = newCurve._segment1;
+// デバッグ: divideAtTime直後の新しいセグメント
+            if (segment) {
+              console.log('[divideLocations][debug] new segment:', {
+                point: segment._point && segment._point.toString(),
+                index: segment._index,
+                pathId: segment._path && segment._path._id,
+                pathSegments: segment._path && segment._path.getSegments && segment._path.getSegments().map(s => s.getPoint().toString())
+              });
+            }
           
           // 同じカーブ内の他の位置の時間パラメータを正規化
           for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
@@ -194,31 +210,59 @@ export function divideLocations(
     clearCurveHandles(clearCurves);
   }
 
-  return results || locations;
+// デバッグ: divideLocations後の全セグメント
+// 分割後、全セグメントのインデックスとカーブ配列を再構築
+  if (locations.length > 0) {
+    const path = locations[0].getPath();
+    if (path && path._segments) {
+      for (let i = 0; i < path._segments.length; i++) {
+        path._segments[i]._index = i;
+      }
+      if (path._curves && typeof path._adjustCurves === 'function') {
+        path._adjustCurves(0, path._segments.length - 1);
+// デバッグ: dividePathAtIntersectionsでlocationsの各CurveLocationのpath
+  for (const loc of locations) {
+    const path = loc.getPath();
+    if (path && path._id) {
+      console.log('[dividePathAtIntersections][debug] location path id:', path._id, 'segments:', path.getSegments().map(s => s.getPoint().toString()));
+    }
+  }
+      }
+    }
+  }
+let allSegments: Segment[] = [];
+if (locations.length > 0) {
+  const path = locations[0].getPath();
+  if (path && path.getSegments) {
+    allSegments = path.getSegments();
+    console.log('[divideLocations][debug] path.getSegments:', allSegments.map(s => s.getPoint().toString()));
+  }
+}
+return allSegments;
 }
 
 /**
  * 交点でパスを分割
  * paper.jsのdivideLocations関数を使用した実装
  */
-export function dividePathAtIntersections(path: Path, intersections: Intersection[]): Path {
-  if (intersections.length === 0) return path;
-  
+export function dividePathAtIntersections(path: Path, intersections: Intersection[]): Segment[] {
+  if (intersections.length === 0) return path._segments;
+
   // CurveLocationの配列に変換
   const locations: CurveLocation[] = [];
   for (const inter of intersections) {
     const curve = path.getCurves()[inter.curve1Index];
     const loc = new CurveLocation(curve, inter.t1 || 0);
-    // paper.jsと同様に、直接プロパティを設定
-    // TypeScript制約: 型定義のためにキャストは必要だが、コメントで説明
-    (loc as any)._intersection = inter; // TypeScript制約: paper.jsと同様に直接プロパティを設定
+    loc._path = path; // 明示的にpathをセット
+    (loc as any)._intersection = inter;
     locations.push(loc);
   }
-  
+
   // divideLocations関数を使用して交点でパスを分割
-  const dividedLocs = divideLocations(locations);
-  
-  return path;
+  divideLocations(locations);
+
+  // 分割後の全セグメントを返す（getSegmentsで順序・重複除去も含めて取得）
+  return path.getSegments();
 }
 
 /**

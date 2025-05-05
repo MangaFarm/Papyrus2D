@@ -293,6 +293,8 @@ export class Curve {
         setHandles ? new Point(left[4] - x, left[5] - y) : null,
         setHandles ? new Point(right[2] - x, right[3] - y) : null
       );
+      // 新しいセグメントの_pathを設定（paper.jsと同じ）
+      segment._path = this._path;
       
       // パスが設定されている場合
       if (this._path) {

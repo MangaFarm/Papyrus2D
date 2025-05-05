@@ -64,6 +64,14 @@ export function tracePaths(
     if (!winding) return true;
 
     const op = operator[winding.winding];
+// デバッグ: isValid判定の詳細
+    console.log('[tracePaths][debug] isValid', {
+      seg: seg ? seg._index : null,
+      visited: meta.visited,
+      winding: meta.winding,
+      operator,
+      op: op
+    });
     return !!(
       op &&
       !(

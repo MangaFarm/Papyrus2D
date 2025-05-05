@@ -58,8 +58,16 @@ export function addLocation(
   // eslint-disable-next-line no-console
 
   // 範囲チェック - paper.jsと同様の条件判定
-  if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
-    if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) && t2 <= (excludeStart ? tMax : 1)) {
+  if (
+    t1 !== null &&
+    t1 >= (excludeStart ? tMin : -Numerical.GEOMETRIC_EPSILON) &&
+    t1 <= (excludeEnd ? tMax : 1 + Numerical.GEOMETRIC_EPSILON)
+  ) {
+    if (
+      t2 !== null &&
+      t2 >= (excludeEnd ? tMin : -Numerical.GEOMETRIC_EPSILON) &&
+      t2 <= (excludeStart ? tMax : 1 + Numerical.GEOMETRIC_EPSILON)
+    ) {
       // Paper.jsと同様に、交点の座標をnullで初期化
       // 後で必要に応じて計算される
       const point: Point | null = null;

@@ -246,8 +246,8 @@ const _path2 = preparePath(path2, true) as Path;
     if (dividedPath2) {
       // 曲線の衝突マップを作成
       const segments: Segment[] = [];
-      segments.push(...dividedPath1._segments);
-      segments.push(...dividedPath2._segments);
+      segments.push(...dividedPath1);
+      segments.push(...dividedPath2);
       
       const curves: Curve[] = [];
       for (const segment of segments) {
@@ -292,7 +292,7 @@ const _path2 = preparePath(path2, true) as Path;
       // 交点からwinding numberを伝播
       for (const intersection of intersections) {
         if (intersection.segment) {
-          propagateWinding(intersection.segment, dividedPath1, dividedPath2, curveCollisionsMap, operator);
+          propagateWinding(intersection.segment, _path1, _path2, curveCollisionsMap, operator);
         }
       }
       
@@ -300,16 +300,16 @@ const _path2 = preparePath(path2, true) as Path;
       for (const segment of segments) {
         const meta = getMeta(segment);
         if (meta && !meta.winding) {
-          propagateWinding(segment, dividedPath1, dividedPath2, curveCollisionsMap, operator);
+          propagateWinding(segment, _path1, _path2, curveCollisionsMap, operator);
         }
       }
     }
 
     // セグメントを収集
     const segments: Segment[] = [];
-    segments.push(...dividedPath1._segments);
+    segments.push(...dividedPath1);
     if (dividedPath2) {
-      segments.push(...dividedPath2._segments);
+      segments.push(...dividedPath2);
     }
 
     // マーチングアルゴリズムで結果パスを構築
