@@ -411,16 +411,63 @@ export class CompoundPath extends PathItemBase {
    * 他のパスとの交点を取得
    * @param other 交点を求める相手のパス
    */
-  getIntersections(other: PathItem): CurveLocation[] {
-    const children = this._children;
-    let intersections: CurveLocation[] = [];
-    
-    for (let i = 0, l = children.length; i < l; i++) {
-      const childIntersections = children[i].getIntersections(other);
-      intersections = intersections.concat(childIntersections);
+  /**
+   * 他のパスとの交点を取得
+   * paper.jsのPathItem.getIntersectionsメソッドに相当
+   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
+   * @param include 交点をフィルタリングするコールバック関数
+   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
+   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
+   * @returns 交点情報の配列
+   */
+  getIntersections(
+    path?: PathItem | null,
+    include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
+    _matrix?: Matrix,
+    _returnFirst?: boolean
+  ): CurveLocation[] {
+    // 自己交差の場合
+    if (!path) {
+      let intersections: CurveLocation[] = [];
+      const children = this._children;
+      
+      // 各子パス同士の交点を計算
+      for (let i = 0, l = children.length; i < l; i++) {
+        // 自己交差
+        const selfIntersections = children[i].getIntersections(null, include, undefined, _returnFirst);
+        intersections = intersections.concat(selfIntersections);
+        
+        // 他の子パスとの交点
+        for (let j = i + 1; j < l; j++) {
+          const pathIntersections = children[i].getIntersections(
+            children[j], include, undefined, _returnFirst);
+          intersections = intersections.concat(pathIntersections);
+        }
+        
+        // 最初の交点だけを返す場合は早期リターン
+        if (_returnFirst && intersections.length > 0) {
+          return intersections;
+        }
+      }
+      
+      return intersections;
+    } else {
+      // 他のパスとの交点
+      const children = this._children;
+      let intersections: CurveLocation[] = [];
+      
+      for (let i = 0, l = children.length; i < l; i++) {
+        const childIntersections = children[i].getIntersections(path, include, _matrix, _returnFirst);
+        intersections = intersections.concat(childIntersections);
+        
+        // 最初の交点だけを返す場合は早期リターン
+        if (_returnFirst && intersections.length > 0) {
+          break;
+        }
+      }
+      
+      return intersections;
     }
-    
-    return intersections;
   }
 
   /**

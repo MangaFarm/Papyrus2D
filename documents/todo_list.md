@@ -143,6 +143,7 @@
   - [ ] subtract操作の修正
   - [x] PathBooleanWinding.tsのpaper.jsとの挙動の違いを修正
   - [x] PathBooleanWinding.tsとpaper.jsのアルゴリズム上の違いを分析し文書化（documents/paper_js_vs_papyrus2d_winding.md）
+- [x] Path.getIntersectionsのインターフェースをpaper.jsと完全に一致させる（2025/05/05 完了）
 
 ## 実装方針
 - バグを減らすため、まずpaper.jsの既存コードを流用する

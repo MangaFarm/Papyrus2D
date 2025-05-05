@@ -978,36 +978,38 @@ export class Path extends PathItemBase {
    * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
    * @returns 交点情報の配列
    */
+  /**
+   * 他のパスとの交点を取得
+   * paper.jsのPathItem.getIntersectionsメソッドに相当
+   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
+   * @param include 交点をフィルタリングするコールバック関数
+   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
+   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
+   * @returns 交点情報の配列
+   */
   getIntersections(
-    path: PathItem,
-    includeParam?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
+    path?: PathItem | null,
+    include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
     _matrix?: Matrix,
     _returnFirst?: boolean
   ): CurveLocation[] {
-    // 自己交差チェック
+    // NOTE: 自己交差の場合、pathはnullまたは未定義。
+    // つまり、path.getIntersections()のように引数なしで呼び出すと自己交差を取得できる。
+    // NOTE: 隠し引数_matrixは、渡されたパスの変換行列を内部的にオーバーライドするために使用される。
     const self = this === path || !path;
-    const curves1 = this.getCurves();
-    const curves2 = self ? curves1 : path.getCurves();
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
+    const matrix2 = self ? matrix1
+        : (_matrix || (path && (path as any)._matrix))
+          ? (_matrix || (path && (path as any)._matrix))._orNullIfIdentity()
+          : null;
     
-    let matrix2: Matrix | null = null;
-    if (self) {
-      matrix2 = matrix1;
-    } else if (_matrix) {
-      matrix2 = _matrix._orNullIfIdentity();
-    } else if (path && (path as any)._matrix) {
-      matrix2 = (path as any)._matrix._orNullIfIdentity();
-    }
-    
-    // paper.jsと同様に、最初に境界ボックスのチェックを行う
-    let bounds1 = this.getBounds();
-    if (matrix1) bounds1 = bounds1.transform(matrix1);
-    
-    let bounds2 = path.getBounds();
-    if (matrix2) bounds2 = bounds2.transform(matrix2);
-    
-    return self || bounds1.intersects(bounds2, Numerical.EPSILON)
-            ? getIntersections(curves1, curves2, includeParam, matrix1, matrix2, _returnFirst)
+    // 最初に2つのパスの境界をチェック。交差しない場合は、
+    // 曲線を反復処理する必要はない。
+    return self || this.getBounds(matrix1).intersects(
+            path!.getBounds(matrix2), Numerical.EPSILON)
+            ? getIntersections(
+                    this.getCurves(), !self && path ? path.getCurves() : null, include,
+                    matrix1, matrix2, _returnFirst)
             : [];
   }
 

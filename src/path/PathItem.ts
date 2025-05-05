@@ -60,8 +60,9 @@ export interface PathItem {
 
   /**
    * パスの外接矩形
+   * @param matrix 変換行列（オプション）
    */
-  getBounds(): Rectangle;
+  getBounds(matrix?: Matrix | null): Rectangle;
 
   /**
    * パスのセグメントを取得
@@ -102,7 +103,15 @@ export interface PathItem {
   /**
    * 他のPathItemとの交点列挙
    */
-  getIntersections(other: PathItem): CurveLocation[];
+  /**
+   * 他のパスとの交点を取得
+   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
+   * @param include 交点をフィルタリングするコールバック関数
+   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
+   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
+   * @returns 交点情報の配列
+   */
+  getIntersections(path?: PathItem | null, include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean }, _matrix?: Matrix, _returnFirst?: boolean): CurveLocation[];
 
   /**
    * パスを簡略化する
