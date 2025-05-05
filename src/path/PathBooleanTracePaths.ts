@@ -308,6 +308,8 @@ export function tracePaths(
       // paper.jsでは面積0のパスは含めない
       if (path!.getArea() !== 0) {
         paths.push(path!);
+// デバッグ: pushされるパスのセグメント座標列
+      console.log('[tracePaths][debug] push path:', path!.getSegments().map(s => s.getPoint().toString()));
       }
     }
   }

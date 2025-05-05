@@ -47,7 +47,7 @@ export function addLocation(
   c2: Curve,
   t2: number | null,
   overlap: boolean = false
-): void {
+): CurveLocation | null {
   // Paper.jsと同様の実装
   // 端点の除外判定
   const excludeStart = !overlap && c1.getPrevious() === c2;
@@ -103,6 +103,7 @@ export function addLocation(
         // eslint-disable-next-line no-console
         
         insertLocation(locations, loc1, true);
+        return loc1;
       } else {
         const result = include(loc1);
         // eslint-disable-next-line no-console
@@ -110,6 +111,7 @@ export function addLocation(
           // eslint-disable-next-line no-console
           
           insertLocation(locations, loc1, true);
+          return loc1;
         }
       }
     } else {
@@ -120,6 +122,7 @@ export function addLocation(
     // eslint-disable-next-line no-console
     
   }
+  return null;
 }
 
 /**

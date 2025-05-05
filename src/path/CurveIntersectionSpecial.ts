@@ -27,8 +27,16 @@ export function addLineIntersection(
   // オーバーラップ（重なり）を検出
   const overlaps = getOverlaps(v1, v2);
   if (overlaps) {
+    // overlap範囲の代表CurveLocationを生成
+    let overlapLoc: CurveLocation | null = null;
     for (const [t1, t2] of overlaps) {
-      addLocation(locations, include, c1, t1, c2, t2, true);
+      const loc = addLocation(locations, include, c1, t1, c2, t2, true);
+      if (!overlapLoc) overlapLoc = loc;
+      if (loc) loc._overlap = overlapLoc;
+    }
+    // 既存のlocationsにもoverlapLocをセット
+    for (const loc of locations) {
+      if (loc && overlapLoc && loc._overlap == null) loc._overlap = overlapLoc;
     }
     return locations;
   }
