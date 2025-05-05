@@ -214,18 +214,15 @@ export class Curve {
   /**
    * 曲線をtで分割し、2つのCurveに分ける
    */
-  divide(t: number = 0.5, isTime: boolean): [Curve, Curve] | null {
-    const time = isTime ? t : this.getTimeAt(t);
-    if (time === null) return null;
-    return CurveSubdivision.divideCurve(this, time);
+  divide(t?: number, isTime?: boolean): Curve | null {
+    return this.divideAtTime(t === undefined ? 0.5 : isTime ? t : this.getTimeAt(t)!);
   }
 
   /**
    * tで分割し、前半部分のCurveを返す
    */
-  split(t: number = 0.5, isTime: boolean): Curve | null {
-    const divided = this.divide(t, isTime);
-    return divided ? divided[0] : null;
+  split(t?: number, isTime?: boolean): Curve | null {
+    return this.splitAtTime(t === undefined ? 0.5 : isTime ? t : this.getTimeAt(t)!);
   }
 
   /**
@@ -260,7 +257,10 @@ export class Curve {
     // 有効な範囲内かチェック
     if (t >= tMin && t <= tMax) {
       // 曲線を分割
-      const [leftCurve, rightCurve] = CurveSubdivision.divideCurve(this, t);
+      const result = CurveSubdivision.divideCurve(this, t);
+      if (!result) return null;
+      
+      const [leftCurve, rightCurve] = result;
       
       // ハンドルを設定するかどうか
       const setHandles = _setHandles !== undefined ? _setHandles : this.hasHandles();
