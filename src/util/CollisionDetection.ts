@@ -218,7 +218,7 @@ export class CollisionDetection {
    */
   static findItemBoundsCollisions(
     items1: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
-    items2?: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
+    items2: { getBounds(): { left: number; top: number; right: number; bottom: number } }[] | null,
     tolerance?: number
   ): (number[] | null)[] {
     function getBounds(
