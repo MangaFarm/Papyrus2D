@@ -148,4 +148,77 @@ export abstract class PathItemBase implements PathItem {
   getFillRule(): string {
     return 'nonzero';  // デフォルト値としてnonzeroを返す
   }
+
+  /**
+   * 変換行列を適用する
+   * paper.jsのItem.transform()を移植
+   * @param matrix 変換行列
+   * @param applyRecursively 再帰的に適用するかどうか
+   * @param setApplyMatrix 行列を適用するかどうか
+   * @returns このパス
+   */
+  /**
+   * 変換行列を適用する
+   * paper.jsのItem.transformを移植
+   * @param matrix 変換行列
+   * @param applyRecursively 再帰的に適用するかどうか
+   * @param setApplyMatrix 行列を適用するかどうか（Papyrus2Dでは無視）
+   * @returns このパス
+   */
+  transform(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem {
+    // マトリックスを更新
+    const _matrix = this._matrix || Matrix.identity();
+    const transformMatrix = matrix && !matrix.isIdentity();
+
+    // 変換行列が単位行列で再帰適用の必要がなければ、そのまま返す
+    if (!transformMatrix && !applyRecursively) {
+      return this;
+    }
+
+    // 行列を適用
+    if (transformMatrix) {
+      // 行列を適用
+      if (this._matrix) {
+        this._matrix = _matrix.prepend(matrix);
+      } else {
+        this._matrix = matrix.clone();
+      }
+      
+      this._matrixDirty = true;
+      
+      // バウンズのキャッシュをクリア
+      this._bounds = undefined;
+    }
+
+    // 子要素に再帰的に適用
+    this._transformContent(matrix, applyRecursively);
+
+    // 変更を通知
+    this._version++;
+
+    return this;
+  }
+
+  /**
+   * 内容に変換を適用する
+   * paper.jsのItem._transformContentを移植
+   * @param matrix 変換行列
+   * @param applyRecursively 再帰的に適用するかどうか
+   * @returns 変換が適用されたかどうか
+   */
+  protected _transformContent(matrix: Matrix | null, applyRecursively?: boolean): boolean {
+    // PathItemBaseは抽象クラスなので、実装はサブクラスで行う
+    // getPaths()は抽象メソッドなので、それを使って子パスに変換を適用
+    const paths = this.getPaths();
+    if (paths && paths.length > 0) {
+      for (let i = 0, len = paths.length; i < len; i++) {
+        // PathItemBaseを継承したオブジェクトのみtransformメソッドを呼び出せる
+        if (paths[i] instanceof PathItemBase) {
+          (paths[i] as PathItemBase).transform(matrix, applyRecursively);
+        }
+      }
+      return true;
+    }
+    return false;
+  }
 }
