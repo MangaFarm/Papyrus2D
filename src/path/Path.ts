@@ -1471,8 +1471,26 @@ export class Path extends PathItemBase {
    * @returns このパス
    */
   copyAttributes(path: PathItem, excludeMatrix?: boolean): Path {
-    // 現在の実装では何もしない
-    // 実際のpaper.jsでは、スタイルや属性をコピーする
+    // 行列のコピー
+    if (!excludeMatrix && path._matrix) {
+      this._matrix = path._matrix.clone();
+    }
+    
+    // styleのコピー（シャローコピー）
+    if ('style' in path) {
+      // @ts-ignore
+      this.style = { ...path.style };
+    }
+    
+    // その他の属性コピー
+    const keys = ['_locked', '_visible', '_blendMode', '_opacity', '_clipMask', '_guide'];
+    for (const key of keys) {
+      if (key in path) {
+        // @ts-ignore
+        this[key] = path[key];
+      }
+    }
+    
     return this;
   }
   /**

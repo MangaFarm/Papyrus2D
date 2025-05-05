@@ -711,7 +711,13 @@ export class CompoundPath extends PathItemBase {
    * 属性コピー（paper.jsのItem#copyAttributesに準拠）
    */
   copyAttributes(path: PathItem, excludeMatrix?: boolean): CompoundPath {
-    // スタイルは未実装
+    // styleのコピー（シャローコピー）
+    if ('style' in path) {
+      // @ts-ignore
+      this.style = { ...path.style };
+    }
+    
+    // その他の属性コピー
     const keys = ['_locked', '_visible', '_blendMode', '_opacity', '_clipMask', '_guide'];
     for (const key of keys) {
       if (key in path) {
@@ -719,10 +725,12 @@ export class CompoundPath extends PathItemBase {
         this[key] = path[key];
       }
     }
+    
     // 行列
     if (!excludeMatrix && path._matrix) {
       this._matrix = path._matrix.clone();
     }
+    
     // データと名前
     if ('_data' in path) {
       // @ts-ignore
@@ -783,18 +791,7 @@ export class CompoundPath extends PathItemBase {
     }
     
     // 属性をコピー
-    if (this._matrix) {
-      copy._matrix = this._matrix.clone();
-    }
-    
-    // その他の属性をコピー
-    if (this._name) {
-      copy._name = this._name;
-    }
-    
-    if (this._data) {
-      copy._data = JSON.parse(JSON.stringify(this._data));
-    }
+    copy.copyAttributes(this);
     
     return copy;
   }

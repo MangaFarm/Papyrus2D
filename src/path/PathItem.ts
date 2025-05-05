@@ -13,6 +13,15 @@ import { Segment } from './Segment';
 import type { Path } from './Path';
 import type { CurveLocation } from './CurveLocation';
 
+/**
+ * Style型
+ * 単純な描画スタイル定義。fillRuleのみをサポート。
+ */
+export type FillRule = 'nonzero' | 'evenodd';
+export type Style = {
+  fillRule: FillRule;
+};
+
 export interface PathItem {
   /**
    * 変換行列（paper.js互換）
@@ -24,6 +33,11 @@ export interface PathItem {
    * 行列が変更されたかどうかのフラグ
    */
   _matrixDirty?: boolean;
+  
+  /**
+   * スタイル設定
+   */
+  style: Style;
   /**
    * パスが閉じているかどうか
    */

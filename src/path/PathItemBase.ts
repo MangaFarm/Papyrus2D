@@ -10,7 +10,7 @@ import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { Segment } from './Segment';
 import { CurveLocation } from './CurveLocation';
-import { PathItem } from './PathItem';
+import { PathItem, Style, FillRule } from './PathItem';
 import type { Path } from './Path';
 
 export abstract class PathItemBase implements PathItem {
@@ -20,6 +20,11 @@ export abstract class PathItemBase implements PathItem {
   _bounds?: Rectangle;
   _version: number = 0;
   _id: string = Math.random().toString(36).substring(2, 15);
+  
+  // スタイル設定
+  style: Style = {
+    fillRule: 'nonzero'
+  };
 
   // 抽象プロパティ
   abstract get closed(): boolean;
@@ -146,7 +151,17 @@ export abstract class PathItemBase implements PathItem {
    * @returns 塗りつぶしルール
    */
   getFillRule(): string {
-    return 'nonzero';  // デフォルト値としてnonzeroを返す
+    return this.style.fillRule;
+  }
+
+  /**
+   * 塗りつぶしルールを設定する
+   * @param rule 塗りつぶしルール ('nonzero' または 'evenodd')
+   * @returns このパス
+   */
+  setFillRule(rule: FillRule): PathItemBase {
+    this.style.fillRule = rule;
+    return this;
   }
 
   /**
