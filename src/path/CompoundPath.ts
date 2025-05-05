@@ -58,12 +58,13 @@ export class CompoundPath extends PathItemBase {
 
   /**
    * 子パスを追加
+   * Item.jsから来ている
    * @param paths 追加するパスの配列
    */
   addChildren(paths: Path[]): void {
     for (let i = 0; i < paths.length; i++) {
       // nullの要素を無視
-      if (paths[i] !== null) {
+      if (paths[i] != null) {
         this.addChild(paths[i]);
       }
     }
