@@ -231,7 +231,7 @@ export function tracePaths(
         };
       }
 
-      let nextSeg = currentSeg;
+      let nextSeg: Segment | null = currentSeg;
       if (cross) {
         nextSeg = other!;
       }
@@ -249,9 +249,8 @@ export function tracePaths(
         do {
           nextSeg = branch && branch.crossings.shift();
           if (!nextSeg || !getMeta(nextSeg)!.path) {
-            // TypeScriptの制約: nullをSegmentに割り当てられないため、型アサーションを使用
-            // paper.jsではnullを直接代入しているが、TypeScriptでは型の安全性のため許可されない
-            nextSeg = null as unknown as Segment;
+            // paper.jsと同様にnullを直接代入
+            nextSeg = null;
             branch = branches.pop();
             if (branch) {
               visited = branch.visited;
