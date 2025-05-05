@@ -45,6 +45,7 @@ export function getCurveIntersections(
     
     // オーバーラップの検出と処理
     const overlaps = getOverlaps(v1, v2);
+    // eslint-disable-next-line no-console
     if (overlaps) {
       for (let i = 0; i < overlaps.length; i++) {
         const overlap = overlaps[i];
@@ -52,6 +53,7 @@ export function getCurveIntersections(
                 c1, overlap[0],
                 c2, overlap[1], true);
       }
+      // eslint-disable-next-line no-console
     } else {
       const straight1 = Curve.isStraight(v1);
       const straight2 = Curve.isStraight(v2);
@@ -66,18 +68,21 @@ export function getCurveIntersections(
           flip ? v2 : v1, flip ? v1 : v2,
           flip ? c2 : c1, flip ? c1 : c2,
           locations, include, flip);
+        // eslint-disable-next-line no-console
       } else if (straight1 || straight2) {
         // 片方が直線の場合
         addCurveLineIntersections(
           flip ? v2 : v1, flip ? v1 : v2,
           flip ? c2 : c1, flip ? c1 : c2,
           locations, include, flip);
+        // eslint-disable-next-line no-console
       } else {
         // 両方曲線の場合
         addCurveIntersections(
           flip ? v2 : v1, flip ? v1 : v2,
           flip ? c2 : c1, flip ? c1 : c2,
           locations, include, flip, 0, 0, 0, 1, 0, 1);
+        // eslint-disable-next-line no-console
       }
       
       // Paper.jsと同様に、端点が重なる特殊ケースの処理を追加
@@ -98,6 +103,7 @@ export function getCurveIntersections(
            addLocation(locations, include, c1, t1, c2, t2, isOverlap);
          }
         }
+        // eslint-disable-next-line no-console
       }
     }
   }
@@ -247,7 +253,20 @@ export function getIntersections(
   
   const curveArray1 = curves1 as Curve[];
   const curveArray2 = curves2 as Curve[];
-  
+
+  // デバッグ: カーブ配列の内容を出力
+  // eslint-disable-next-line no-console
+  // eslint-disable-next-line no-console
+  // eslint-disable-next-line no-console
+  for (let i = 0; i < curveArray1.length; i++) {
+    const seg1 = curveArray1[i]._segment1.point;
+    const seg2 = curveArray1[i]._segment2.point;
+  }
+  for (let i = 0; i < curveArray2.length; i++) {
+    const seg1 = curveArray2[i]._segment1.point;
+    const seg2 = curveArray2[i]._segment2.point;
+  }
+
   const length1 = curveArray1.length;
   const length2 = curveArray2!.length;
   const values1: number[][] = new Array(length1);

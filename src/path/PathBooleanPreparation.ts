@@ -23,7 +23,7 @@ import { getMeta, IntersectionInfo } from './SegmentMeta';
  */
 export function preparePath(path: PathItem, resolve: boolean = false): PathItem {
   // paper.jsの実装をそのまま移植
-  let res = path.clone(false);
+  let res = path.clone(true);
 
   if (resolve) {
     // For correct results, close open paths with straight lines:
@@ -39,9 +39,19 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
       }
     }
 
+    // デバッグ: reorient前のセグメント数
+    // eslint-disable-next-line no-console
+
     // paper.jsと同じようにメソッドチェーンを使用
     res = res.resolveCrossings();
+
+    // デバッグ: resolveCrossings後のセグメント数
+    // eslint-disable-next-line no-console
+
     res = res.reorient(res.getFillRule && res.getFillRule() === 'nonzero', true);
+
+    // デバッグ: reorient後のセグメント数
+    // eslint-disable-next-line no-console
   }
 
   return res;

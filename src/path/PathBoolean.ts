@@ -169,7 +169,20 @@ export class PathBoolean {
 
     // パスを準備
     const _path1 = preparePath(path1, true) as Path;
-    const _path2 = preparePath(path2, true) as Path;
+// デバッグ: _path2.getSegments()の配列（座標値）を出力
+const _path2 = preparePath(path2, true) as Path;
+console.log('[traceBoolean] _path2 getSegments array:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
+    // デバッグ: _path2.getSegments()の配列（座標値）を出力
+    console.log('[traceBoolean] _path2 getSegments array:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
+
+    // デバッグ: パスの向きとセグメント
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+    // eslint-disable-next-line no-console
+
+    // getIntersections直前でもう一度出力
+    // eslint-disable-next-line no-console
 
     // 演算子に応じたフィルタ関数を定義
     const operators: Record<string, Record<string, boolean>> = {
@@ -186,8 +199,8 @@ export class PathBoolean {
     operator[operation] = true;
 
     // 減算と排他的論理和の場合、パスの向きを調整
-    if (_path2 && ((operator.subtract || operator.exclude)
-        !== (_path2.isClockwise() !== _path1.isClockwise()))) {
+    // paper.jsと同じreverse条件に修正
+    if (_path2 && Boolean((operator.subtract || operator.exclude) as any) !== Boolean(_path2.isClockwise() !== _path1.isClockwise())) {
       _path2.reverse();
     }
 
@@ -196,6 +209,11 @@ export class PathBoolean {
       return inter.hasOverlap() || inter.isCrossing();
     }
 
+    // 交点検出直前のデバッグ出力
+    console.log('[traceBoolean] _path1 getSegments:', _path1.getSegments().map(s => [s.point.x, s.point.y]));
+    console.log('[traceBoolean] _path2 getSegments:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
+    console.log('[traceBoolean] _path1 getCurves:', _path1.getCurves().map(c => [c._segment1.point.x, c._segment1.point.y]));
+    console.log('[traceBoolean] _path2 getCurves:', _path2.getCurves().map(c => [c._segment1.point.x, c._segment1.point.y]));
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
 

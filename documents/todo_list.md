@@ -92,6 +92,7 @@
   - [ ] 4.3.4 exclude (排他的論理和) 操作
   - [ ] 4.3.5 divide (分割) 操作
 - [x] 4.3.1 unite (合体) 操作（非交差矩形ケースはreorientPathsで両方clockwise化しpaper.jsと一致、2025/05/05 デバッグ・修正済み）
+- [ ] 【2025/05/05】Path.reverse()の配列回転処理を削除しpaper.jsと完全一致化。reverse/reorientによるsegments配列のズレは解消したが、uniteの矩形合体テストは依然失敗（複合パスにならず2つの矩形のまま）。今後はreorientPathsや交点検出ロジックの差分を重点的に調査する。
   - [ ] subtract, exclude, intersect等の他演算はreorientPathsの方向設定ロジックをpaper.jsと完全一致させる必要あり（現状は未対応、今後要調査）
 - [x] 4.3.6 resolveCrossingsのAPI実装（Path/CompoundPath両方）【2025/05/05 完了】
 - [ ] 4.4 ブーリアン演算のテスト作成

@@ -32,10 +32,12 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
 export function getIntersections(path1: Path, path2: Path): Intersection[] {
- // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
- const rawIntersections = path1.getIntersections(path2, filterIntersection);
- const expandedIntersections = CurveLocation.expand(rawIntersections);
-  
+  // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
+  const rawIntersections = path1.getIntersections(path2, filterIntersection);
+  // eslint-disable-next-line no-console
+  const expandedIntersections = CurveLocation.expand(rawIntersections);
+  // eslint-disable-next-line no-console
+
   // Intersection型に変換
   const intersections: Intersection[] = [];
   

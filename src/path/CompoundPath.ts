@@ -64,12 +64,22 @@ export class CompoundPath extends PathItemBase {
    * @param paths 追加するパスの配列
    */
   addChildren(paths: Path[]): void {
+    // eslint-disable-next-line no-console
     for (let i = 0; i < paths.length; i++) {
       // nullの要素を無視
       if (paths[i] != null) {
+        // eslint-disable-next-line no-console
         this.addChild(paths[i]);
+        // eslint-disable-next-line no-console
+        // eslint-disable-next-line no-console
+        const curves = this.getCurves();
+        for (let i = 0; i < curves.length; i++) {
+          const seg1 = curves[i]._segment1.point;
+          const seg2 = curves[i]._segment2.point;
+        }
       }
     }
+    // eslint-disable-next-line no-console
   }
 
   /**
@@ -484,6 +494,7 @@ export class CompoundPath extends PathItemBase {
     const children = this._children;
     if (children.length) {
       // 子パスを取り出し、reorientPathsで処理する
+      const originalChildren = children.slice();
       const processed = reorientPaths(
         this.removeChildren(),
         (w) => {
@@ -496,11 +507,25 @@ export class CompoundPath extends PathItemBase {
       // nullでないパスだけをフィルタリング
       const validPaths = processed.filter(path => path !== null) as Path[];
       
-      // パスを面積の絶対値でソート（大きい順）
-      validPaths.sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
-      
-      // ソートされたパスを追加
-      this.addChildren(validPaths);
+      // デバッグ: addChildren前の各子パスのセグメント順
+      for (let i = 0; i < validPaths.length; i++) {
+        // eslint-disable-next-line no-console
+      }
+
+      if (validPaths.length === 0) {
+        // すべて除外された場合は元の子パスを復元
+        this.addChildren(originalChildren);
+      } else {
+        // パスを面積の絶対値でソート（大きい順）
+        validPaths.sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
+        // ソートされたパスを追加
+        this.addChildren(validPaths);
+      }
+
+      // デバッグ: addChildren後の各子パスのセグメント順
+      for (let i = 0; i < this._children.length; i++) {
+        // eslint-disable-next-line no-console
+      }
     } else if (clockwise !== undefined) {
       this.setClockwise(clockwise);
     }

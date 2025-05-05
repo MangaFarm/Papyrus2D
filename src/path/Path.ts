@@ -602,6 +602,9 @@ export class Path extends PathItemBase {
   }
 
   getCurves(): Curve[] {
+    console.log('[getCurves] segments:', this._segments.map(s => [s.point.x, s.point.y]));
+    // キャッシュを強制的に無効化（デバッグ用）
+    this._curves = null;
     // paper.jsと同様にキャッシュを使用する
     if (this._curves) {
       return this._curves;
@@ -1252,6 +1255,7 @@ export class Path extends PathItemBase {
    * @returns このパス
    */
   reverse(): PathItemBase {
+    console.log('[reverse] before:', this._segments.map(s => [s.point.x, s.point.y]));
     this._segments.reverse();
     // ハンドルを反転
     for (let i = 0, l = this._segments.length; i < l; i++) {
@@ -1261,6 +1265,7 @@ export class Path extends PathItemBase {
       segment._handleOut = handleIn;
       segment._index = i;
     }
+    console.log('[reverse] after:', this._segments.map(s => [s.point.x, s.point.y]));
     // カーブのキャッシュをクリア
     this._curves = null;
     this._changed(ChangeFlag.GEOMETRY);
@@ -1295,10 +1300,12 @@ export class Path extends PathItemBase {
    * @returns このパス
    */
   reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
+    console.log('[reorient] before:', this._segments.map(s => [s.point.x, s.point.y]));
     // 単一のパスの場合は、時計回りの方向を設定するだけ
     if (clockwise !== undefined) {
       this.setClockwise(clockwise);
     }
+    console.log('[reorient] after:', this._segments.map(s => [s.point.x, s.point.y]));
     return this;
   }
 

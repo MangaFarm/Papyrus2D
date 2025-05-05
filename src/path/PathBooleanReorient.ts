@@ -106,11 +106,15 @@ export function reorientPaths(
       
       // unite演算時はすべてclockwise（正の面積）に揃える
       if (typeof isInside === 'function' && isInside(1) && isInside(2)) {
+        // eslint-disable-next-line no-console
         path1.setClockwise(true);
+        // eslint-disable-next-line no-console
       } else {
+        // eslint-disable-next-line no-console
         path1.setClockwise(
           container ? !container.isClockwise() : clockwise
         );
+        // eslint-disable-next-line no-console
       }
     }
   }
