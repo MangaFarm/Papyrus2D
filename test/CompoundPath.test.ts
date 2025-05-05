@@ -92,11 +92,23 @@ describe('CompoundPath', () => {
     const path1 = Path.Rectangle({ from: new Point(0, 0), to: new Point(100, 100) });
     const path2 = Path.Rectangle({ from: new Point(50, 50), to: new Point(150, 150) });
 
+    // 各パスの境界ボックスを確認
+    const bounds1 = path1.getBounds();
+    console.log('Path1 bounds:', bounds1);
+    
+    const bounds2 = path2.getBounds();
+    console.log('Path2 bounds:', bounds2);
+    
+    // パスのセグメントを確認
+    console.log('Path2 segments:', path2.getSegments().map(s => s.getPoint().toString()));
+
     // CompoundPathを作成
     const compound = new CompoundPath([path1, path2]);
 
     // 境界ボックスは両方の矩形を含む
     const bounds = compound.getBounds();
+    console.log('Compound bounds:', bounds);
+    
     expect(bounds.x).toBe(0);
     expect(bounds.y).toBe(0);
     expect(bounds.width).toBe(150);

@@ -17,27 +17,30 @@ import { getWinding } from './PathBooleanWinding';
  */
 export function computeBounds(segments: Segment[], closed: boolean, padding: number): Rectangle {
   if (segments.length === 0) {
-    return new Rectangle(new Point(0, 0), new Point(0, 0));
+    return new Rectangle(0, 0, 0, 0);
   }
   
   // Paper.jsと同じアプローチを使用
   const first = segments[0];
   // 空のパスの場合は空の矩形を返す
   if (!first) {
-    return new Rectangle(new Point(0, 0), new Point(0, 0));
+    return new Rectangle(0, 0, 0, 0);
   }
   
   const coords = new Array(6);
   // 最初のセグメントの座標を取得
   const prevCoords = new Array(6);
   first._transformCoordinates(null, prevCoords, true);
+  
   const min = prevCoords.slice(0, 2); // 最初の点の値で初期化
   const max = min.slice(); // クローン
+  
   const roots = new Array(2);
 
   // 各セグメントを処理する関数
   function processSegment(segment: Segment) {
     segment._transformCoordinates(null, coords, true);
+    
     for (let i = 0; i < 2; i++) {
       // Paper.jsのCurve._addBoundsと同じロジック
       addBezierBounds(
@@ -52,6 +55,7 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
         roots
       );
     }
+    
     // 座標バッファを交換
     for (let i = 0; i < 6; i++) {
       const tmp = prevCoords[i];
@@ -70,7 +74,8 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
     processSegment(first);
   }
   
-  return new Rectangle(new Point(min[0], min[1]), new Point(max[0] - min[0], max[1] - min[1]));
+  const result = new Rectangle(min[0], min[1], max[0] - min[0], max[1] - min[1]);
+  return result;
 }
 
 // Paper.jsのCurve._addBoundsと同等の関数
@@ -105,19 +110,27 @@ function addBezierBounds(
   if (Math.abs(a) > Numerical.EPSILON) {
     // 2次方程式
     const discriminant = b * b - 4 * a * c;
+    
     if (discriminant >= 0) {
       const sqrtDisc = Math.sqrt(discriminant);
       const t1 = (-b + sqrtDisc) / (2 * a);
       const t2 = (-b - sqrtDisc) / (2 * a);
       
       // 0から1の範囲内の解のみを考慮
-      if (t1 >= 0 && t1 <= 1) roots[count++] = t1;
-      if (t2 >= 0 && t2 <= 1) roots[count++] = t2;
+      if (t1 >= 0 && t1 <= 1) {
+        roots[count++] = t1;
+      }
+      if (t2 >= 0 && t2 <= 1) {
+        roots[count++] = t2;
+      }
     }
   } else if (Math.abs(b) > Numerical.EPSILON) {
     // 1次方程式
     const t = -c / b;
-    if (t >= 0 && t <= 1) roots[count++] = t;
+    
+    if (t >= 0 && t <= 1) {
+      roots[count++] = t;
+    }
   }
   
   // 極値での座標を計算して境界を拡張
@@ -125,6 +138,7 @@ function addBezierBounds(
     const t = roots[i];
     const u = 1 - t;
     const bezierValue = u * u * u * v0 + 3 * u * u * t * v1 + 3 * u * t * t * v2 + t * t * t * v3;
+    
     min[coord] = Math.min(min[coord], bezierValue - padding);
     max[coord] = Math.max(max[coord], bezierValue + padding);
   }
@@ -257,7 +271,7 @@ export function getIntersections(
  */
 function getBoundsFromCurves(curves: Curve[], matrix: Matrix | null): Rectangle {
   if (curves.length === 0) {
-    return new Rectangle(new Point(0, 0), new Point(0, 0));
+    return new Rectangle(0, 0, 0, 0);
   }
   
   // Paper.jsと同じアプローチを使用
