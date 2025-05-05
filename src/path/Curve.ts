@@ -535,7 +535,7 @@ export class Curve {
     const values = this.getValues();
     const t = Curve.getNearestTime(values, point);
     const pt = Curve.getPoint(values, t);
-    return new CurveLocation(this, t, pt, false, point.subtract(pt).getLength());
+    return new CurveLocation(this, t, pt,null, point.subtract(pt).getLength());
   }
 
   /**

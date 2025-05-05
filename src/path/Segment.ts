@@ -456,6 +456,11 @@ export class Segment {
    * @return セグメントが削除された場合はtrue
    */
   remove(): boolean {
-    return this._path ? !!this._path.removeSegment(this._index) : false;
+    if (!this._path) return false;
+    // パスのセグメントが1つだけの場合は削除しない（paper.jsと同じ挙動）
+    if (this._path._segments && this._path._segments.length === 1) {
+      return false;
+    }
+    return !!this._path.removeSegment(this._index);
   }
 }

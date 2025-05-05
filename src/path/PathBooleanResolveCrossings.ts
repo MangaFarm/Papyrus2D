@@ -30,7 +30,18 @@ export function resolveCrossings(path: PathItem): PathItem {
     if (!seg) return false;
     const meta = getMeta(seg);
     const inter = meta && meta.intersection;
-    return !!(inter && inter._overlap && meta!.path === path);
+    // overlap範囲の端点（overlapの最初または最後のセグメント）はfalseを返す
+    if (!(inter && inter._overlap && meta!.path === path)) return false;
+    // _overlapがCurveLocation型で、_segmentプロパティが存在する場合のみ端点判定
+    if (
+      typeof inter._overlap === 'object' &&
+      inter._overlap !== null &&
+      '_segment' in inter._overlap &&
+      (inter._overlap as any)._segment === seg
+    ) {
+      return false;
+    }
+    return true;
   }
 
   // 交差点・重なり点の検出とフラグ
@@ -68,12 +79,15 @@ export function resolveCrossings(path: PathItem): PathItem {
       const next = seg.getNext();
       if (hasOverlap(prev, path) && hasOverlap(next, path)) {
         seg.remove();
+// セグメント削除直後のパスのセグメント数をデバッグ出力
+            console.log('[resolveCrossings][debug] after seg.remove path', seg._path?._id, 'segments:', seg._path?._segments?.length, 'closed:', seg._path?._closed);
         prev._handleOut.set(0, 0);
         next._handleIn.set(0, 0);
         const prevCurve = prev.getCurve();
         if (prev !== seg) {
           if (!prevCurve) {
             console.log('[resolveCrossings] prev.getCurve() is null', prev, prev?._index, prev?._path);
+            // paper.js: do nothing if prevCurve is null
           } else if (typeof prevCurve.hasLength !== 'function') {
             console.log('[resolveCrossings] prev.getCurve() is not Curve', prevCurve, typeof prevCurve, prevCurve && Object.keys(prevCurve));
           } else if (!prevCurve.hasLength()) {
@@ -87,6 +101,10 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   // 交差処理
   if (hasCrossings) {
+// divideLocations前の全パスのセグメント数をデバッグ出力
+      for (const p of paths) {
+        console.log('[resolveCrossings][debug] before divideLocations path', p._id, 'segments:', p._segments?.length, 'closed:', p._closed);
+      }
     // デバッグ: divideLocations前のパス情報
     for (const p of paths) {
       console.log('[resolveCrossings] before divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
@@ -109,6 +127,10 @@ export function resolveCrossings(path: PathItem): PathItem {
       if (seg2) {
         const meta2 = getMeta(seg2);
         if (meta2) meta2.intersection = null;
+// divideLocations後の全パスのセグメント数をデバッグ出力
+      for (const p of paths) {
+        console.log('[resolveCrossings][debug] after divideLocations path', p._id, 'segments:', p._segments?.length, 'closed:', p._closed);
+      }
       }
       return false;
     } : undefined, clearCurves);

@@ -12,7 +12,7 @@ export class CurveLocation {
   _curve: Curve | null;      // 曲線オブジェクト
   _time: number | null;      // 曲線上のパラメータ
   _point: Point;             // 交点の座標
-  _overlap: boolean;         // 重複フラグ
+  _overlap: CurveLocation | null; // 重複範囲代表（paper.jsと同じ）
   _distance?: number;        // 距離（近接判定用）
   
   // キャッシュ用プロパティ
@@ -45,7 +45,7 @@ export class CurveLocation {
     curve: Curve | null,
     time: number | null,
     point?: Point | null,
-    overlap: boolean = false,
+    overlap: CurveLocation | null = null,
     distance?: number
   ) {
     // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
@@ -430,7 +430,10 @@ export class CurveLocation {
       if (merge && (found = loc.equals(loc2) ? loc2 : (search(m, -1) || search(m, 1)))) {
         // 重複フラグを伝播
         if (loc._overlap) {
-          found._overlap = found._intersection!._overlap = true;
+          found._overlap = found;
+          if (found._intersection) {
+            found._intersection._overlap = found._intersection;
+          }
         }
         return found;
       }

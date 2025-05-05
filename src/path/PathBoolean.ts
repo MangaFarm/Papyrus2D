@@ -313,6 +313,8 @@ const _path2 = preparePath(path2, true) as Path;
     }
 
     // マーチングアルゴリズムで結果パスを構築
+// tracePathsに渡すsegmentsの内容をデバッグ出力
+    console.log('[runBoolean][debug] tracePaths segments:', segments.map(s => ({ index: s._index, point: s._point && s._point.toString() })));
     const paths = tracePaths(segments, operator);
 
     // 結果パスを結合

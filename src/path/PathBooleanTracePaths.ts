@@ -305,8 +305,8 @@ export function tracePaths(
         path!.getFirstSegment()!.setHandleIn(handleIn!);
         path!.setClosed(closed);
       }
-      // paper.jsでは1セグメントパスは面積0でも必ず含める
-      if (path!.getArea() !== 0 || path!.getSegments().length === 1) {
+      // paper.jsでは面積0のパスは含めない
+      if (path!.getArea() !== 0) {
         paths.push(path!);
       }
     }

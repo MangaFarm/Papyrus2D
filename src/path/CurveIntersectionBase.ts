@@ -67,8 +67,8 @@ export function addLocation(
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
       // paper.jsでは、交点が見つかった時点でCurveLocationオブジェクトが作成され、
       // 後から曲線インデックスが設定される
-      const loc1 = new CurveLocation(c1, t1, null, overlap);
-      const loc2 = new CurveLocation(c2, t2, null, overlap);
+      const loc1 = new CurveLocation(c1, t1, null,null);
+      const loc2 = new CurveLocation(c2, t2, null,null);
 
       // paper.js同様、segment, path, meta情報を必ずセット
       if (c1 && c1._segment1) {
