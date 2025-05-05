@@ -983,12 +983,14 @@ export class Path extends PathItemBase {
     _matrix?: Matrix,
     _returnFirst?: boolean
   ): CurveLocation[] {
+    // 自己交差チェック
+    const self = this === path || !path;
     const curves1 = this.getCurves();
-    const curves2 = path === this ? curves1 : path.getCurves();
+    const curves2 = self ? curves1 : path.getCurves();
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     
     let matrix2: Matrix | null = null;
-    if (this === path) {
+    if (self) {
       matrix2 = matrix1;
     } else if (_matrix) {
       matrix2 = _matrix._orNullIfIdentity();
@@ -996,7 +998,16 @@ export class Path extends PathItemBase {
       matrix2 = (path as any)._matrix._orNullIfIdentity();
     }
     
-    return getIntersections(curves1, curves2, includeParam, matrix1, matrix2, _returnFirst);
+    // paper.jsと同様に、最初に境界ボックスのチェックを行う
+    let bounds1 = this.getBounds();
+    if (matrix1) bounds1 = bounds1.transform(matrix1);
+    
+    let bounds2 = path.getBounds();
+    if (matrix2) bounds2 = bounds2.transform(matrix2);
+    
+    return self || bounds1.intersects(bounds2, Numerical.EPSILON)
+            ? getIntersections(curves1, curves2, includeParam, matrix1, matrix2, _returnFirst)
+            : [];
   }
 
   /**

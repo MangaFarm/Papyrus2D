@@ -250,17 +250,14 @@ export function getIntersections(
     matrix2Null = matrix2._orNullIfIdentity ? matrix2._orNullIfIdentity() : matrix2;
   }
   
-  // paper.jsと同じ条件で境界ボックスチェックを行う
-  return self || (curves2 && getBoundsFromCurves(curves1, matrix1Null).intersects(
-          getBoundsFromCurves(curves2, matrix2Null), Numerical.EPSILON))
-          ? Curve.getIntersections(
-                  curves1,
-                  !self && curves2 || null,
-                  includeFn,
-                  matrix1Null,
-                  matrix2Null,
-                  _returnFirst)
-          : [];
+  // 境界ボックスチェックはPath.getIntersectionsで行うため、ここでは行わない
+  return Curve.getIntersections(
+          curves1,
+          !self && curves2 || null,
+          includeFn,
+          matrix1Null,
+          matrix2Null,
+          _returnFirst);
 }
 
 /**
