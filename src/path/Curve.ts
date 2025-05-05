@@ -105,9 +105,11 @@ export class Curve {
   /**
    * t(0-1)で指定した位置のPointを返す
    */
-  getPointAt(t: number, _isTime?: boolean): Point {
+  getPointAt(t: number, _isTime?: boolean): Point | null {
     const values = this.getValues();
-    return Curve.getPoint(values, _isTime ? t : this.getTimeAt(t));
+    const time = _isTime ? t : this.getTimeAt(t);
+    if (time === null) return null;
+    return Curve.getPoint(values, time);
   }
 
   /**
@@ -121,25 +123,31 @@ export class Curve {
   /**
    * t(0-1)で指定した位置の法線ベクトルを返す
    */
-  getNormalAt(t: number, _isTime?: boolean): Point {
+  getNormalAt(t: number, _isTime?: boolean): Point | null {
     const values = this.getValues();
-    return CurveCalculation.getNormal(values, _isTime ? t : this.getTimeAt(t))!;
+    const time = _isTime ? t : this.getTimeAt(t);
+    if (time === null) return null;
+    return CurveCalculation.getNormal(values, time);
   }
   
   /**
    * t(0-1)で指定した位置の重み付き接線ベクトルを返す
    */
-  getWeightedTangentAt(t: number, _isTime?: boolean): Point {
+  getWeightedTangentAt(t: number, _isTime?: boolean): Point | null {
     const values = this.getValues();
-    return CurveCalculation.getWeightedTangent(values, _isTime ? t : this.getTimeAt(t))!;
+    const time = _isTime ? t : this.getTimeAt(t);
+    if (time === null) return null;
+    return CurveCalculation.getWeightedTangent(values, time);
   }
   
   /**
    * t(0-1)で指定した位置の重み付き法線ベクトルを返す
    */
-  getWeightedNormalAt(t: number, _isTime?: boolean): Point {
+  getWeightedNormalAt(t: number, _isTime?: boolean): Point | null {
     const values = this.getValues();
-    return CurveCalculation.getWeightedNormal(values, _isTime ? t : this.getTimeAt(t))!;
+    const time = _isTime ? t : this.getTimeAt(t);
+    if (time === null) return null;
+    return CurveCalculation.getWeightedNormal(values, time);
   }
   
   /**
@@ -147,7 +155,9 @@ export class Curve {
    */
   getCurvatureAt(t: number, _isTime?: boolean): number {
     const values = this.getValues();
-    return CurveCalculation.getCurvature(values, _isTime ? t : this.getTimeAt(t));
+    const time = _isTime ? t : this.getTimeAt(t);
+    if (time === null) return 0; // nullの場合は0を返す（CurveCalculation.getCurvatureと同様）
+    return CurveCalculation.getCurvature(values, time);
   }
 
   /**
@@ -204,15 +214,18 @@ export class Curve {
   /**
    * 曲線をtで分割し、2つのCurveに分ける
    */
-  divide(t: number = 0.5, isTime: boolean): [Curve, Curve] {
-    return CurveSubdivision.divideCurve(this, isTime ? t : this.getTimeAt(t));
+  divide(t: number = 0.5, isTime: boolean): [Curve, Curve] | null {
+    const time = isTime ? t : this.getTimeAt(t);
+    if (time === null) return null;
+    return CurveSubdivision.divideCurve(this, time);
   }
 
   /**
    * tで分割し、前半部分のCurveを返す
    */
-  split(t: number = 0.5, isTime: boolean): Curve {
-    return this.divide(t, isTime)[0];
+  split(t: number = 0.5, isTime: boolean): Curve | null {
+    const divided = this.divide(t, isTime);
+    return divided ? divided[0] : null;
   }
 
   /**
@@ -297,6 +310,7 @@ export class Curve {
    */
   getLocationAt(offset: number, _isTime?: boolean): CurveLocation | null {
     const time = _isTime ? offset : this.getTimeAt(offset);
+    if (time === null) return null;
     return this.getLocationAtTime(time);
   }
 
@@ -321,7 +335,7 @@ export class Curve {
   /**
    * 曲線上の指定されたオフセット位置のパラメータを取得
    */
-  getTimeAt(offset: number, start?: number): number {
+  getTimeAt(offset: number, start?: number): number | null {
     return Curve.getTimeAt(this.getValues(), offset, start);
   }
   
@@ -464,7 +478,7 @@ export class Curve {
   /**
    * 指定されたオフセットでの曲線のtパラメータを計算
    */
-  static getTimeAt(v: number[], offset: number, start?: number): number {
+  static getTimeAt(v: number[], offset: number, start?: number): number | null {
     return CurveLocationUtils.getTimeAt(v, offset, start);
   }
 

@@ -65,7 +65,9 @@ export function propagateWinding(
         const path = curve._path;
         const parent = path._parent;
         const operand = parent instanceof CompoundPath ? parent : path;
-        const t = Numerical.clamp(curve.getTimeAt(length - chainLength), tMin, tMax);
+        // paper.jsの実装に合わせる
+        // この文脈では、getTimeAtがnullを返すことはないと想定
+        const t = Numerical.clamp(curve.getTimeAt(length - chainLength)!, tMin, tMax);
         const pt = curve.getPointAtTime(t);
         
         // Determine the direction in which to check the winding

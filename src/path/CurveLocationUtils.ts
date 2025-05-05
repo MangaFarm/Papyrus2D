@@ -142,7 +142,7 @@ export class CurveLocationUtils {
   /**
    * 指定されたオフセットでの曲線のtパラメータを計算
    */
-  static getTimeAt(v: number[], offset: number, start?: number): number {
+  static getTimeAt(v: number[], offset: number, start?: number): number | null {
     if (start === undefined)
       start = offset < 0 ? 1 : 0;
     if (offset === 0)
@@ -166,7 +166,7 @@ export class CurveLocationUtils {
       return forward ? b : a;
     } else if (diff > epsilon) {
       // 範囲外
-      return null as unknown as number; // テストがnullを期待しているため
+      return null; // 範囲外の場合はnullを返す
     }
     
     // 初期推測値としてoffset / rangeLengthを使用
@@ -319,20 +319,32 @@ export class CurveLocationUtils {
     // 各曲線の接線ベクトルを計算
     let v2, v1, v4, v3: Point;
     
+    // 268行目で curves.some(c => !c) をチェックしているので、
+    // curves配列の要素はnullでないことが保証されている
     if (t1Inside) {
-      v2 = c2.getTangentAtTime(t1)!;
+      const tangent = c2.getTangentAtTime(t1);
+      if (!tangent) return false;
+      v2 = tangent;
       v1 = v2.negate();
     } else {
-      v1 = curves[0]!.getPointAt(-offset).subtract(pt);
-      v2 = curves[1]!.getPointAt(offset).subtract(pt);
+      const p1 = curves[0]!.getPointAt(-offset);
+      const p2 = curves[1]!.getPointAt(offset);
+      if (!p1 || !p2) return false;
+      v1 = p1.subtract(pt);
+      v2 = p2.subtract(pt);
     }
     
     if (t2Inside) {
-      v4 = c4.getTangentAtTime(t2)!;
+      const tangent = c4.getTangentAtTime(t2);
+      if (!tangent) return false;
+      v4 = tangent;
       v3 = v4.negate();
     } else {
-      v3 = curves[2]!.getPointAt(-offset).subtract(pt);
-      v4 = curves[3]!.getPointAt(offset).subtract(pt);
+      const p3 = curves[2]!.getPointAt(-offset);
+      const p4 = curves[3]!.getPointAt(offset);
+      if (!p3 || !p4) return false;
+      v3 = p3.subtract(pt);
+      v4 = p4.subtract(pt);
     }
 
     // 各ベクトルの角度を計算
