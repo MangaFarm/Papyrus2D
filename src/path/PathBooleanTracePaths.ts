@@ -30,7 +30,7 @@ export interface Intersection {
   // 次の交点への参照（リンクリスト構造）
   next?: Intersection;
   // 前の交点への参照（リンクリスト構造）
-  prev?: Intersection;
+  _previous?: Intersection;
   // 交点のセグメント
   segment?: Segment;
   // 交点が重なりかどうか
@@ -123,14 +123,14 @@ export function tracePaths(
   function getCrossingSegments(segment: Segment, collectStarts: boolean): Segment[] {
     const segInfo = asSegmentInfo(segment)!;
     const inter = segInfo._intersection;
-    const start = inter as Intersection;
+    const start = inter;
     const crossings: Segment[] = [];
     
     if (collectStarts) {
       starts = [segment];
     }
 
-    function collect(inter: Intersection | null, end?: Intersection): void {
+    function collect(inter: Intersection | null | undefined, end?: Intersection): void {
       while (inter && inter !== end) {
         const other = inter.segment!;
         const otherInfo = asSegmentInfo(other)!;
@@ -165,9 +165,10 @@ export function tracePaths(
       collect(inter);
       // リンクリストの先頭に移動
       let interStart = inter;
-      while (interStart && interStart.prev) {
-        interStart = interStart.prev;
+      while (interStart && interStart._previous) {
+        interStart = interStart._previous;
       }
+      // TypeScriptの制約: startがnullの可能性があるため、型アサーションを使用
       collect(interStart, start as Intersection);
     }
     
@@ -177,14 +178,14 @@ export function tracePaths(
   // セグメントをソート
   // paper.jsのソートロジックと同等の機能
   segments.sort((seg1, seg2) => {
-    const seg1Info = asSegmentInfo(seg1);
-    const seg2Info = asSegmentInfo(seg2);
-    const inter1 = seg1Info?._intersection;
-    const inter2 = seg2Info?._intersection;
+    const seg1Info = asSegmentInfo(seg1)!;
+    const seg2Info = asSegmentInfo(seg2)!;
+    const inter1 = seg1Info._intersection;
+    const inter2 = seg2Info._intersection;
     const over1 = !!(inter1 && inter1._overlap);
     const over2 = !!(inter2 && inter2._overlap);
-    const path1 = seg1Info?._path;
-    const path2 = seg2Info?._path;
+    const path1 = seg1Info._path;
+    const path2 = seg2Info._path;
     
     // 重なりとインターセクションの優先順位でソート
     if (over1 !== over2) {
@@ -198,7 +199,6 @@ export function tracePaths(
     // パスIDとセグメントインデックスでソート
     if (path1 !== path2) {
       // paper.jsとの互換性のため、_idプロパティを使用
-      // 型安全性のため、デフォルト値を使用
       const id1 = path1 && path1._id !== undefined ? path1._id : 0;
       const id2 = path2 && path2._id !== undefined ? path2._id : 0;
       return id1 - id2;
@@ -221,8 +221,8 @@ export function tracePaths(
 
     // すべてのセグメントが重なりの場合の特別処理
     // paper.jsの重なり処理と同等の機能
-    const segStartInfo = asSegmentInfo(segStart);
-    const path1 = segStartInfo?._path;
+    const segStartInfo = asSegmentInfo(segStart)!;
+    const path1 = segStartInfo._path;
     
     if (validStart && path1 && path1._overlapsOnly) {
       // paper.jsと同様に、交差するパスを取得
@@ -243,7 +243,7 @@ export function tracePaths(
     }
 
     // 有効なセグメントからパスをトレース
-    let currentSeg = segStart as Segment | null;
+    let currentSeg = segStart;
     while (validStart && currentSeg) {
       const first = !path;
       const crossings = getCrossingSegments(currentSeg, first);
@@ -258,8 +258,8 @@ export function tracePaths(
 
       if (isFinished) {
         if (currentSeg.isFirst() || currentSeg.isLast()) {
-          const currentSegInfo = asSegmentInfo(currentSeg);
-          closed = currentSegInfo?._path._closed || false;
+          const currentSegInfo = asSegmentInfo(currentSeg)!;
+          closed = currentSegInfo._path!._closed || false;
         }
         asSegmentInfo(currentSeg)!._visited = true;
         finished = true;
@@ -284,8 +284,8 @@ export function tracePaths(
       }
 
       let nextSeg = currentSeg;
-      if (cross && other) {
-        nextSeg = other;
+      if (cross) {
+        nextSeg = other!;
       }
 
       if (!isValid(nextSeg)) {
@@ -299,8 +299,10 @@ export function tracePaths(
         
         // 他の交差を試す
         do {
-          nextSeg = branch && branch.crossings.shift() || null;
+          nextSeg = branch && branch.crossings.shift();
           if (!nextSeg || !asSegmentInfo(nextSeg)!._path) {
+            // TypeScriptの制約: nullをSegmentに割り当てられないため、型アサーションを使用
+            // paper.jsではnullを直接代入しているが、TypeScriptでは型の安全性のため許可されない
             nextSeg = null as unknown as Segment;
             branch = branches.pop();
             if (branch) {
@@ -321,15 +323,17 @@ export function tracePaths(
       visited.push(nextSeg);
       
       // 次のセグメントに移動
-      const nextPath = asSegmentInfo(nextSeg)!._path;
+      const nextPath = asSegmentInfo(nextSeg)!._path!;
+      // TypeScriptの制約: undefinedをSegmentに割り当てられないため、型アサーションを使用
       currentSeg = (next || nextPath.getFirstSegment()) as Segment;
-      handleIn = next && next._handleIn as unknown as Point;
+      // TypeScriptの制約: SegmentPointをPointに変換するため、型アサーションを使用
+      handleIn = next && (next._handleIn as unknown as Point);
     }
 
     if (finished) {
       if (closed) {
         // open/closedパス混在時の端点ハンドル処理
-        path!.getFirstSegment()!.setHandleIn(handleIn as Point);
+        path!.getFirstSegment()!.setHandleIn(handleIn!);
         path!.setClosed(closed);
       }
 
