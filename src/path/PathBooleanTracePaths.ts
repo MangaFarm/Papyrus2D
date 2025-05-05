@@ -27,6 +27,7 @@ export function tracePaths(
   let starts: Segment[] = [];
 
 
+
   // セグメントをpaper.jsと同じ順序でソート
   segments.sort((seg1, seg2) => {
     const meta1 = getMeta(seg1)!;
@@ -60,10 +61,11 @@ export function tracePaths(
     if (!operator) return true;
 
     const winding = meta.winding;
-    if (!winding) return false;
+    if (!winding) return true;
 
+    const op = operator[winding.winding];
     return !!(
-      operator[winding.winding] &&
+      op &&
       !(
         operator.unite &&
         winding.winding === 2 &&
@@ -184,6 +186,7 @@ export function tracePaths(
   // 各セグメントからパスをトレース
   for (let i = 0, l = segments.length; i < l; i++) {
     const segStart = segments[i];
+    const meta = getMeta(segStart);
     let validStart = isValid(segStart);
     let path: Path | null = null;
     let finished = false;

@@ -23,11 +23,8 @@ import { getMeta, IntersectionInfo } from './SegmentMeta';
  */
 export function preparePath(path: PathItem, resolve: boolean = false): PathItem {
   // paper.jsの実装をそのまま移植
-  let res = path
-      .clone(false)
-      .reduce({ simplify: true })
-      .transform(null, true, true);
-  
+  let res = path.clone(false);
+
   if (resolve) {
     // For correct results, close open paths with straight lines:
     const paths = res.getPaths();
@@ -41,12 +38,11 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
         path.getLastSegment()!.setHandleOut(0, 0);
       }
     }
-    
+
     // paper.jsと同じようにメソッドチェーンを使用
-    res = res
-        .resolveCrossings()
-        .reorient(res.getFillRule() === 'nonzero', true);
+    res = res.resolveCrossings();
+    res = res.reorient(res.getFillRule && res.getFillRule() === 'nonzero', true);
   }
-  
+
   return res;
 }

@@ -32,9 +32,9 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
 export function getIntersections(path1: Path, path2: Path): Intersection[] {
-  // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
-  const rawIntersections = path1.getIntersections(path2, filterIntersection);
-  const expandedIntersections = CurveLocation.expand(rawIntersections);
+ // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
+ const rawIntersections = path1.getIntersections(path2, filterIntersection);
+ const expandedIntersections = CurveLocation.expand(rawIntersections);
   
   // Intersection型に変換
   const intersections: Intersection[] = [];
@@ -202,6 +202,7 @@ export function divideLocations(
  * paper.jsのdivideLocations関数を使用した実装
  */
 export function dividePathAtIntersections(path: Path, intersections: Intersection[]): Path {
+  console.log('DEBUG: dividePathAtIntersections intersections', intersections);
   if (intersections.length === 0) return path;
   
   // CurveLocationの配列に変換
@@ -216,7 +217,8 @@ export function dividePathAtIntersections(path: Path, intersections: Intersectio
   }
   
   // divideLocations関数を使用して交点でパスを分割
-  divideLocations(locations);
+  const dividedLocs = divideLocations(locations);
+  console.log('DEBUG: divideLocations result', dividedLocs);
   
   return path;
 }

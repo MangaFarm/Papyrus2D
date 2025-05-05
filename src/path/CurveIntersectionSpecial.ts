@@ -9,6 +9,8 @@ import { Point } from '../basic/Point';
 import { Line } from '../basic/Line';
 import { addLocation } from './CurveIntersectionBase';
 import { getOverlaps } from './CurveIntersectionMain';
+import { propagateWinding } from './PathBooleanWinding';
+import { getMeta } from './SegmentMeta';
 
 /**
  * paper.jsのaddLineIntersection実装
@@ -42,6 +44,29 @@ export function addLineIntersection(
     addLocation(locations, include,
       flip ? c2 : c1, flip ? Curve.getTimeOf(v2, pt) : Curve.getTimeOf(v1, pt),
       flip ? c1 : c2, flip ? Curve.getTimeOf(v1, pt) : Curve.getTimeOf(v2, pt));
+  }
+
+  // 端点が一致している場合も交点として追加
+  const epsilon = 1e-8;
+  const endpoints = [
+    [v1[0], v1[1], v2[0], v2[1], 0, 0],
+    [v1[0], v1[1], v2[6], v2[7], 0, 1],
+    [v1[6], v1[7], v2[0], v2[1], 1, 0],
+    [v1[6], v1[7], v2[6], v2[7], 1, 1]
+  ];
+  for (const [x1, y1, x2, y2, t1, t2] of endpoints) {
+    if (Math.abs(x1 - x2) < epsilon && Math.abs(y1 - y2) < epsilon) {
+      addLocation(locations, include, c1, t1, c2, t2, true);
+      // 端点overlapなセグメントにもwindingをセット
+      const seg1 = t1 === 0 ? c1._segment1 : c1._segment2;
+      const seg2 = t2 === 0 ? c2._segment1 : c2._segment2;
+      propagateWinding(seg1, c1._path, c2._path, {}, {});
+      propagateWinding(seg2, c2._path, c1._path, {}, {});
+      // デバッグ: winding number
+      const meta1 = getMeta(seg1);
+      const meta2 = getMeta(seg2);
+      console.log('DEBUG: endpoint overlap winding', meta1 && meta1.winding, meta2 && meta2.winding);
+    }
   }
   
   return locations;

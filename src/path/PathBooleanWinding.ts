@@ -101,7 +101,7 @@ export function propagateWinding(
         
         wind = wind || getWinding(
           pt,
-          curveCollisionsMap[path._id!][curve.getIndex()],
+          (curveCollisionsMap[path._id!] && curveCollisionsMap[path._id!][curve.getIndex()]) || path.getCurves(),
           dir,
           true
         );
@@ -117,6 +117,11 @@ export function propagateWinding(
   }
   
   // Now assign the winding to the entire curve chain.
+  // 端点overlapなセグメントにもwindingをセット
+  const meta0 = getMeta(segment);
+  if (meta0) {
+    meta0.winding = windingResult;
+  }
   for (let j = chain.length - 1; j >= 0; j--) {
     const meta = getMeta(chain[j].segment);
     if (meta) {
