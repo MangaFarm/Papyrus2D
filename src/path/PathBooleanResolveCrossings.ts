@@ -30,7 +30,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     if (!seg) return false;
     const meta = getMeta(seg);
     const inter = meta && meta.intersection;
-    return !!(inter && inter._overlap && meta.path === path);
+    return !!(inter && inter._overlap && meta!.path === path);
   }
 
   // 交差点・重なり点の検出とフラグ
@@ -41,7 +41,7 @@ export function resolveCrossings(path: PathItem): PathItem {
            inter.isCrossing() && (hasCrossings = true);
   });
   // paper.jsと同様にCurveLocation.expandを使用
-  intersections = (intersections as any).slice ? intersections.slice() : intersections;
+  intersections = CurveLocation.expand(intersections);
 
   // 交差点がなければ元のパスを返す
   if (!intersections || intersections.length === 0) {
@@ -86,6 +86,7 @@ export function resolveCrossings(path: PathItem): PathItem {
       if (curve1 && curve2 && curve1._path && curve2._path) {
         return true;
       }
+      // paper.jsでは直接_intersectionを操作するが、Papyrus2DではgetMetaを使用
       if (seg1) {
         const meta1 = getMeta(seg1);
         if (meta1) meta1.intersection = null;
@@ -125,8 +126,12 @@ export function resolveCrossings(path: PathItem): PathItem {
   } else {
     const compoundPath = new CompoundPath();
     compoundPath.addChildren(paths);
-    compoundPath.copyAttributes(path);
-    result = compoundPath;
+    const reduced = compoundPath.reduce();
+    reduced.copyAttributes(path);
+    result = reduced;
+    // paper.jsではreplaceWith()を使用するが、Papyrus2Dでは直接置き換えは行わない
+    // TypeScriptの制約上、replaceWithメソッドの実装が必要だが、
+    // 今回はresolveCrossingsの挙動を合わせることが目的なので省略
   }
   return result;
 }
@@ -207,32 +212,15 @@ function divideLocations(
     } else if (time > tMax) {
       segment = curve._segment2;
     } else {
-      // 曲線を時間で分割
-      const newCurve = curve.divideAtTime(time);
+      // 曲線を時間で分割 - paper.jsと同様に常にハンドルをセット
+      const newCurve = curve.divideAtTime(time, true);
       
       // ハンドルなしの曲線を追跡
-      if (clearHandles) {
-        clearCurves.push(curve);
-        if (typeof newCurve === 'number') {
-          // divideAtTimeがインデックスを返す場合、新しいカーブを取得
-          const curves = curve._path._curves;
-          if (curves && newCurve >= 0 && newCurve < curves.length) {
-            clearCurves.push(curves[newCurve]);
-          }
-        } else if (newCurve) {
-          clearCurves.push(newCurve);
-        }
+      if (clearHandles && newCurve) {
+        clearCurves.push(curve, newCurve);
       }
       
-      if (typeof newCurve === 'number') {
-        // divideAtTimeがインデックスを返す場合、新しいセグメントを取得
-        const segments = curve._path._segments;
-        if (segments && newCurve >= 0 && newCurve < segments.length) {
-          segment = segments[newCurve];
-        }
-      } else if (newCurve) {
-        segment = newCurve._segment2;
-      }
+      segment = newCurve ? newCurve._segment1 : undefined;
       
       // 同じ曲線内の他の位置の時間パラメータを正規化
       for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
@@ -244,7 +232,8 @@ function divideLocations(
     // セグメントに交差情報を設定
     loc._setSegment(segment!);
     
-    // 交差点のリンクリストを作成
+    // 交差点のリンクリストを作成 - paper.jsでは直接segment._intersectionを使用するが、
+    // Papyrus2DではgetMetaを使用
     const meta = getMeta(segment!);
     const inter = meta && meta.intersection;
     const dest = loc._intersection as unknown as IntersectionInfo;
@@ -307,12 +296,9 @@ function linkIntersections(from: IntersectionInfo, to: IntersectionInfo): void {
  * paper.jsのclearCurveHandlesメソッドを移植
  */
 function clearCurveHandles(curves: Curve[]): void {
-  // 各カーブのセグメントのハンドルをクリア
+  // paper.jsと同様に実装
   for (let i = curves.length - 1; i >= 0; i--) {
-    // 各カーブのセグメントのハンドルをクリア
-    const curve = curves[i];
-    if (curve._segment1) curve._segment1.clearHandles();
-    if (curve._segment2) curve._segment2.clearHandles();
+    curves[i].clearHandles();
   }
 }
 

@@ -174,7 +174,7 @@ export interface PathItem {
    * @param excludeMatrix 行列を除外するかどうか
    * @returns このパス
    */
-  copyAttributes?(path: PathItem, excludeMatrix?: boolean): PathItem;
+  copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem;
 
   /**
    * 変換行列を適用する
