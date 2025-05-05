@@ -304,5 +304,21 @@ export function tracePaths(
       }
     }
   }
+  // デバッグ: 生成されたパスのセグメントとバウンディングボックスをファイルに出力
+  try {
+    const fs = require('fs');
+    const debugData = paths.map((path, i) => {
+      const segs = path.getSegments().map(s => [s.point.x, s.point.y]);
+      const bounds = path.getBounds();
+      return {
+        index: i,
+        segments: segs,
+        bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height }
+      };
+    });
+    fs.writeFileSync('documents/tracepaths_segments_debug.json', JSON.stringify(debugData, null, 2), { flag: 'w' });
+  } catch (e) {
+    // ファイル出力失敗時は何もしない
+  }
   return paths;
 }

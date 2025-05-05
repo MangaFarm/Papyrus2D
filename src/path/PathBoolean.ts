@@ -171,9 +171,6 @@ export class PathBoolean {
     const _path1 = preparePath(path1, true) as Path;
 // デバッグ: _path2.getSegments()の配列（座標値）を出力
 const _path2 = preparePath(path2, true) as Path;
-console.log('[traceBoolean] _path2 getSegments array:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
-    // デバッグ: _path2.getSegments()の配列（座標値）を出力
-    console.log('[traceBoolean] _path2 getSegments array:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
 
     // デバッグ: パスの向きとセグメント
     // eslint-disable-next-line no-console
@@ -210,13 +207,21 @@ console.log('[traceBoolean] _path2 getSegments array:', _path2.getSegments().map
     }
 
     // 交点検出直前のデバッグ出力
+    // 交点検出直前のパス状態をデバッグ出力
+    // eslint-disable-next-line no-console
     console.log('[traceBoolean] _path1 getSegments:', _path1.getSegments().map(s => [s.point.x, s.point.y]));
+    // eslint-disable-next-line no-console
     console.log('[traceBoolean] _path2 getSegments:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
+    // eslint-disable-next-line no-console
     console.log('[traceBoolean] _path1 getCurves:', _path1.getCurves().map(c => [c._segment1.point.x, c._segment1.point.y]));
+    // eslint-disable-next-line no-console
     console.log('[traceBoolean] _path2 getCurves:', _path2.getCurves().map(c => [c._segment1.point.x, c._segment1.point.y]));
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
 
+    // 交点数をデバッグ出力
+    // eslint-disable-next-line no-console
+    console.log('[traceBoolean] intersections.length =', intersections.length);
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定
       return this.createResult(
