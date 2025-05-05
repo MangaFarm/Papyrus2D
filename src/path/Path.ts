@@ -22,6 +22,7 @@ import { PathFitter } from './PathFitter';
 
 // PathConstructorsからメソッドをインポート
 import { PathConstructors } from './PathConstructors';
+import { smoothPath, splitPathAt } from './PathUtils';
 
 export class Path extends PathItemBase {
   // 静的メソッド
@@ -806,144 +807,8 @@ export class Path extends PathItemBase {
     from?: number | Segment;
     to?: number | Segment;
   }): Path {
-    const that = this;
-    const opts = options || {};
-    const type = opts.type || 'asymmetric';
-    const segments = this._segments;
-    const length = segments.length;
-    const closed = this._closed;
-
-    // インデックスを取得するヘルパー関数
-    function getIndex(value: number | Segment | undefined, _default: number): number {
-      // セグメントオブジェクトの場合はインデックスを取得
-      if (value && (value as Segment).point) {
-        const segment = value as Segment;
-        const path = segment._path;
-        if (path && path !== that) {
-          throw new Error(`Segment ${segment._index} of another path cannot be used as a parameter`);
-        }
-        return segment._index;
-      } else {
-        // 数値の場合はそのまま使用、未定義の場合はデフォルト値を使用
-        const index = typeof value === 'number' ? value : _default;
-        // 負のインデックスを処理
-        return Math.min(index < 0 && closed
-          ? index % length
-          : index < 0 ? index + length : index, length - 1);
-      }
-    }
-
-    // ループするかどうか（閉じたパスで範囲指定がない場合）
-    const loop = closed && opts.from === undefined && opts.to === undefined;
-    let from = getIndex(opts.from, 0);
-    let to = getIndex(opts.to, length - 1);
-
-    // fromがtoより大きい場合の処理
-    if (from > to) {
-      if (closed) {
-        from -= length;
-      } else {
-        const tmp = from;
-        from = to;
-        to = tmp;
-      }
-    }
-
-    if (/^(?:asymmetric|continuous)$/.test(type)) {
-      // 連続スムージングアプローチ（Lubos Briedaのアルゴリズムベース）
-      const asymmetric = type === 'asymmetric';
-      const min = Math.min;
-      const amount = to - from + 1;
-      let n = amount - 1;
-      
-      // 閉じたパスでは最大4点のオーバーラップを許可
-      const padding = loop ? min(amount, 4) : 1;
-      let paddingLeft = padding;
-      let paddingRight = padding;
-      const knots: Point[] = [];
-      
-      if (!closed) {
-        // 開いたパスで範囲が指定されている場合、両端に最大1のパディングを追加
-        paddingLeft = min(1, from);
-        paddingRight = min(1, length - to - 1);
-      }
-      
-      // パディングを考慮したknotsの配列を設定
-      n += paddingLeft + paddingRight;
-      if (n <= 1) return this;
-      
-      for (let i = 0, j = from - paddingLeft; i <= n; i++, j++) {
-        knots[i] = segments[(j < 0 ? j + length : j) % length].point;
-      }
-
-      // 連続スムージングアルゴリズム
-      // x = knots[0]._x + 2 * knots[1]._x
-      // y = knots[0]._y + 2 * knots[1]._y
-      // f = 2
-      const x = knots[0].x + 2 * knots[1].x;
-      const y = knots[0].y + 2 * knots[1].y;
-      let f = 2;
-      const n_1 = n - 1;
-      const rx: number[] = [x];
-      const ry: number[] = [y];
-      const rf: number[] = [f];
-      const px: number[] = [];
-      const py: number[] = [];
-      
-      // トーマスアルゴリズムで解く
-      for (let i = 1; i < n; i++) {
-        const internal = i < n_1;
-        //  internal--(I)  asymmetric--(R) (R)--continuous
-        const a = internal ? 1 : asymmetric ? 1 : 2;
-        const b = internal ? 4 : asymmetric ? 2 : 7;
-        const u = internal ? 4 : asymmetric ? 3 : 8;
-        const v = internal ? 2 : asymmetric ? 0 : 1;
-        const m = a / f;
-        f = rf[i] = b - m;
-        const knotX = knots[i].x;
-        const knotY = knots[i].y;
-        const nextKnotX = knots[i + 1]?.x || 0;
-        const nextKnotY = knots[i + 1]?.y || 0;
-        rx[i] = u * knotX + v * nextKnotX - m * x;
-        ry[i] = u * knotY + v * nextKnotY - m * y;
-      }
-
-      px[n_1] = rx[n_1] / rf[n_1];
-      py[n_1] = ry[n_1] / rf[n_1];
-      
-      for (let i = n - 2; i >= 0; i--) {
-        px[i] = (rx[i] - px[i + 1]) / rf[i];
-        py[i] = (ry[i] - py[i + 1]) / rf[i];
-      }
-      
-      px[n] = (3 * knots[n].x - px[n_1]) / 2;
-      py[n] = (3 * knots[n].y - py[n_1]) / 2;
-
-      // セグメントを更新
-      for (let i = paddingLeft, max = n - paddingRight, j = from; i <= max; i++, j++) {
-        const segment = segments[j < 0 ? j + length : j];
-        const pt = segment.point;
-        const hx = px[i] - pt.x;
-        const hy = py[i] - pt.y;
-        
-        if (loop || i < max) {
-          segment.setHandleOut(hx, hy);
-        }
-        
-        if (loop || i > paddingLeft) {
-          segment.setHandleIn(-hx, -hy);
-        }
-      }
-    } else {
-      // その他のスムージング方法はセグメントに直接適用
-      for (let i = from; i <= to; i++) {
-        segments[i < 0 ? i + length : i].smooth(opts,
-          !loop && i === from, !loop && i === to);
-      }
-    }
-    
-    this._changed(ChangeFlag.GEOMETRY);
-    return this;
+    // PathUtils.ts に切り出した smoothPath を呼び出す
+    return smoothPath(this, options);
   }
   
   /**
@@ -1186,106 +1051,9 @@ export class Path extends PathItemBase {
    * @returns 分割後の新しいパス（後半部分）
    */
   splitAt(location: number | CurveLocation): Path | null {
-    // オフセットの場合はCurveLocationに変換
-    let loc: CurveLocation | null;
-    if (typeof location === 'number') {
-      console.log('splitAt: offset =', location);
-      loc = this.getLocationAt(location);
-      console.log('splitAt: location =', loc ? 'valid' : 'null');
-    } else {
-      console.log('splitAt: using provided location');
-      loc = location;
-    }
-
-    if (!loc) {
-      console.log('splitAt: location is null');
-      return null;
-    }
-    
-    if (!loc.getCurve()) {
-      console.log('splitAt: location.curve is null');
-      return null;
-    }
-    
-    // 別のパスのロケーションかどうかをチェック
-    if (loc.getPath() !== this) {
-      console.log('splitAt: location from different path');
-      return null;
-    }
-    
-    // paper.jsの実装に合わせる
-    const index = loc.getIndex();
-    console.log('splitAt: index =', index);
-    const time = loc.getTime() ?? 0;
-    console.log('splitAt: time =', time);
-    const tMin = Numerical.CURVETIME_EPSILON;
-    const tMax = 1 - tMin;
-    
-    // 時間パラメータが1に近い場合、次のセグメントの開始点として扱う
-    let curveIndex = index;
-    let curveTime = time;
-    if (curveTime > tMax) {
-      curveIndex++;
-      curveTime = 0;
-    }
-    console.log('splitAt: curveIndex =', curveIndex, 'curveTime =', curveTime);
-    
-    const curves = this.getCurves();
-    console.log('splitAt: curves.length =', curves.length);
-    if (curveIndex >= 0 && curveIndex < curves.length) {
-      // 時間パラメータが0に近くない場合、カーブを分割
-      if (curveTime >= tMin) {
-        console.log('splitAt: dividing curve at time', curveTime);
-        // カーブを分割（divideAtTimeメソッドを使用）
-        curves[curveIndex].divideAtTime(curveTime);
-        // インデックスを増やす（分割によりセグメントが追加されるため）
-        curveIndex++;
-        console.log('splitAt: new curveIndex =', curveIndex);
-      }
-      
-      // 後半部分のセグメントを取得し、新しいパスを作成
-      console.log('splitAt: removing segments from', curveIndex, 'to', this._segments.length);
-      const segs = this.removeSegments(curveIndex, this._segments.length);
-      console.log('splitAt: removed segments count =', segs.length);
-      
-      // paper.jsと完全に同じ実装にする
-      let path2;
-      if (this._closed) {
-        // 閉じたパスの場合、パスを開いて処理
-        this.setClosed(false);
-        // 自分自身を使用
-        path2 = this;
-      } else {
-        // 新しいパスを作成
-        path2 = new Path();
-        // 属性をコピー
-        // path2.copyAttributes(this); // Papyrus2Dには実装されていない可能性がある
-        
-        // 分割点を元のパスに追加
-        console.log('splitAt: adding first segment back to original path');
-        this.add(segs[0]);
-      }
-      
-      // 後半部分のセグメントを追加
-      console.log('splitAt: adding segments to new path');
-      for (let i = 0; i < segs.length; i++) {
-        path2.add(segs[i]);
-      }
-      
-      // カーブを更新するために、getCurvesを呼び出す
-      console.log('splitAt: updating curves');
-      this._length = undefined; // 長さのキャッシュをリセット
-      path2._length = undefined; // 長さのキャッシュをリセット
-      this.getCurves();
-      path2.getCurves();
-      
-      console.log('splitAt: original path curves =', this.getCurves().length);
-      console.log('splitAt: new path curves =', path2.getCurves().length);
-      
-      return path2;
-    }
-    
-    return null;
+    const result = splitPathAt(this, location); 
+    this._changed(ChangeFlag.GEOMETRY); 
+    return result;
   }
 
   /**
