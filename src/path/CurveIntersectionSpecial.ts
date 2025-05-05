@@ -33,16 +33,24 @@ export function addLineIntersection(
     return locations;
   }
   // paper.jsのLine.intersect関数を使用
+  // デバッグ出力
+  console.log('[addLineIntersection] v1:', v1, 'v2:', v2);
+  console.log('[addLineIntersection] v1 vector:', v1[6] - v1[0], v1[7] - v1[1], 'v2 vector:', v2[6] - v2[0], v2[7] - v2[1]);
   const pt = Line.intersect(
-    v1[0], v1[1], v1[6], v1[7],
-    v2[0], v2[1], v2[6], v2[7],
-    true // asVector - Papyrus2DのAPIでは必須
+    v1[0], v1[1], v1[6] - v1[0], v1[7] - v1[1],
+    v2[0], v2[1], v2[6] - v2[0], v2[7] - v2[1],
+    true // asVector
   );
   
   if (pt) {
+    console.log('[addLineIntersection] Line.intersect result:', pt);
+    const t1 = flip ? Curve.getTimeOf(v2, pt) : Curve.getTimeOf(v1, pt);
+    const t2 = flip ? Curve.getTimeOf(v1, pt) : Curve.getTimeOf(v2, pt);
+    console.log('[addLineIntersection] Curve.getTimeOf t1:', t1, 't2:', t2);
     addLocation(locations, include,
-      flip ? c2 : c1, flip ? Curve.getTimeOf(v2, pt) : Curve.getTimeOf(v1, pt),
-      flip ? c1 : c2, flip ? Curve.getTimeOf(v1, pt) : Curve.getTimeOf(v2, pt));
+      flip ? c2 : c1, t1,
+      flip ? c1 : c2, t2);
+    console.log('[addLineIntersection] locations after addLocation:', locations.map(loc => loc.getPoint().toString()));
   }
 
   // 端点が一致している場合も交点として追加
@@ -55,15 +63,22 @@ export function addLineIntersection(
   ];
   for (const [x1, y1, x2, y2, t1, t2] of endpoints) {
     if (Math.abs(x1 - x2) < epsilon && Math.abs(y1 - y2) < epsilon) {
-      addLocation(locations, include, c1, t1, c2, t2, true);
-      // 端点overlapなセグメントにもwindingをセット
-      const seg1 = t1 === 0 ? c1._segment1 : c1._segment2;
-      const seg2 = t2 === 0 ? c2._segment1 : c2._segment2;
-      propagateWinding(seg1, c1._path, c2._path, {}, {});
-      propagateWinding(seg2, c2._path, c1._path, {}, {});
-      // デバッグ: winding number
-      const meta1 = getMeta(seg1);
-      const meta2 = getMeta(seg2);
+      // すでに同じ座標の交点が追加されていればスキップ
+      const already = locations.some(loc => {
+        const pt = loc.getPoint();
+        return Math.abs(pt.x - x1) < epsilon && Math.abs(pt.y - y1) < epsilon;
+      });
+      if (!already) {
+        addLocation(locations, include, c1, t1, c2, t2, true);
+        // 端点overlapなセグメントにもwindingをセット
+        const seg1 = t1 === 0 ? c1._segment1 : c1._segment2;
+        const seg2 = t2 === 0 ? c2._segment1 : c2._segment2;
+        propagateWinding(seg1, c1._path, c2._path, {}, {});
+        propagateWinding(seg2, c2._path, c1._path, {}, {});
+        // デバッグ: winding number
+        const meta1 = getMeta(seg1);
+        const meta2 = getMeta(seg2);
+      }
     }
   }
   
