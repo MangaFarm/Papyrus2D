@@ -21,107 +21,70 @@ import { CompoundPath } from './CompoundPath';
  * @returns 交差が解決されたパス
  */
 export function resolveCrossings(path: PathItem): PathItem {
-  // paper.jsの実装に合わせた処理
-  
-  // パスまたは複合パスのアイテムをサポート
-  let paths = path.getPaths!();
-  
-  // hasOverlap関数の実装
+  // paper.jsのresolveCrossingsアルゴリズムに完全一致させる
+
+  const children = (path as any)._children;
+  let paths = children || [path];
+
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
     if (!seg) return false;
     const meta = getMeta(seg);
     const inter = meta && meta.intersection;
     return !!(inter && inter._overlap && meta.path === path);
   }
-  
-  // 交差と重なりを検出
-  const filterFunc = (inter: CurveLocation) => inter.hasOverlap() || inter.isCrossing();
-  // 自己交差を検出するため、同じパスを渡す
-  const intersections = path.getIntersections(path as unknown as PathItem).filter(filterFunc);
-  
-  // 交差点がない場合は元のパスを返す
-  if (intersections.length === 0) {
-    return path;
-  }
-  
-  // 重なりと交差の存在を確認
+
+  // 交差点・重なり点の検出とフラグ
   let hasOverlaps = false;
   let hasCrossings = false;
-  
-  for (const inter of intersections) {
-    if (inter.hasOverlap()) {
-      hasOverlaps = true;
-    }
-    if (inter.isCrossing()) {
-      hasCrossings = true;
-    }
-    
-    // 両方見つかったら早期終了
-    if (hasOverlaps && hasCrossings) {
-      break;
-    }
+  let intersections = (path as any).getIntersections(null, function(inter: any) {
+    return inter.hasOverlap() && (hasOverlaps = true) ||
+           inter.isCrossing() && (hasCrossings = true);
+  });
+  intersections = (intersections as any).slice ? intersections.slice() : intersections;
+
+  // 交差点がなければ元のパスを返す
+  if (!intersections || intersections.length === 0) {
+    return path;
   }
-  
-  // 全セグメントを収集
-  const segments: Segment[] = [];
-  const curves: Curve[] = [];
-  
-  for (const p of paths) {
-    segments.push(...p.getSegments());
-    curves.push(...p.getCurves());
-    
-    // すべてのセグメントが重なりかどうかを追跡
-    (p as any)._overlapsOnly = true;
-  }
-  
-  // 重なりがある場合の処理
+
+  // 曲線ハンドルクリア用
+  const clearCurves = hasOverlaps && hasCrossings ? [] : undefined;
+
+  // 重なり処理
   if (hasOverlaps) {
-    // 重なりを持つ交差点を処理
-    const overlaps = divideLocations(intersections, (inter: CurveLocation) => {
+    const overlaps = divideLocations(intersections, function(inter: any) {
       return inter.hasOverlap();
-    }, hasOverlaps && hasCrossings ? [] : undefined);
-    
-    // 重なりセグメントを処理
+    }, clearCurves);
+
     for (let i = overlaps.length - 1; i >= 0; i--) {
       const overlap = overlaps[i];
-      const path = overlap.getPath()!;
-      const seg = overlap.getSegment()!;
+      const path = overlap._path;
+      const seg = overlap._segment;
       const prev = seg.getPrevious();
       const next = seg.getNext();
-      
       if (hasOverlap(prev, path) && hasOverlap(next, path)) {
         seg.remove();
-        prev!.setHandleOut(0, 0);
-        next!.setHandleIn(0, 0);
-        
-        // 残った曲線の長さをチェック
-        if (prev !== seg && !prev!.getCurve().hasLength()) {
-          // セグメント削除時にhandleInを転送
-          next!._handleIn.set(prev!._handleIn);
-          prev!.remove();
+        prev._handleOut.set(0, 0);
+        next._handleIn.set(0, 0);
+        if (prev !== seg && !prev.getCurve().hasLength()) {
+          next._handleIn.set(prev._handleIn);
+          prev.remove();
         }
       }
     }
   }
-  
-  // 交差がある場合の処理
+
+  // 交差処理
   if (hasCrossings) {
-    // 交差点でパスを分割
-    divideLocations(intersections, hasOverlaps ? ((inter: CurveLocation): boolean => {
-      // 両方の関連曲線が有効かどうかをチェック
-      const curve1 = inter.getCurve();
-      const seg1 = inter.getSegment();
-      
-      // 他の交差点の現在の曲線が有効かどうかをチェック
-      const other = inter.getIntersection();
-      const curve2 = other ? other.getCurve() : null;
-      const seg2 = other ? other.getSegment() : null;
-      
+    divideLocations(intersections, hasOverlaps ? function(inter: any) {
+      const curve1 = inter.getCurve && inter.getCurve();
+      const seg1 = inter.getSegment && inter.getSegment();
+      const other = inter._intersection;
+      const curve2 = other && other.getCurve && other.getCurve();
+      const seg2 = other && other.getSegment && other.getSegment();
       if (curve1 && curve2 && curve1._path && curve2._path) {
         return true;
       }
-      
-      // 重なり処理に関わった交差点を削除
       if (seg1) {
         const meta1 = getMeta(seg1);
         if (meta1) meta1.intersection = null;
@@ -130,59 +93,42 @@ export function resolveCrossings(path: PathItem): PathItem {
         const meta2 = getMeta(seg2);
         if (meta2) meta2.intersection = null;
       }
-      
       return false;
-    }) : undefined, hasOverlaps && hasCrossings ? [] : undefined);
-    
-    // 曲線ハンドルをクリア
-    if (hasOverlaps && hasCrossings) {
-      clearCurveHandles([]);
+    } : undefined, clearCurves);
+
+    if (clearCurves) {
+      clearCurveHandles(clearCurves);
     }
-    
-    // 自己交差を解決するためのパスを生成
-    // paper.jsのtracePaths関数を使用
-    
-    // すべてのセグメントを収集
-    const allSegments: Segment[] = [];
-    for (const p of paths) {
-      allSegments.push(...p._segments);
+
+    // tracePaths呼び出し
+    let allSegments: Segment[] = [];
+    for (let i = 0; i < paths.length; i++) {
+      allSegments = allSegments.concat(paths[i]._segments);
     }
-    
-    // paper.jsと同様に、tracePaths関数を呼び出す
     paths = tracePaths(allSegments, {});
   }
-  
-  // 結果を決定
+
+  // 結果のパス構成
   let result: PathItem;
-  let length = paths.length;
-  
-  // CompoundPathかどうかを判定
-  if (path instanceof CompoundPath) {
-    // CompoundPathの場合
-    const compoundPath = path as CompoundPath;
-    if (paths !== compoundPath._children) {
-      compoundPath.removeChildren();
-      for (const p of paths) {
-        compoundPath.addChild(p);
-      }
+  const length = paths.length;
+  if (children) {
+    if (paths !== children) {
+      (path as any).setChildren(paths);
     }
-    result = compoundPath;
-  } else if (length === 1 && !(path as any)._children) {
-    // 単一のPathの場合
-    if (paths[0] !== path && path instanceof Path) {
-      (path as Path).setSegments(paths[0].getSegments());
+    result = path;
+  } else if (length === 1 && !children) {
+    if (paths[0] !== path) {
+      (path as any).setSegments(paths[0].removeSegments());
     }
     result = path;
   } else {
-    // 新しいCompoundPathを作成
     const compoundPath = new CompoundPath();
-    for (const p of paths) {
-      compoundPath.addChild(p);
+    for (let i = 0; i < paths.length; i++) {
+      compoundPath.addChild(paths[i]);
     }
     compoundPath.copyAttributes(path);
     result = compoundPath;
   }
-  
   return result;
 }
 

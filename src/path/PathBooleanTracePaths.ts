@@ -22,8 +22,34 @@ export function tracePaths(
   segments: Segment[],
   operator: Record<string, boolean>
 ): Path[] {
+  // paper.jsのtracePathsアルゴリズムに完全一致させる
   const paths: Path[] = [];
   let starts: Segment[] = [];
+
+
+  // セグメントをpaper.jsと同じ順序でソート
+  segments.sort((seg1, seg2) => {
+    const meta1 = getMeta(seg1)!;
+    const meta2 = getMeta(seg2)!;
+    const inter1 = meta1.intersection;
+    const inter2 = meta2.intersection;
+    const over1 = !!(inter1 && inter1._overlap);
+    const over2 = !!(inter2 && inter2._overlap);
+    const path1 = meta1.path;
+    const path2 = meta2.path;
+    if (over1 !== over2) {
+      return over1 ? 1 : -1;
+    }
+    if (!inter1 !== !inter2) {
+      return inter1 ? 1 : -1;
+    }
+    if (path1 !== path2) {
+      const id1 = path1 && path1._id !== undefined ? path1._id : 0;
+      const id2 = path2 && path2._id !== undefined ? path2._id : 0;
+      return id1 - id2;
+    }
+    return seg1._index - seg2._index;
+  });
 
   // セグメントが有効かどうかを判定する関数
   // paper.jsのisValid関数と同等の機能
@@ -167,30 +193,24 @@ export function tracePaths(
     let visited: Segment[] = [];
     let handleIn: Point | null = null;
 
-    // すべてのセグメントが重なりの場合の特別処理
-    // paper.jsの重なり処理と同等の機能
+    // 完全重なりパスの処理（paper.jsに合わせる）
     const startMeta = getMeta(segStart)!;
     const path1 = startMeta.path;
-    
     if (validStart && path1 && path1._overlapsOnly) {
-      // paper.jsと同様に、交差するパスを取得
       const path2 = startMeta.intersection &&
-                    startMeta.intersection.segment &&
-                    getMeta(startMeta.intersection.segment)!.path;
-      
+        startMeta.intersection.segment &&
+        getMeta(startMeta.intersection.segment)!.path;
       if (path2 && (path1 as any).compare && (path1 as any).compare(path2)) {
-        // 面積がある場合のみパスを結果に追加
         if (path1.getArea()) {
           paths.push(path1.clone(false));
         }
-        // 関連するすべてのセグメントを訪問済みにマーク
         visitPath(path1);
-        if (path2) visitPath(path2);
+        visitPath(path2);
         validStart = false;
       }
     }
 
-    // 有効なセグメントからパスをトレース
+    // パスをトレース
     let currentSeg = segStart;
     while (validStart && currentSeg) {
       const first = !path;
@@ -237,19 +257,15 @@ export function tracePaths(
       }
 
       if (!isValid(nextSeg)) {
-        // 無効なセグメントに遭遇した場合、分岐点に戻る
-        // paper.jsのバックトラック処理と同じ実装
+        // バックトラック処理（paper.jsに合わせる）
         path!.removeSegments(branch.start);
         for (let j = 0, k = visited.length; j < k; j++) {
           getMeta(visited[j])!.visited = false;
         }
         visited.length = 0;
-        
-        // 他の交差を試す
         do {
           nextSeg = branch && branch.crossings.shift();
           if (!nextSeg || !getMeta(nextSeg)!.path) {
-            // paper.jsと同様にnullを直接代入
             nextSeg = null;
             branch = branches.pop();
             if (branch) {
@@ -258,38 +274,32 @@ export function tracePaths(
             }
           }
         } while (branch && !isValid(nextSeg));
-        
         if (!nextSeg)
           break;
       }
 
-      // セグメントをパスに追加
+      // セグメントをパスに追加（paper.jsの順序・ハンドル処理に合わせる）
       const next = nextSeg.getNext();
       path!.add(new Segment(nextSeg._point, handleIn, next && nextSeg._handleOut));
       getMeta(nextSeg)!.visited = true;
       visited.push(nextSeg);
-      
+
       // 次のセグメントに移動
       const nextPath = getMeta(nextSeg)!.path!;
-      // TypeScriptの制約: undefinedをSegmentに割り当てられないため、型アサーションを使用
       currentSeg = (next || nextPath.getFirstSegment()) as Segment;
-      // SegmentPoint を Point に変換
       handleIn = next ? next._handleIn.toPoint() : null;
     }
 
     if (finished) {
       if (closed) {
-        // open/closedパス混在時の端点ハンドル処理
+        // 端点ハンドル処理（paper.jsに合わせる）
         path!.getFirstSegment()!.setHandleIn(handleIn!);
         path!.setClosed(closed);
       }
-
-      // 面積が0でないパスのみ追加
       if (path!.getArea() !== 0) {
         paths.push(path!);
       }
     }
   }
-
   return paths;
 }
