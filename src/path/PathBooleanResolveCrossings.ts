@@ -40,6 +40,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     return inter.hasOverlap() && (hasOverlaps = true) ||
            inter.isCrossing() && (hasCrossings = true);
   });
+  // paper.jsと同様にCurveLocation.expandを使用
   intersections = (intersections as any).slice ? intersections.slice() : intersections;
 
   // 交差点がなければ元のパスを返す
@@ -100,9 +101,9 @@ export function resolveCrossings(path: PathItem): PathItem {
       clearCurveHandles(clearCurves);
     }
 
-    // tracePaths呼び出し
+    // tracePaths呼び出し - paper.jsと同様の方法で
     let allSegments: Segment[] = [];
-    for (let i = 0; i < paths.length; i++) {
+    for (let i = 0, l = paths.length; i < l; i++) {
       allSegments = allSegments.concat(paths[i]._segments);
     }
     paths = tracePaths(allSegments, {});
@@ -123,9 +124,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     result = path;
   } else {
     const compoundPath = new CompoundPath();
-    for (let i = 0; i < paths.length; i++) {
-      compoundPath.addChild(paths[i]);
-    }
+    compoundPath.addChildren(paths);
     compoundPath.copyAttributes(path);
     result = compoundPath;
   }
@@ -141,7 +140,7 @@ function divideLocations(
   include?: (loc: CurveLocation) => boolean,
   clearLater?: Curve[]
 ): CurveLocation[] {
-  const results = include ? [] : undefined;
+  const results: CurveLocation[] | undefined = include ? [] : undefined;
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
   let clearHandles = false;
@@ -185,7 +184,7 @@ function divideLocations(
         prevCurve = curve;
       } else if (prevTime !== undefined && prevTime >= tMin) {
         // 同じ曲線を複数回分割する場合、時間パラメータを再スケール
-        // TypeScript制約: constの再代入ができないため、直接_timeプロパティを設定
+        // paper.jsと同様に直接代入
         loc._time = time / prevTime;
       }
     }
@@ -197,7 +196,7 @@ function divideLocations(
       }
       continue;
     } else if (include && results) {
-      // TypeScriptの型エラーを回避するために型アサーションを使用
+      // paper.jsと同様にunshiftを使用
       (results as CurveLocation[]).unshift(loc);
     }
     
@@ -220,6 +219,8 @@ function divideLocations(
           if (curves && newCurve >= 0 && newCurve < curves.length) {
             clearCurves.push(curves[newCurve]);
           }
+        } else if (newCurve) {
+          clearCurves.push(newCurve);
         }
       }
       
@@ -229,8 +230,8 @@ function divideLocations(
         if (segments && newCurve >= 0 && newCurve < segments.length) {
           segment = segments[newCurve];
         }
-      } else {
-        segment = curve._segment2;
+      } else if (newCurve) {
+        segment = newCurve._segment2;
       }
       
       // 同じ曲線内の他の位置の時間パラメータを正規化
@@ -246,7 +247,7 @@ function divideLocations(
     // 交差点のリンクリストを作成
     const meta = getMeta(segment!);
     const inter = meta && meta.intersection;
-    const dest = loc._intersection as unknown as IntersectionInfo; // 直そうとしたが大工事なので諦めた
+    const dest = loc._intersection as unknown as IntersectionInfo;
     
     if (inter) {
       linkIntersections(inter, dest);
@@ -257,7 +258,7 @@ function divideLocations(
         if (other._intersection) {
           linkIntersections(other._intersection, inter);
         }
-        other = other.next!; // next!を使用してnullチェックエラーを回避
+        other = other.next!;
       }
     } else if (meta) {
       meta.intersection = dest;
