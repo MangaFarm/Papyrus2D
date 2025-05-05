@@ -1506,5 +1506,36 @@ export class Path extends PathItemBase {
     return [this];
   }
 
+  /**
+   * 交差を解決する
+   * paper.jsのPathItem.resolveCrossings()を移植
+   * @returns 交差が解決されたパス
+   */
+  resolveCrossings(): PathItem {
+    // 基底クラスの実装を呼び出す
+    return super.resolveCrossings();
+  }
+
+  /**
+   * パスの向きを再設定する
+   * paper.jsのPathItem.reorient()を移植
+   * @param nonZero 非ゼロ塗りつぶしルールを適用するかどうか
+   * @param clockwise 時計回りにするかどうか
+   * @returns このパス
+   */
+  reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
+    // 基底クラスの実装を呼び出す
+    return super.reorient(nonZero, clockwise);
+  }
+
+  /**
+   * 塗りつぶしルールを取得する
+   * paper.jsのItem.getFillRule()を移植
+   * @returns 塗りつぶしルール
+   */
+  getFillRule(): string {
+    return super.getFillRule();
+  }
+
   // setClockwiseメソッドは基底クラスから継承
 }

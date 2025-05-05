@@ -15,15 +15,6 @@ import { tracePaths } from './PathBooleanTracePaths';
 import { getMeta, IntersectionInfo } from './SegmentMeta';
 
 /**
- * パスの配列を取得する
- * CompoundPathの場合は子パスの配列、Pathの場合は自身を含む配列を返す
- * paper.jsのgetPaths関数を移植
- *
- * @param path パス
- * @returns パスの配列
- */
-
-/**
  * パスの交差を解決する
  * paper.jsのresolveCrossings関数を移植
  *
@@ -46,7 +37,8 @@ export function resolveCrossings(path: PathItem): PathItem {
   
   // 交差と重なりを検出
   const filterFunc = (inter: CurveLocation) => inter.hasOverlap() || inter.isCrossing();
-  const intersections = path.getIntersections(path as Path).filter(filterFunc);
+  // 自己交差を検出するため、同じパスを渡す
+  const intersections = path.getIntersections(path as unknown as PathItem).filter(filterFunc);
   
   // 交差点がない場合は元のパスを返す
   if (intersections.length === 0) {
@@ -380,73 +372,37 @@ function clearCurveHandles(curves: Curve[]): void {
 
 /**
  * Boolean演算のためのパスを準備する
- * paper.jsのpreparePath関数を移植
+ * paper.jsのpreparePath関数を忠実に移植
  *
  * @param path 準備するパス
  * @param resolve 交差を解決するかどうか
  * @returns 準備されたパス
  */
 export function preparePath(path: PathItem, resolve: boolean = false): PathItem {
-  // paper.jsと同様の実装だが、メソッド呼び出しを修正
-  // 1. クローン、簡略化、変換を一連の操作で行う
-  // 直接メソッドを呼び出す
-  let res = path.clone(false);
-  
-  // reduceメソッドが実装されている場合は呼び出す
-  if (res.reduce) {
-    res = res.reduce({ simplify: true });
-  }
-  
-  // transformメソッドが実装されている場合は呼び出す
-  if (res.transform) {
-    res = res.transform(null);
-  }
+  // paper.jsの実装をそのまま移植
+  let res = path
+      .clone(false)
+      .reduce({ simplify: true })
+      .transform(null, true, true);
   
   if (resolve) {
-    // 2. 正確な結果を得るために、開いたパスを直線で閉じる
+    // For correct results, close open paths with straight lines:
     const paths = res.getPaths();
     for (let i = 0, l = paths.length; i < l; i++) {
       const path = paths[i];
-      if (!path.isClosed() && !path.isEmpty()) {
-        // 最小の許容誤差でパスを閉じる
+      if (!path._closed && !path.isEmpty()) {
+        // Close with epsilon tolerance, to avoid tiny straight
+        // that would cause issues with intersection detection.
         path.closePath(Numerical.EPSILON);
         path.getFirstSegment()!.setHandleIn(0, 0);
         path.getLastSegment()!.setHandleOut(0, 0);
       }
     }
     
-    // 3. 交差を解決し、向きを再設定
-    // スタンドアロン関数のresolveCrossingsを使用
-    const resolvedPath = resolveCrossings(res);
-    
-    // getFillRuleがない場合はデフォルトで'nonzero'と仮定
-    const nonZero = resolvedPath.getFillRule ?
-      resolvedPath.getFillRule() === 'nonzero' : true;
-    
-    // スタンドアロン関数のreorientPathsを使用
-    const reorientedPaths = reorientPaths(
-      resolvedPath.getPaths(),
-      (w) => nonZero ? !!w : !!(w & 1),
-      true
-    );
-    
-    // reorientPathsの結果が空の場合は元のパスを返す
-    if (reorientedPaths.length === 0) {
-      console.log('reorientPaths returned empty array, using original path');
-      return resolvedPath;
-    }
-    
-    // 複数のパスが返された場合はCompoundPathを作成
-    if (reorientedPaths.length > 1) {
-      const compoundPath = new CompoundPath();
-      for (const path of reorientedPaths) {
-        compoundPath.addChild(path);
-      }
-      return compoundPath;
-    }
-    
-    // 単一のパスの場合はそのまま返す
-    return reorientedPaths[0];
+    // paper.jsと同じようにメソッドチェーンを使用
+    res = res
+        .resolveCrossings()
+        .reorient(res.getFillRule() === 'nonzero', true);
   }
   
   return res;

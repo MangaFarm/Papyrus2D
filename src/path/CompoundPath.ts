@@ -798,4 +798,13 @@ export class CompoundPath extends PathItemBase {
     
     return copy;
   }
+
+  /**
+   * 塗りつぶしルールを取得する
+   * paper.jsのItem.getFillRule()を移植
+   * @returns 塗りつぶしルール
+   */
+  getFillRule(): string {
+    return super.getFillRule();
+  }
 }

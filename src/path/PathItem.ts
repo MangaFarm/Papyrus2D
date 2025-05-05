@@ -86,9 +86,9 @@ export interface PathItem {
    */
   getCurves(): Curve[];
   /**
-   * 他のPathとの交点列挙
+   * 他のPathItemとの交点列挙
    */
-  getIntersections(other: Path): CurveLocation[];
+  getIntersections(other: PathItem): CurveLocation[];
 
   /**
    * パスを簡略化する
@@ -112,7 +112,7 @@ export interface PathItem {
    * paper.jsのPathItem.resolveCrossings()を移植
    * @returns 交差が解決されたパス
    */
-  resolveCrossings?(): PathItem;
+  resolveCrossings(): PathItem;
 
   /**
    * パスの向きを再設定する
@@ -121,14 +121,14 @@ export interface PathItem {
    * @param clockwise 時計回りにするかどうか
    * @returns このパス
    */
-  reorient?(nonZero?: boolean, clockwise?: boolean): PathItem;
+  reorient(nonZero?: boolean, clockwise?: boolean): PathItem;
 
   /**
    * 塗りつぶしルールを取得する
    * paper.jsのItem.getFillRule()を移植
    * @returns 塗りつぶしルール
    */
-  getFillRule?(): string;
+  getFillRule(): string;
 
   /**
    * 指定されたパスが兄弟関係にあるかどうかを判定する

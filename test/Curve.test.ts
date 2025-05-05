@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { Curve } from '../src/path/Curve';
 import { Segment } from '../src/path/Segment';
 import { Point } from '../src/basic/Point';
-import { Numerical } from '../src/util/Numerical';
 import { CurveGeometry } from '../src/path/CurveGeometry';
 import { Path } from '../src/path/Path';
 
@@ -455,7 +454,7 @@ describe('Curve', () => {
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
-      expect(curve1.divideAt(50).point1).toEqual(middle);
+      expect(curve1.divideAt(50)!.point1).toEqual(middle);
       
       // divideAtTimeのテスト
       const curve2 = new Curve(
@@ -463,7 +462,7 @@ describe('Curve', () => {
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
-      expect(curve2.divideAtTime(0.5).point1).toEqual(middle);
+      expect(curve2.divideAtTime(0.5)!.point1).toEqual(middle);
     });
   });
 
