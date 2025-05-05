@@ -15,6 +15,7 @@ import { PathItem } from './PathItem';
 import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
 import { ChangeFlag } from './ChangeFlag';
+import { reorientPaths } from './PathBooleanReorient';
 
 export class CompoundPath extends PathItemBase {
   // 追加のプロパティ
@@ -433,46 +434,22 @@ export class CompoundPath extends PathItemBase {
    */
   reorient(nonZero?: boolean, clockwise?: boolean): CompoundPath {
     const children = this._children;
-    if (children.length === 0) {
-      return this;
-    }
-    
-    // 面積でソート（大きい順）
-    children.sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
-    
-    // 最も外側のパスの向きを決定
-    const outermostChild = children[0];
-    if (clockwise === undefined) {
-      clockwise = true; // paper.jsではデフォルトで時計回り
-    }
-    
-    // 最も外側のパスは指定された向きに
-    if (!outermostChild.isClosed()) {
-      outermostChild.setClosed(true);
-    }
-    
-    if (outermostChild.isClockwise() !== clockwise) {
-      outermostChild.reverse();
-    }
-    
-    // 内側のパスは外側と逆向きに
-    for (let i = 1, l = children.length; i < l; i++) {
-      const child = children[i];
-      if (!child.isClosed()) {
-        child.setClosed(true);
-      }
+    if (children.length) {
+      // 子パスを取り出し、reorientPathsで処理する
+      const processed = reorientPaths(
+        this.removeChildren(),
+        (w) => {
+          // 偶奇ルールと非ゼロルールの処理
+          return !!(nonZero ? w : w & 1);
+        },
+        clockwise
+      );
       
-      // nonZeroが指定されている場合は、巻き数に基づいて向きを決定
-      // そうでない場合は、内側のパスは外側と逆向きに
-      const desiredClockwise = nonZero ?
-        (i % 2 === 0) === clockwise : // 非ゼロルールでは偶数番目は外側と同じ向き
-        !clockwise; // 偶奇ルールでは内側は外側と逆向き
-      
-      if (child.isClockwise() !== desiredClockwise) {
-        child.reverse();
-      }
+      // nullでないパスだけをフィルタリングして追加
+      this.addChildren(processed.filter(path => path !== null) as Path[]);
+    } else if (clockwise !== undefined) {
+      this.setClockwise(clockwise);
     }
-    
     return this;
   }
 

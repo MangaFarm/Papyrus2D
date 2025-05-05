@@ -1280,8 +1280,11 @@ export class Path extends PathItemBase {
    * @returns このパス
    */
   reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
-    // 基底クラスの実装を呼び出す
-    return super.reorient(nonZero, clockwise);
+    // 単一のパスの場合は、時計回りの方向を設定するだけ
+    if (clockwise !== undefined) {
+      this.setClockwise(clockwise);
+    }
+    return this;
   }
 
   // setClockwiseメソッドは基底クラスから継承

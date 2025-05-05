@@ -174,9 +174,7 @@ export abstract class PathItemBase implements PathItem {
    * @param clockwise 時計回りにするかどうか
    * @returns このパス
    */
-  reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
-    throw new Error('Method reorient() not implemented yet');
-  }
+  abstract reorient(nonZero?: boolean, clockwise?: boolean): PathItem;
 
   /**
    * 塗りつぶしルールを取得する
