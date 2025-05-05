@@ -10,7 +10,6 @@ import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Curve } from './Curve';
-import { reorientPaths } from './PathBooleanReorient';
 import { tracePaths } from './PathBooleanTracePaths';
 import { getMeta, IntersectionInfo } from './SegmentMeta';
 

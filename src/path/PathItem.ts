@@ -97,7 +97,7 @@ export interface PathItem {
    * @param options 簡略化オプション
    * @returns 簡略化されたPathItemオブジェクト
    */
-  reduce?(options?: { simplify?: boolean }): PathItem;
+  reduce(options?: { simplify?: boolean }): PathItem;
 
   /**
    * パスのクローンを作成する
@@ -170,7 +170,7 @@ export interface PathItem {
    * @param setApplyMatrix 行列を適用するかどうか
    * @returns このパス
    */
-  transform?(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem;
+  transform(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem;
 
   /**
    * パスの配列を取得する
