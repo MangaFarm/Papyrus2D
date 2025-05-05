@@ -1,49 +1,59 @@
-# PathBooleanIntersections アルゴリズム差異
+# Paper.js vs Papyrus2D: PathBoolean アルゴリズムの差異と修正方法
 
-Paper.jsとPapyrus2DのPathBooleanIntersectionsモジュールを比較した結果、以下の重要な差異が見つかりました：
+## 1. resolveCrossings関数 (PathBooleanPreparation.ts)
 
-## divideAtTimeメソッドの戻り値の違い
+**問題**: PathBooleanPreparation.tsのresolveCrossings関数では、自己交差の解決処理が不完全です。tracePaths関数が呼び出されていません。
 
-Paper.jsとPapyrus2DのdivideAtTimeメソッドには、戻り値の型に重要な違いがありました：
+**修正方法**: 
+- src/path/PathBooleanTracePaths.tsからtracePaths関数をインポートする
+- paper.jsと同様に、すべてのセグメントを収集した後、tracePaths関数を呼び出す
+- 結果のパスを返す前に、tracePaths関数の結果を使用する
 
-- **Paper.js**: 新しい曲線オブジェクト（Curve）を返します
-- **Papyrus2D（修正前）**: 分割点のインデックス（数値）を返していました
+## 2. 時間パラメータの再スケーリング (PathBooleanPreparation.ts)
 
-この違いは、PathBooleanIntersections.tsのdivideLocations関数内での曲線分割処理に影響していました。Paper.jsでは、divideAtTimeの戻り値を直接Curveオブジェクトとして扱いますが、Papyrus2Dでは、戻り値のインデックスを使って新しいカーブを取得する必要がありました。
+**問題**: divideLocations関数内での時間パラメータの再スケーリング処理に問題があります。新しい変数（newTime）が定義されていますが、後続の処理で使用されていません。
 
-```javascript
-// Paper.js
-var newCurve = curve.divideAtTime(time, true);
-if (clearHandles) {
-  clearCurves.push(curve, newCurve);
-}
-segment = newCurve._segment1;
+**修正方法**:
+- TypeScriptの制約上、constで宣言された変数は再代入できないため、以下のように修正する:
 ```
-
-```typescript
-// Papyrus2D（修正前）
-const newSegmentIndex = curve.divideAtTime(time, clearHandles);
-if (clearHandles && newSegmentIndex !== -1) {
-  clearCurves.push(curve);
-  const newCurve = curve._path._curves[newSegmentIndex];
-  if (newCurve) {
-    clearCurves.push(newCurve);
-  }
-}
-if (newSegmentIndex !== -1) {
-  segment = curve._path._segments[newSegmentIndex];
-  // ...
-}
+// 現在のコード
+const newTime = time / prevTime;
+// 修正後 (TypeScriptの制約上、直接再代入はできないため)
+loc._time = time / prevTime;
 ```
+- コメントを追加: `// TypeScript制約: constの再代入ができないため、直接_timeプロパティを設定`
 
-この違いにより、エッジケースでの挙動が異なる可能性がありました。特に、曲線分割が失敗した場合や、複雑な形状を処理する場合に問題が発生する可能性がありました。
+## 3. CollisionDetection関数の呼び出し (PathBoolean.ts)
 
-## 修正内容
+**問題**: traceBoolean関数内で、paper.jsのfindCurveBoundsCollisionsの代わりにfindCurveBoundsCollisionsWithBothAxisを使用しています。
 
-以下のファイルを修正して、Paper.jsの実装と完全に一致させました：
+**修正方法**:
+- CollisionDetection.findCurveBoundsCollisionsWithBothAxisの代わりに、paper.jsと同じfindCurveBoundsCollisionsを使用する
+- 引数も完全に一致させる: `CollisionDetection.findCurveBoundsCollisions(curvesValues, curvesValues, 0, true)`
 
-1. **Curve.ts**: divideAtTimeメソッドを修正して、新しい曲線オブジェクト（Curve）を返すようにしました
-2. **PathBooleanIntersections.ts**: divideAtTimeメソッドの戻り値を正しく処理するように修正しました
-3. **CurveLocation.ts**: divideメソッドを修正して、Paper.jsの実装と完全に一致させました
+## 4. null/undefined処理の修正
 
-これらの修正により、Papyrus2DのPathBooleanIntersectionsモジュールがPaper.jsと同じ挙動をするようになりました。
+**全般的な修正方針**:
+- paper.jsでnull/undefined判定をしていない箇所では、TypeScriptのエラーを回避するために非nullアサーション演算子(!)を使用する
+- 例: `segment.next!` のように、paper.jsで明示的なnullチェックがない場合は!を使用する
+- コメントを追加: `// paper.jsではnullチェックなし、TypeScript制約のため!を使用`
+
+## 5. 順序の一致
+
+**全般的な修正方針**:
+- 関数の呼び出し順序、パラメータの順序などをpaper.jsと完全に一致させる
+- 特にループ処理やイテレーションの順序が重要な箇所では、paper.jsのコードを参照して順序を合わせる
+
+## 6. 型キャストの適切な使用
+
+**全般的な修正方針**:
+- TypeScriptの型システムの制約上必要な場合のみ型キャストを使用する
+- 型キャストを使用する場合は、paper.jsの実装に忠実であることを示すコメントを追加する
+- 例: `(segment as any)._intersection = dest; // paper.jsでは直接プロパティ設定`
+
+## 7. 実装済み関数の活用
+
+**全般的な修正方針**:
+- src/archive.mdを参照して、既に実装済みの関数を確認する
+- paper.jsで使用されている関数が既に実装されている場合は、それを活用する
+- 未実装の関数がある場合は、paper.jsのコードを参照して忠実に実装する

@@ -11,6 +11,7 @@ import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Curve } from './Curve';
 import { reorientPaths } from './PathBooleanReorient';
+import { tracePaths } from './PathBooleanTracePaths';
 
 /**
  * パスの配列を取得する
@@ -32,7 +33,7 @@ export function resolveCrossings(path: PathItem): PathItem {
   // paper.jsの実装に合わせた処理
   
   // パスまたは複合パスのアイテムをサポート
-  const paths = path.getPaths!();
+  let paths = path.getPaths!();
   
   // hasOverlap関数の実装
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
@@ -143,16 +144,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     }
     
     // 自己交差を解決するためのパスを生成
-    // paper.jsのtracePaths関数と同等の機能を実装
-    
-    // 注意: 完全なpaper.js互換性のためには、
-    // PathBoolean.tsのtracePaths関数を使用する必要がありますが、
-    // 現在の実装ではprivateメソッドのため直接呼び出せません
-    
-    // 以下のコードはPaper.jsの実装に基づいています:
-    // paths = tracePaths(Base.each(paths, function(path) {
-    //   Base.push(this, path._segments);
-    // }, []));
+    // paper.jsのtracePaths関数を使用
     
     // すべてのセグメントを収集
     const allSegments: Segment[] = [];
@@ -160,14 +152,8 @@ export function resolveCrossings(path: PathItem): PathItem {
       allSegments.push(...p._segments);
     }
     
-    // 注意: ここでPaper.jsではtracePaths関数を呼び出しています
-    // 現在の実装では、この関数はprivateなため直接呼び出せません
-    // 完全なPaper.js互換性のためには、PathBoolean.tsのtracePaths関数を
-    // publicにするか、同等の機能をここに実装する必要があります
-    
-    // 現在は簡略化のため、既存のパスをそのまま使用します
-    // これにより、複雑な自己交差を持つパスの処理結果がPaper.jsと
-    // 異なる可能性があります
+    // paper.jsと同様に、tracePaths関数を呼び出す
+    paths = tracePaths(allSegments, {});
   }
   
   // 結果を決定
@@ -257,13 +243,8 @@ function divideLocations(
         prevCurve = curve;
       } else if (prevTime !== undefined && prevTime >= tMin) {
         // 同じ曲線を複数回分割する場合、時間パラメータを再スケール
-        // 時間パラメータを再スケール
-        // 定数のtimeを直接変更できないため、新しい変数を使用
-        const newTime = time / prevTime;
-        // 以降の処理ではnewTimeを使用
-        // paper.jsでは直接timeを変更していますが、
-        // TypeScriptでは定数の再代入ができないため、
-        // 以降の処理でtimeの代わりにnewTimeを使用する必要があります
+        // TypeScript制約: constの再代入ができないため、直接_timeプロパティを設定
+        loc._time = time / prevTime;
       }
     }
     

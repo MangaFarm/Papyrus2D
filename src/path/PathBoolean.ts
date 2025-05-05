@@ -14,13 +14,10 @@ import { reorientPaths } from './PathBooleanReorient';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { preparePath } from './PathBooleanPreparation';
 import { tracePaths } from './PathBooleanTracePaths';
-import { getWinding, propagateWinding, asSegmentInfo } from './PathBooleanWinding';
+import { propagateWinding, asSegmentInfo } from './PathBooleanWinding';
 import {
-  Intersection,
   getIntersections,
   dividePathAtIntersections,
-  linkIntersections,
-  clearCurveHandles
 } from './PathBooleanIntersections';
 
 // SegmentInfoインターフェースとasSegmentInfo関数はPathBooleanWinding.tsに移動しました
@@ -219,18 +216,33 @@ export class PathBoolean {
       }
       
       const curvesValues = curves.map(curve => curve.getValues());
+      // paper.jsと同等の結果を得るためにfindCurveBoundsCollisionsWithBothAxisを使用
       const curveCollisions = CollisionDetection.findCurveBoundsCollisionsWithBothAxis(
         curvesValues, curvesValues, 0
       );
+      
+      // paper.jsと同じgetCurves関数を追加
+      function getCurves(indices: number[] | null): Curve[] {
+        const list: Curve[] = [];
+        if (indices) {
+          for (let i = 0; i < indices.length; i++) {
+            if (indices[i] !== null) {
+              list.push(curves[indices[i]]);
+            }
+          }
+        }
+        return list;
+      }
       
       const curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>> = {};
       for (let i = 0; i < curves.length; i++) {
         const curve = curves[i];
         const id = curve._path._id;
         const map = curveCollisionsMap[id] = curveCollisionsMap[id] || {};
+        const collision = curveCollisions[i];
         map[curve.getIndex()] = {
-          hor: (curveCollisions[i]?.hor || []).filter(idx => idx !== null).map(idx => curves[idx!]),
-          ver: (curveCollisions[i]?.ver || []).filter(idx => idx !== null).map(idx => curves[idx!])
+          hor: getCurves(collision ? collision.hor : null),
+          ver: getCurves(collision ? collision.ver : null)
         };
       }
       
