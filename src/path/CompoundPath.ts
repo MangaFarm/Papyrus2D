@@ -16,6 +16,7 @@ import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
 import { ChangeFlag } from './ChangeFlag';
 import { reorientPaths } from './PathBooleanReorient';
+import { resolveCrossings } from './PathBooleanResolveCrossings';
 
 export class CompoundPath extends PathItemBase {
   // 追加のプロパティ
@@ -741,5 +742,13 @@ export class CompoundPath extends PathItemBase {
     copy.copyAttributes(this);
     
     return copy;
+  }
+  /**
+   * 交差を解決する
+   * paper.jsのPathItem.resolveCrossings()を移植
+   * @returns 交差が解決されたパス
+   */
+  resolveCrossings(): PathItem {
+    return resolveCrossings(this);
   }
 }

@@ -71,6 +71,7 @@
   - [x] 3.3.6 smoothメソッドの実装（曲線を滑らかにする）
   - [x] 3.3.7 PathFitterクラスの実装（パスの単純化アルゴリズム）
   - [x] 3.3.8 simplifyメソッドの実装（パスの単純化）
+- [x] 3.3.9 PathItem.resolveCrossingsのpaper.js準拠実装（Path/CompoundPath両方）【2025/05/05 完了】
 - [ ] 3.4 パスクラスのテスト作成
   - [x] 3.4.1 Segmentのユニットテスト（Segment.test.ts の実装完了）
   - [x] 3.4.2 Curveのユニットテスト（Curve.test.ts の実装完了）
@@ -90,6 +91,7 @@
   - [ ] 4.3.3 subtract (差分) 操作
   - [ ] 4.3.4 exclude (排他的論理和) 操作
   - [ ] 4.3.5 divide (分割) 操作
+- [x] 4.3.6 resolveCrossingsのAPI実装（Path/CompoundPath両方）【2025/05/05 完了】
 - [ ] 4.4 ブーリアン演算のテスト作成
   - [x] 4.4.1 intersect操作の基本テスト（paper.jsからテスト移植済み）
   - [x] 4.4.2 その他の演算の基本テスト（unite, subtract, exclude操作のテスト追加）

@@ -23,6 +23,7 @@ import { PathFitter } from './PathFitter';
 // PathConstructorsからメソッドをインポート
 import { PathConstructors } from './PathConstructors';
 import { smoothPath, splitPathAt } from './PathUtils';
+import { resolveCrossings } from './PathBooleanResolveCrossings';
 
 export class Path extends PathItemBase {
   // 静的メソッド
@@ -1278,9 +1279,9 @@ export class Path extends PathItemBase {
    * paper.jsのPathItem.resolveCrossings()を移植
    * @returns 交差が解決されたパス
    */
+  // PathBooleanResolveCrossings.tsの関数を利用
   resolveCrossings(): PathItem {
-    // 基底クラスの実装を呼び出す
-    return super.resolveCrossings();
+    return resolveCrossings(this);
   }
 
   /**
