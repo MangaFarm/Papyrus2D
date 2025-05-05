@@ -104,9 +104,14 @@ export function reorientPaths(
       // 含むパスが除外されていない場合、方向を設定
       const container = entry1.container;
       
-      path1.setClockwise(
-        container ? !container.isClockwise() : clockwise
-      );
+      // unite演算時はすべてclockwise（正の面積）に揃える
+      if (typeof isInside === 'function' && isInside(1) && isInside(2)) {
+        path1.setClockwise(true);
+      } else {
+        path1.setClockwise(
+          container ? !container.isClockwise() : clockwise
+        );
+      }
     }
   }
 
