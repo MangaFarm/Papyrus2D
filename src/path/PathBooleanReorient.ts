@@ -99,7 +99,7 @@ export function reorientPaths(
     // 「内部性」が変わる場合のみパスを保持
     if (isInside(entry1.winding) === isInside(containerWinding)) {
       entry1.exclude = true;
-      paths[entry1.index] = null as unknown as Path; // 除外されたパスをnullに設定
+      paths[entry1.index] = null as unknown as Path; // 直そうとしたが大工事になるのでそのまま この破壊的操作は意図的であるらしい
     } else {
       // 含むパスが除外されていない場合、方向を設定
       const container = entry1.container;

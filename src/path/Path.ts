@@ -403,47 +403,41 @@ export class Path extends PathItemBase {
    * @returns 曲線位置情報
    */
   getLocationAt(offset: number): CurveLocation | null {
-    if (typeof offset === 'number') {
-      console.log('getLocationAt: offset =', offset);
-      const curves = this.getCurves();
-      const length = curves.length;
-      console.log('getLocationAt: curves.length =', length);
-      if (!length) {
-        console.log('getLocationAt: no curves');
-        return null;
-      }
-      
-      let curLength = 0;
-      
-      for (let i = 0; i < length; i++) {
-        const start = curLength;
-        const curve = curves[i];
-        const curveLength = curve.getLength();
-        console.log(`getLocationAt: curve[${i}].length =`, curveLength);
-        curLength += curveLength;
-        
-        if (curLength > offset) {
-          // この曲線上の位置を計算
-          const curveOffset = offset - start;
-          console.log(`getLocationAt: found curve[${i}], curveOffset =`, curveOffset);
-          const loc = curve.getLocationAt(curveOffset);
-          console.log('getLocationAt: location =', loc ? 'valid' : 'null');
-          return loc;
-        }
-      }
-      
-      // 誤差により最後の曲線が見逃された場合、offsetが全長以下であれば最後の曲線の終点を返す
-      if (curves.length > 0 && offset <= this.getLength()) {
-        console.log('getLocationAt: using last curve endpoint');
-        return new CurveLocation(curves[length - 1], 1);
-      }
-      
-      console.log('getLocationAt: offset out of range');
-    } else if (offset && (offset as any).getPath && (offset as any).getPath() === this) {
-      // offsetがすでにCurveLocationの場合はそのまま返す
-      return offset as unknown as CurveLocation;
+    console.log('getLocationAt: offset =', offset);
+    const curves = this.getCurves();
+    const length = curves.length;
+    console.log('getLocationAt: curves.length =', length);
+    if (!length) {
+      console.log('getLocationAt: no curves');
+      return null;
     }
     
+    let curLength = 0;
+    
+    for (let i = 0; i < length; i++) {
+      const start = curLength;
+      const curve = curves[i];
+      const curveLength = curve.getLength();
+      console.log(`getLocationAt: curve[${i}].length =`, curveLength);
+      curLength += curveLength;
+      
+      if (curLength > offset) {
+        // この曲線上の位置を計算
+        const curveOffset = offset - start;
+        console.log(`getLocationAt: found curve[${i}], curveOffset =`, curveOffset);
+        const loc = curve.getLocationAt(curveOffset);
+        console.log('getLocationAt: location =', loc ? 'valid' : 'null');
+        return loc;
+      }
+    }
+    
+    // 誤差により最後の曲線が見逃された場合、offsetが全長以下であれば最後の曲線の終点を返す
+    if (curves.length > 0 && offset <= this.getLength()) {
+      console.log('getLocationAt: using last curve endpoint');
+      return new CurveLocation(curves[length - 1], 1);
+    }
+    
+    console.log('getLocationAt: offset out of range');
     return null;
   }
 
