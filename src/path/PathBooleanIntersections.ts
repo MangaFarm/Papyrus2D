@@ -37,29 +37,9 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * 2つのパスの交点を計算
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
-export function getIntersections(path1: Path, path2: Path): Intersection[] {
-    // CurveLocation.expand(_path1.getIntersections(_path2, filterIntersection)) を IntersectionInfo[] に変換
-    const locations = CurveLocation.expand(path1.getIntersections(path2, filterIntersection));
-    return locations.map(loc => {
-        // IntersectionInfo型に変換
-        return {
-            point: loc.getPoint(),
-            curve1Index: loc.getCurve() ? loc.getCurve()!.getIndex() : -1,
-            curve2Index: loc.getIntersection() && loc.getIntersection()!.getCurve()
-                ? loc.getIntersection()!.getCurve()!.getIndex()
-                : -1,
-            t1: (loc as any)._time ?? null,
-            t2: (loc.getIntersection() as any)?._time ?? null,
-            type: (loc as any).type,
-            winding: (loc as any).winding,
-            visited: (loc as any).visited,
-            next: (loc as any).next,
-            _previous: (loc as any)._previous,
-            segment: loc.getSegment ? loc.getSegment() : undefined,
-            _overlap: (loc as any)._overlap,
-            _intersection: (loc as any)._intersection
-        } as IntersectionInfo;
-    });
+export function getIntersections(path1: Path, path2: Path): CurveLocation[] {
+    // CurveLocation.expand(_path1.getIntersections(_path2, filterIntersection)) をそのまま返す
+    return CurveLocation.expand(path1.getIntersections(path2, filterIntersection));
 }
 
 /**
@@ -101,6 +81,20 @@ export function divideLocations(
         const exclude = include && !include(loc);
         const curve = (loc as any)._curve as Curve | undefined;
         let segment: Segment | undefined;
+
+        if (!curve) {
+            // デバッグ出力: curveがundefinedのときlocの内容を出力（循環参照を避ける）
+            // eslint-disable-next-line no-console
+            console.error(
+                '[Papyrus2D Debug] divideLocations: curve is undefined at i=',
+                i,
+                'loc.constructor=', loc && loc.constructor && loc.constructor.name,
+                'loc._time=', (loc as any)._time,
+                'loc._segment=', (loc as any)._segment ? ((loc as any)._segment.constructor && (loc as any)._segment.constructor.name) : undefined,
+                'loc._intersection=', (loc as any)._intersection ? true : false
+            );
+        }
+
         if (curve) {
             if (curve !== prevCurve) {
                 clearHandles = !curve.hasHandles() || !!(clearLookup && clearLookup[getId(curve)]);
@@ -125,12 +119,16 @@ export function divideLocations(
             segment = (curve as any)._segment2;
         } else {
             const newCurve = (curve as any).divideAtTime(time, true);
-            if (clearHandles)
-                clearCurves.push(curve!, newCurve!);
-            segment = newCurve._segment1;
-            for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
-                const l = renormalizeLocs[j];
-                (l as any)._time = ((l as any)._time - time) / (1 - time);
+            if (!newCurve) {
+                throw new Error(`[Papyrus2D AssertionError] divideAtTime returned null: i=${i}, time=${time}, curveIndex=${curve && curve.getIndex && curve.getIndex()}, tMin=${tMin}, tMax=${tMax}, curve=${curve}`);
+            } else {
+                if (clearHandles)
+                    clearCurves.push(curve!, newCurve!);
+                segment = newCurve._segment1;
+                for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
+                    const l = renormalizeLocs[j];
+                    (l as any)._time = ((l as any)._time - time) / (1 - time);
+                }
             }
         }
         (loc as any)._setSegment(segment);
@@ -143,24 +141,31 @@ export function divideLocations(
                 linkIntersections((other as any)._intersection, inter);
                 other = (other as any)._next;
             }
+            // segmentがSegment型でない場合は即例外
+            if (!(segment instanceof Segment)) {
+                throw new Error(`[Papyrus2D AssertionError] divideLocations: segment is not a valid Segment at i=${i}, segment=${segment}`);
+            }
         } else {
             (segment as any)._intersection = dest;
         }
     }
     if (!clearLater)
         clearCurveHandles(clearCurves);
-    return (results as any) || locations;
+    // Segment型のみ返す
+    const arr = ((results as any) || locations) as any[];
+    // Segment型インスタンスのみ返す
+    return arr.filter(seg => seg instanceof Segment);
 }
 
 /**
  * 交点でパスを分割
  * paper.jsのdivideLocations関数を使用した実装
  */
-export function dividePathAtIntersections(path: Path, intersections: Intersection[]): Segment[] {
+export function dividePathAtIntersections(path: Path, locations: CurveLocation[]): Segment[] {
     // paper.js: divideLocationsを使って交点でパスを分割
     // Papyrus2Dでは交点情報をCurveLocation[]として扱う前提で、divideLocationsを呼び出す
     // 返り値は分割後のセグメント配列
-    return divideLocations(intersections as unknown as CurveLocation[]);
+    return divideLocations(locations);
 }
 
 /**

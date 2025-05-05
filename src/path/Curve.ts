@@ -4,6 +4,7 @@
  * ミュータブル設計
  */
 
+import { strict as assert } from 'assert';
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Matrix } from '../basic/Matrix';
@@ -262,54 +263,59 @@ export class Curve {
    * @returns 新しい曲線オブジェクト（Paper.jsと同様）
    */
   divideAtTime(t: number, _setHandles?: boolean): Curve | null {
-    // 最小・最大値の定義
-    const tMin = Numerical.CURVETIME_EPSILON;
-    const tMax = 1 - tMin;
-    let res: Curve | null = null;
-    
-    // 有効な範囲内かチェック
-    if (t >= tMin && t <= tMax) {
-      // 曲線を分割
-      const parts = CurveSubdivision.subdivide(this.getValues(), t);
-      const left = parts[0];
-      const right = parts[1];
+      // 最小・最大値の定義
+      const tMin = Numerical.CURVETIME_EPSILON;
+      const tMax = 1 - tMin;
+      let res: Curve | null = null;
       
-      // ハンドルを設定するかどうか
-      const setHandles = _setHandles !== undefined ? _setHandles : this.hasHandles();
-      
-      const seg1 = this._segment1;
-      const seg2 = this._segment2;
-      
-      if (setHandles) {
-        // ハンドルを調整
-        seg1._handleOut._set(left[2] - left[0], left[3] - left[1]);
-        seg2._handleIn._set(right[4] - right[6], right[5] - right[7]);
+      // 有効な範囲内かチェック
+      if (t >= tMin && t <= tMax) {
+          // 曲線を分割
+          const parts = CurveSubdivision.subdivide(this.getValues(), t);
+          assert(parts && parts[0] && parts[1], `[Papyrus2D AssertionError] CurveSubdivision.subdivide returned invalid parts: t=${t}, parts=${JSON.stringify(parts)}`);
+          const left = parts[0];
+          const right = parts[1];
+          assert(left && right && left.length === 8 && right.length === 8, `[Papyrus2D AssertionError] subdivide result invalid: left=${left}, right=${right}`);
+          
+          // ハンドルを設定するかどうか
+          const setHandles = _setHandles !== undefined ? _setHandles : this.hasHandles();
+          
+          const seg1 = this._segment1;
+          const seg2 = this._segment2;
+          assert(seg1 && seg2, `[Papyrus2D AssertionError] seg1 or seg2 is null: seg1=${seg1}, seg2=${seg2}`);
+          
+          if (setHandles) {
+              // ハンドルを調整
+              seg1._handleOut._set(left[2] - left[0], left[3] - left[1]);
+              seg2._handleIn._set(right[4] - right[6], right[5] - right[7]);
+          }
+          
+          // 新しいセグメントを作成
+          const x = left[6], y = left[7];
+          const segment = new Segment(
+              new Point(x, y),
+              setHandles ? new Point(left[4] - x, left[5] - y) : null,
+              setHandles ? new Point(right[2] - x, right[3] - y) : null
+          );
+          assert(segment, `[Papyrus2D AssertionError] failed to create new Segment at t=${t}`);
+          // 新しいセグメントの_pathを設定（paper.jsと同じ）
+          segment._path = this._path;
+          
+          // パスが設定されている場合
+          if (this._path) {
+              // セグメントを挿入
+              this._path.insert(seg1._index + 1, segment);
+              // 新しく挿入されたセグメントは次のカーブの開始点
+              res = this.getNext();
+          } else {
+              // パスがない場合は、分割結果から新しいカーブを作成
+              this._segment2 = segment;
+              this._changed();
+              res = new Curve(null, segment, seg2);
+              assert(res, `[Papyrus2D AssertionError] failed to create new Curve(null, segment, seg2) at t=${t}`);
+          }
       }
-      
-      // 新しいセグメントを作成
-      const x = left[6], y = left[7];
-      const segment = new Segment(
-        new Point(x, y),
-        setHandles ? new Point(left[4] - x, left[5] - y) : null,
-        setHandles ? new Point(right[2] - x, right[3] - y) : null
-      );
-      // 新しいセグメントの_pathを設定（paper.jsと同じ）
-      segment._path = this._path;
-      
-      // パスが設定されている場合
-      if (this._path) {
-        // セグメントを挿入
-        this._path.insert(seg1._index + 1, segment);
-        // 新しく挿入されたセグメントは次のカーブの開始点
-        res = this.getNext();
-      } else {
-        // パスがない場合は、分割結果から新しいカーブを作成
-        this._segment2 = segment;
-        this._changed();
-        res = new Curve(null, segment, seg2);
-      }
-    }
-    return res;
+      return res;
   }
 
   /**

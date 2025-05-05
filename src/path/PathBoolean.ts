@@ -291,8 +291,8 @@ const _path2 = preparePath(path2, true) as Path;
       } catch (e) {}
       // 交点からwinding numberを伝播
       for (const intersection of intersections) {
-        if (intersection.segment) {
-          propagateWinding(intersection.segment, _path1, _path2, curveCollisionsMap, operator);
+        if (intersection.getSegment && intersection.getSegment()) {
+          propagateWinding(intersection.getSegment(), _path1, _path2, curveCollisionsMap, operator);
         }
       }
       
