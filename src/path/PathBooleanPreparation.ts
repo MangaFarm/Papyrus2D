@@ -39,19 +39,10 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
       }
     }
 
-    // デバッグ: reorient前のセグメント数
-    // eslint-disable-next-line no-console
-
     // paper.jsと同じようにメソッドチェーンを使用
     res = res.resolveCrossings();
 
-    // デバッグ: resolveCrossings後のセグメント数
-    // eslint-disable-next-line no-console
-
     res = res.reorient(res.getFillRule && res.getFillRule() === 'nonzero', true);
-
-    // デバッグ: reorient後のセグメント数
-    // eslint-disable-next-line no-console
   }
 
   return res;

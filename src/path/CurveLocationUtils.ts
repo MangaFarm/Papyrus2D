@@ -26,12 +26,12 @@ export class CurveLocationUtils {
     // 端点が十分近い場合は早期リターン
     if (point.isClose(p0, epsilon)) {
       // eslint-disable-next-line no-console
-      console.log('[getTimeOf] return 0 (epsilon)', { point: point.toString(), p0: p0.toString() });
+      
       return 0;
     }
     if (point.isClose(p3, epsilon)) {
       // eslint-disable-next-line no-console
-      console.log('[getTimeOf] return 1 (epsilon)', { point: point.toString(), p3: p3.toString() });
+      
       return 1;
     }
 
@@ -56,7 +56,7 @@ export class CurveLocationUtils {
         const p = CurveCalculation.getPoint(v, t)!;
         if (point.isClose(p, geomEpsilon)) {
           // eslint-disable-next-line no-console
-          console.log('[getTimeOf] return t (root match)', { t, point: point.toString(), p: p.toString(), c });
+          
           return t;
         }
       }
@@ -65,17 +65,17 @@ export class CurveLocationUtils {
     // 端点が十分近い場合は幾何学的イプシロンでも確認
     if (point.isClose(p0, geomEpsilon)) {
       // eslint-disable-next-line no-console
-      console.log('[getTimeOf] return 0 (geomEpsilon)', { point: point.toString(), p0: p0.toString() });
+      
       return 0;
     }
     if (point.isClose(p3, geomEpsilon)) {
       // eslint-disable-next-line no-console
-      console.log('[getTimeOf] return 1 (geomEpsilon)', { point: point.toString(), p3: p3.toString() });
+      
       return 1;
     }
 
     // eslint-disable-next-line no-console
-    console.log('[getTimeOf] return null', { point: point.toString(), p0: p0.toString(), p3: p3.toString() });
+    
     return null;
   }
 

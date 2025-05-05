@@ -29,14 +29,14 @@ export function getCurveIntersections(
 ): CurveLocation[] {
   // デバッグ: 入力値・直線判定・overlapsを出力
   // eslint-disable-next-line no-console
-  console.log('[getCurveIntersections] v1:', JSON.stringify(v1), 'v2:', JSON.stringify(v2));
+  
   const straight1 = Curve.isStraight(v1);
   const straight2 = Curve.isStraight(v2);
   // eslint-disable-next-line no-console
-  console.log('[getCurveIntersections] straight1:', straight1, 'straight2:', straight2);
+  
   const overlaps = getOverlaps(v1, v2);
   // eslint-disable-next-line no-console
-  console.log('[getCurveIntersections] overlaps:', JSON.stringify(overlaps));
+  
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
   const min = Math.min;
@@ -303,7 +303,7 @@ export function getIntersections(
     epsilon
   );
   // eslint-disable-next-line no-console
-  console.log('[CurveIntersectionMain.getIntersections] boundsCollisions', JSON.stringify(boundsCollisions));
+  
 
   // 各曲線の交点を計算
   for (let index1 = 0; index1 < length1; index1++) {
@@ -338,7 +338,7 @@ export function getIntersections(
   }
 
   // eslint-disable-next-line no-console
-  console.log('[CurveIntersectionMain.getIntersections] return locations', locations.map(loc => ({
+  console.log(' return locations', locations.map(loc => ({
     point: loc.getPoint().toString(),
     overlap: loc.hasOverlap(),
     crossing: loc.isCrossing(),

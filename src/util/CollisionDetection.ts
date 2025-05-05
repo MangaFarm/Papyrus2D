@@ -21,17 +21,17 @@ export class CollisionDetection {
     const min = Math.min;
     const max = Math.max;
     const bounds = new Array(curves.length);
-    
+
     for (let i = 0; i < curves.length; i++) {
       const v = curves[i];
       bounds[i] = [
         min(v[0], v[2], v[4], v[6]),
         min(v[1], v[3], v[5], v[7]),
         max(v[0], v[2], v[4], v[6]),
-        max(v[1], v[3], v[5], v[7])
+        max(v[1], v[3], v[5], v[7]),
       ];
     }
-    
+
     return bounds;
   }
 
@@ -42,14 +42,10 @@ export class CollisionDetection {
   ): (number[] | null)[] {
     // 境界ボックスを計算
     const bounds1 = this.calculateCurveBounds(curves1);
-    const bounds2 = !curves2 || curves2 === curves1
-      ? bounds1
-      : this.calculateCurveBounds(curves2);
+    const bounds2 = !curves2 || curves2 === curves1 ? bounds1 : this.calculateCurveBounds(curves2);
 
     // 許容誤差を大きめにして端点一致も衝突とみなす
     const effectiveTolerance = Math.max(tolerance, 1e-6); // もしくはNumerical.GEOMETRIC_EPSILON * 10
-    // eslint-disable-next-line no-console
-    console.log('[CollisionDetection.findCurveBoundsCollisions] using tolerance', effectiveTolerance);
 
     // 単一方向でチェック
     return this.findBoundsCollisions(bounds1, bounds2, effectiveTolerance);
@@ -70,16 +66,12 @@ export class CollisionDetection {
   ): { hor: number[] | null; ver: number[] | null }[] {
     // 境界ボックスを計算
     const bounds1 = this.calculateCurveBounds(curves1);
-    const bounds2 = !curves2 || curves2 === curves1
-      ? bounds1
-      : this.calculateCurveBounds(curves2);
-    
+    const bounds2 = !curves2 || curves2 === curves1 ? bounds1 : this.calculateCurveBounds(curves2);
+
     // 水平方向と垂直方向の両方でチェック
-    const hor = this.findBoundsCollisions(
-      bounds1, bounds2, tolerance || 0, false, true);
-    const ver = this.findBoundsCollisions(
-      bounds1, bounds2, tolerance || 0, true, true);
-    
+    const hor = this.findBoundsCollisions(bounds1, bounds2, tolerance || 0, false, true);
+    const ver = this.findBoundsCollisions(bounds1, bounds2, tolerance || 0, true, true);
+
     // 結果を組み合わせる
     const list: { hor: number[] | null; ver: number[] | null }[] = [];
     for (let i = 0, l = hor.length; i < l; i++) {
@@ -99,19 +91,19 @@ export class CollisionDetection {
     sweepVertical?: boolean,
     onlySweepAxisCollisions?: boolean
   ): (number[] | null)[] {
-    const self = !boundsB || boundsA === boundsB;
-    const allBounds = self ? boundsA : boundsA.concat(boundsB!);
-    const lengthA = boundsA.length;
-    const lengthAll = allBounds.length;
+    var self = !boundsB || boundsA === boundsB,
+      allBounds = self ? boundsA : boundsA.concat(boundsB!),
+      lengthA = boundsA.length,
+      lengthAll = allBounds.length;
 
-    // バイナリサーチユーティリティ関数
-    // 同じ値が複数ある場合、最も右側のエントリを返す
+    // Binary search utility function.
+    // For multiple same entries, this returns the rightmost entry.
     // https://en.wikipedia.org/wiki/Binary_search_algorithm#Procedure_for_finding_the_rightmost_element
-    function binarySearch(indices: number[], coord: number, value: number): number {
-      let lo = 0;
-      let hi = indices.length;
+    function binarySearch(indices: number[], coord: number, value: number) {
+      var lo = 0,
+        hi = indices.length;
       while (lo < hi) {
-        const mid = (hi + lo) >>> 1; // Math.floor((hi + lo) / 2)と同じ
+        var mid = (hi + lo) >>> 1; // Same as Math.floor((hi + lo) / 2)
         if (allBounds[indices[mid]][coord] < value) {
           lo = mid + 1;
         } else {
@@ -121,150 +113,127 @@ export class CollisionDetection {
       return lo - 1;
     }
 
-    // 主軸と副軸の座標設定
-    const pri0 = sweepVertical ? 1 : 0;
-    const pri1 = pri0 + 2;
-    const sec0 = sweepVertical ? 0 : 1;
-    const sec1 = sec0 + 2;
-    
-    // 主軸の下限でソートされた全インデックスの配列を作成
-    const allIndicesByPri0 = new Array(lengthAll);
-    for (let i = 0; i < lengthAll; i++) {
+    // Set coordinates for primary and secondary axis depending on sweep
+    // direction. By default we sweep in horizontal direction, which
+    // means x is the primary axis.
+    var pri0 = sweepVertical ? 1 : 0,
+      pri1 = pri0 + 2,
+      sec0 = sweepVertical ? 0 : 1,
+      sec1 = sec0 + 2;
+    // Create array with all indices sorted by lower boundary on primary
+    // axis.
+    var allIndicesByPri0 = new Array(lengthAll);
+    for (var i = 0; i < lengthAll; i++) {
       allIndicesByPri0[i] = i;
     }
-    allIndicesByPri0.sort((i1, i2) => {
+    allIndicesByPri0.sort(function (i1, i2) {
       return allBounds[i1][pri0] - allBounds[i2][pri0];
     });
-    
-    // 主軸に沿ってスイープ
-    const activeIndicesByPri1: number[] = [];
-    const allCollisions: (number[] | null)[] = new Array(lengthA);
-    
-    for (let i = 0; i < lengthAll; i++) {
-      const curIndex = allIndicesByPri0[i];
-      const curBounds = allBounds[curIndex];
-      // オリジナルのインデックス（boundsAまたはboundsB内）
-      const origIndex = self ? curIndex : curIndex - lengthA;
-      const isCurrentA = curIndex < lengthA;
-      const isCurrentB = self || !isCurrentA;
-      let curCollisions: number[] | null = isCurrentA ? [] : null;
-      
+    // Sweep along primary axis. Indices of active bounds are kept in an
+    // array sorted by higher boundary on primary axis.
+    var activeIndicesByPri1: number[] = [],
+      allCollisions: (number[] | null)[] = new Array(lengthA);
+    for (var i = 0; i < lengthAll; i++) {
+      var curIndex = allIndicesByPri0[i],
+        curBounds = allBounds[curIndex],
+        // The original index in boundsA or boundsB:
+        origIndex = self ? curIndex : curIndex - lengthA,
+        isCurrentA = curIndex < lengthA,
+        isCurrentB = self || !isCurrentA,
+        curCollisions = isCurrentA ? ([] as number[]) : null;
       if (activeIndicesByPri1.length) {
-        // もはやアクティブでないインデックスを削除（プルーニング）
-        const pruneCount = binarySearch(activeIndicesByPri1, pri1,
-                curBounds[pri0] - tolerance) + 1;
+        // remove (prune) indices that are no longer active.
+        var pruneCount = binarySearch(activeIndicesByPri1, pri1, curBounds[pri0] - tolerance) + 1;
         activeIndicesByPri1.splice(0, pruneCount);
-        
-        // 現在のインデックスの衝突を追加
+        // Add collisions for current index.
         if (self && onlySweepAxisCollisions) {
-          // すべてのアクティブインデックスを追加、追加チェック不要
-          curCollisions = curCollisions!.concat(activeIndicesByPri1);
-          // 現在のインデックスをすべてのアクティブインデックスの衝突に追加
-          for (let j = 0; j < activeIndicesByPri1.length; j++) {
-            const activeIndex = activeIndicesByPri1[j];
-            // TypeScriptの型安全性のためのnullチェック
-            // Paper.jsではこのチェックはありませんが、TypeScriptでは必要
-            if (allCollisions[activeIndex]) {
-              allCollisions[activeIndex].push(origIndex);
-            }
+          // All active indexes can be added, no further checks needed
+          curCollisions = (curCollisions as number[]).concat(activeIndicesByPri1);
+          // Add current index to collisions of all active indexes
+          for (var j = 0; j < activeIndicesByPri1.length; j++) {
+            var activeIndex = activeIndicesByPri1[j];
+            allCollisions[activeIndex]!.push(origIndex);
           }
         } else {
-          const curSec1 = curBounds[sec1];
-          const curSec0 = curBounds[sec0];
-          for (let j = 0; j < activeIndicesByPri1.length; j++) {
-            const activeIndex = activeIndicesByPri1[j];
-            const activeBounds = allBounds[activeIndex];
-            const isActiveA = activeIndex < lengthA;
-            const isActiveB = self || activeIndex >= lengthA;
+          var curSec1 = curBounds[sec1],
+            curSec0 = curBounds[sec0];
+          for (var j = 0; j < activeIndicesByPri1.length; j++) {
+            var activeIndex = activeIndicesByPri1[j],
+              activeBounds = allBounds[activeIndex],
+              isActiveA = activeIndex < lengthA,
+              isActiveB = self || activeIndex >= lengthA;
 
-            // 必要に応じて副軸の境界をチェック
+            // Check secondary axis bounds if necessary.
             if (
               onlySweepAxisCollisions ||
-              (
-                isCurrentA && isActiveB ||
-                isCurrentB && isActiveA
-              ) && (
+              (((isCurrentA && isActiveB) || (isCurrentB && isActiveA)) &&
                 curSec1 >= activeBounds[sec0] - tolerance &&
-                curSec0 <= activeBounds[sec1] + tolerance
-              )
+                curSec0 <= activeBounds[sec1] + tolerance)
             ) {
-              // 現在のインデックスをアクティブインデックスの衝突に追加し、
-              // その逆も同様
-              if (isCurrentA && isActiveB && curCollisions) {
-                curCollisions.push(
-                  self ? activeIndex : activeIndex - lengthA);
+              // Add current index to collisions of active
+              // indices and vice versa。
+              if (isCurrentA && isActiveB) {
+                (curCollisions as number[]).push(self ? activeIndex : activeIndex - lengthA);
               }
-              if (isCurrentB && isActiveA && allCollisions[activeIndex]) {
-                allCollisions[activeIndex].push(origIndex);
+              if (isCurrentB && isActiveA) {
+                allCollisions[activeIndex]!.push(origIndex);
               }
             }
           }
         }
       }
-      
       if (isCurrentA) {
         if (boundsA === boundsB) {
-          // 両方の配列が同じ場合、自己衝突を追加
-          if (curCollisions) {
-            curCollisions.push(curIndex);
-          }
+          // If both arrays are the same, add self collision.
+          (curCollisions as number[]).push(curIndex);
         }
-        // 現在のインデックスの衝突を追加
-        if (curCollisions) {
-          allCollisions[curIndex] = curCollisions;
-        }
+        // Add collisions for current index。
+        allCollisions[curIndex] = curCollisions as number[];
       }
-      
-      // 現在のインデックスをアクティブインデックスに追加
-      // 主軸の上限でソートされた配列を維持
+      // Add current index to active indices. Keep array sorted by
+      // their higher boundary on the primary axis.s
       if (activeIndicesByPri1.length) {
-        const curPri1 = curBounds[pri1];
-        const index = binarySearch(activeIndicesByPri1, pri1, curPri1);
+        var curPri1 = curBounds[pri1],
+          index = binarySearch(activeIndicesByPri1, pri1, curPri1);
         activeIndicesByPri1.splice(index + 1, 0, curIndex);
       } else {
         activeIndicesByPri1.push(curIndex);
       }
     }
-    
-    // 衝突インデックスを昇順にソート
-    for (let i = 0; i < allCollisions.length; i++) {
-      const collisions = allCollisions[i];
+    // Sort collision indices in ascending order.
+    for (var i = 0; i < allCollisions.length; i++) {
+      var collisions = allCollisions[i];
       if (collisions) {
-        collisions.sort((i1, i2) => i1 - i2);
+        collisions.sort(function (i1, i2) {
+          return i1 - i2;
+        });
       }
     }
-    
-    // paper.jsの実装に合わせて、nullを含む配列をそのまま返す
     return allCollisions;
   }
-  
+
   /**
    * アイテムの境界ボックス同士の衝突を検出
-   * paper.jsのCollisionDetection.findItemBoundsCollisions実装を移植
-   * @param items1 アイテムの配列1
-   * @param items2 アイテムの配列2（nullの場合は自己衝突チェック）
-   * @param tolerance 許容誤差
-   * @returns 衝突インデックスの配列
+   * paper.jsのCollisionDetection.findItemBoundsCollisions実装を厳密に移植
    */
   static findItemBoundsCollisions(
-    items1: { getBounds(): { x: number; y: number; width: number; height: number } }[],
-    items2: { getBounds(): { x: number; y: number; width: number; height: number } }[] | null,
-    tolerance: number
+    items1: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
+    items2?: { getBounds(): { left: number; top: number; right: number; bottom: number } }[],
+    tolerance?: number
   ): (number[] | null)[] {
-    function getBounds(items: { getBounds(): { x: number; y: number; width: number; height: number } }[]): number[][] {
+    function getBounds(
+      items: { getBounds(): { left: number; top: number; right: number; bottom: number } }[]
+    ): number[][] {
       const bounds = new Array(items.length);
       for (let i = 0; i < items.length; i++) {
         const rect = items[i].getBounds();
-        // paper.jsと同様に[left, top, right, bottom]の配列に変換
-        bounds[i] = [rect.x, rect.y, rect.x + rect.width, rect.y + rect.height];
+        bounds[i] = [rect.left, rect.top, rect.right, rect.bottom];
       }
       return bounds;
     }
 
     const bounds1 = getBounds(items1);
-    const bounds2 = !items2 || items2 === items1
-      ? bounds1
-      : getBounds(items2);
+    const bounds2 = !items2 || items2 === items1 ? bounds1 : getBounds(items2);
     return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
   }
 }

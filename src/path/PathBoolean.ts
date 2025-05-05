@@ -152,9 +152,9 @@ export class PathBoolean {
 
   /**
    * Boolean演算の実行
-   * paper.jsのtraceBoolean関数を移植
+   * paper.jsの関数を移植
    */
-  private static traceBoolean(
+  private static runBoolean(
     path1: PathItem,
     path2: PathItem,
     operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide',
@@ -178,8 +178,16 @@ const _path2 = preparePath(path2, true) as Path;
     // eslint-disable-next-line no-console
     // eslint-disable-next-line no-console
 
-    // getIntersections直前でもう一度出力
+    // getIntersections直前: _path1, _path2のセグメント・点列・カーブ列を出力
     // eslint-disable-next-line no-console
+    if (_path1 instanceof Path && _path2 instanceof Path) {
+      console.log('[runBoolean] _path1 segments:', _path1._segments.map(s => s && s.point && s.point.toString()));
+      console.log('[runBoolean] _path2 segments:', _path2._segments.map(s => s && s.point && s.point.toString()));
+      const curves1 = _path1.getCurves();
+      const curves2 = _path2.getCurves();
+      console.log('[runBoolean] _path1 curves:', curves1.map(c => [c._segment1.point.toString(), c._segment2.point.toString()]));
+      console.log('[runBoolean] _path2 curves:', curves2.map(c => [c._segment1.point.toString(), c._segment2.point.toString()]));
+    }
 
     // 演算子に応じたフィルタ関数を定義
     const operators: Record<string, Record<string, boolean>> = {
@@ -209,19 +217,19 @@ const _path2 = preparePath(path2, true) as Path;
     // 交点検出直前のデバッグ出力
     // 交点検出直前のパス状態をデバッグ出力
     // eslint-disable-next-line no-console
-    console.log('[traceBoolean] _path1 getSegments:', _path1.getSegments().map(s => [s.point.x, s.point.y]));
+    
     // eslint-disable-next-line no-console
-    console.log('[traceBoolean] _path2 getSegments:', _path2.getSegments().map(s => [s.point.x, s.point.y]));
+    
     // eslint-disable-next-line no-console
-    console.log('[traceBoolean] _path1 getCurves:', _path1.getCurves().map(c => [c._segment1.point.x, c._segment1.point.y]));
+    
     // eslint-disable-next-line no-console
-    console.log('[traceBoolean] _path2 getCurves:', _path2.getCurves().map(c => [c._segment1.point.x, c._segment1.point.y]));
+    
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
 
     // 交点数をデバッグ出力
     // eslint-disable-next-line no-console
-    console.log('[traceBoolean] intersections.length =', intersections.length);
+    
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定
       return this.createResult(
@@ -278,6 +286,9 @@ const _path2 = preparePath(path2, true) as Path;
         };
       }
       
+      // デバッグ: curveCollisionsMapの全体構造をファイルに追記
+      try {
+      } catch (e) {}
       // 交点からwinding numberを伝播
       for (const intersection of intersections) {
         if (intersection.segment) {
@@ -312,34 +323,34 @@ const _path2 = preparePath(path2, true) as Path;
    * パスの合成（unite）
    */
   static unite(path1: PathItem, path2: PathItem): PathItem {
-    return this.traceBoolean(path1, path2, 'unite');
+    return this.runBoolean(path1, path2, 'unite');
   }
   
   /**
    * パスの交差（intersect）
    */
   static intersect(path1: PathItem, path2: PathItem): PathItem {
-    return this.traceBoolean(path1, path2, 'intersect');
+    return this.runBoolean(path1, path2, 'intersect');
   }
   
   /**
    * パスの差分（subtract）
    */
   static subtract(path1: PathItem, path2: PathItem): PathItem {
-    return this.traceBoolean(path1, path2, 'subtract');
+    return this.runBoolean(path1, path2, 'subtract');
   }
   
   /**
    * パスの排他的論理和（exclude）
    */
   static exclude(path1: PathItem, path2: PathItem): PathItem {
-    return this.traceBoolean(path1, path2, 'exclude');
+    return this.runBoolean(path1, path2, 'exclude');
   }
   
   /**
    * パスの分割（divide）
    */
   static divide(path1: PathItem, path2: PathItem): PathItem {
-    return this.traceBoolean(path1, path2, 'divide');
+    return this.runBoolean(path1, path2, 'divide');
   }
 }

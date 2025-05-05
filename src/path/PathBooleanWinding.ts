@@ -99,9 +99,11 @@ export function propagateWinding(
           }
         }
         
+        const ccmap = curveCollisionsMap[path._id!];
+        const curvesArg = (ccmap && ccmap[curve.getIndex()]) || path.getCurves();
         wind = wind || getWinding(
           pt,
-          (curveCollisionsMap[path._id!] && curveCollisionsMap[path._id!][curve.getIndex()]) || path.getCurves(),
+          curvesArg,
           dir,
           true
         );
@@ -379,6 +381,7 @@ export function getWinding(
         // paper.jsでは path.isClockwise(closed) ^ dir ? 1 : -1 としているが
         // TypeScriptではビット演算子^の右側は数値型である必要があるため、
         // 条件式を書き換える
+        // 元の実装に戻す
         pathWindingL = pathWindingR = (path.isClockwise(closed) !== dir) ? 1 : -1;
       }
       

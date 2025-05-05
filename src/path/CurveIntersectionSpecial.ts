@@ -3,7 +3,8 @@
  * 特殊ケース（直線など）の交点計算関数を提供するユーティリティ
  */
 
-import { Curve, CurveLocation } from './Curve';
+import { Curve } from './Curve';
+import { CurveLocation } from "./CurveLocation";
 import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
 import { Line } from '../basic/Line';

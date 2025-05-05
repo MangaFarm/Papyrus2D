@@ -620,11 +620,13 @@ export class Path extends PathItemBase {
     if (this._closed) {
       for (let i = 0; i < count; i++) {
         const next = (i + 1) % count;
-        curves.push(new Curve(this, segments[i], segments[next]));
+        const curve = new Curve(this, segments[i], segments[next]);
+        curves.push(curve);
       }
     } else {
       for (let i = 0; i < count - 1; i++) {
-        curves.push(new Curve(this, segments[i], segments[i + 1]));
+        const curve = new Curve(this, segments[i], segments[i + 1]);
+        curves.push(curve);
       }
     }
 

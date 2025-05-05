@@ -55,18 +55,6 @@ export function addLocation(
   const tMax = 1 - tMin;
 
   // eslint-disable-next-line no-console
-  console.log('[addLocation] called', {
-    c1: c1 && c1.toString && c1.toString(),
-    t1,
-    c2: c2 && c2.toString && c2.toString(),
-    t2,
-    overlap,
-    excludeStart,
-    excludeEnd,
-    tMin,
-    tMax,
-    locationsLength: locations.length
-  });
 
   // 範囲チェック - paper.jsと同様の条件判定
   if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
@@ -92,27 +80,24 @@ export function addLocation(
       // includeコールバックがなければ、または条件を満たせば追加
       if (!include) {
         // eslint-disable-next-line no-console
-        console.log('[addLocation] insertLocation (no include)', { t1, t2, overlap });
+        
         insertLocation(locations, loc1, true);
       } else {
         const result = include(loc1);
         // eslint-disable-next-line no-console
-        console.log('[addLocation] include called', {
-          t1, t2, overlap, includeResult: result, hasOverlap: loc1.hasOverlap(), isCrossing: loc1.isCrossing()
-        });
         if (result) {
           // eslint-disable-next-line no-console
-          console.log('[addLocation] insertLocation (with include)', { t1, t2, overlap });
+          
           insertLocation(locations, loc1, true);
         }
       }
     } else {
       // eslint-disable-next-line no-console
-      console.log('[addLocation] t2 out of range', { t2, excludeEnd, excludeStart, tMin, tMax });
+      
     }
   } else {
     // eslint-disable-next-line no-console
-    console.log('[addLocation] t1 out of range', { t1, excludeStart, excludeEnd, tMin, tMax });
+    
   }
 }
 
@@ -165,7 +150,7 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
         // Paper.jsと同じ条件で重複判定
         if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
           // eslint-disable-next-line no-console
-          console.log('[insertLocation] duplicate (curve)', { t1Diff, t2Diff, i, location, loc });
+          
           // 交点が既に存在する場合は、相互参照を更新
           if (location._intersection && loc._intersection) {
             // 既存の交点の相互参照を新しい交点の相互参照に更新
@@ -188,7 +173,7 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
       const dist = loc._point.subtract(location._point).getLength();
       if (dist < geomEpsilon) {
         // eslint-disable-next-line no-console
-        console.log('[insertLocation] duplicate (point)', { dist, i, location, loc });
+        
         // 交点が既に存在する場合は、相互参照を更新
         if (location._intersection && loc._intersection) {
           // 既存の交点の相互参照を新しい交点の相互参照に更新
@@ -209,7 +194,7 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
 
   // 重複がない場合は追加
   // eslint-disable-next-line no-console
-  console.log('[insertLocation] push', { location });
+  
   locations.push(location);
   return length;
 }

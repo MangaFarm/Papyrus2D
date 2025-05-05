@@ -32,40 +32,24 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
 export function getIntersections(path1: Path, path2: Path): Intersection[] {
-  // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
-  const rawIntersections = path1.getIntersections(path2, filterIntersection);
-  // eslint-disable-next-line no-console
-  console.log('[getIntersections] rawIntersections', rawIntersections.map(loc => ({
-    point: loc.getPoint().toString(),
-    overlap: loc.hasOverlap(),
-    crossing: loc.isCrossing(),
-    t: loc.getTime(),
-    curveIndex: loc.getCurve() ? path1.getCurves().indexOf(loc.getCurve()!) : null
-  })));
-  const expandedIntersections = CurveLocation.expand(rawIntersections);
-  // eslint-disable-next-line no-console
-  console.log('[getIntersections] expandedIntersections', expandedIntersections.map(loc => ({
-    point: loc.getPoint().toString(),
-    overlap: loc.hasOverlap(),
-    crossing: loc.isCrossing(),
-    t: loc.getTime(),
-    curveIndex: loc.getCurve() ? path1.getCurves().indexOf(loc.getCurve()!) : null
-  })));
-
+ // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
+ const rawIntersections = path1.getIntersections(path2, filterIntersection);
+ const expandedIntersections = CurveLocation.expand(rawIntersections);
+  
   // Intersection型に変換
   const intersections: Intersection[] = [];
-
+  
   for (const loc of expandedIntersections) {
     // 交点情報を抽出
     const point = loc.getPoint();
     const curve = loc.getCurve();
     const curveIndex = curve ? path1.getCurves().indexOf(curve) : 0;
-
+    
     // 交差するカーブの情報
     const intersection = loc.getIntersection();
     const otherCurve = intersection ? intersection.getCurve() : null;
     const otherCurveIndex = otherCurve ? path2.getCurves().indexOf(otherCurve) : 0;
-
+    
     // 交点情報を作成
     intersections.push({
       point,
@@ -73,15 +57,10 @@ export function getIntersections(path1: Path, path2: Path): Intersection[] {
       curve2Index: otherCurveIndex,
       t1: loc.getTime(),
       t2: intersection ? intersection.getTime() : null,
-      visited: false,
-      overlap: loc.hasOverlap(),
-      crossing: loc.isCrossing()
+      visited: false
     });
   }
-
-  // eslint-disable-next-line no-console
-  console.log('[getIntersections] intersections', intersections);
-
+  
   return intersections;
 }
 

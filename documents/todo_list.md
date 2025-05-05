@@ -80,7 +80,7 @@
 
 ## フェーズ4: ブーリアン演算の実装
 - [ ] 4.1 衝突検出の実装
-  - [ ] 4.1.1 CollisionDetection ユーティリティ
+  - [x] 4.1.1 CollisionDetection ユーティリティ（findBoundsCollisionsをpaper.jsから厳密に移植済み、型エラーは後で対応）
   - [ ] 4.1.2 曲線と形状の衝突検出関数
 - [ ] 4.2 PathTracer の実装
   - [ ] 4.2.1 ウィンディング計算の実装
