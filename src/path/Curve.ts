@@ -117,7 +117,7 @@ export class Curve {
    */
   getTangentAt(t: number, _isTime?: boolean): Point {
     const values = this.getValues();
-    return CurveCalculation.getTangent(values, _isTime ? t : this.getTimeAt(t))!;
+    return CurveCalculation.getTangent(values, _isTime ? t : this.getTimeAt(t)!)!;
   }
   
   /**
@@ -516,7 +516,7 @@ export class Curve {
    */
   getNearestPoint(point: Point): Point {
     const loc = this.getNearestLocation(point);
-    return loc ? loc.getPoint() : loc;
+    return loc.getPoint();
   }
 
   getIntersections(curve: Curve | null): CurveLocation[] {
