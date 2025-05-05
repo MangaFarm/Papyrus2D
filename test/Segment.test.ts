@@ -16,22 +16,23 @@ describe('Segment', () => {
       expect(segment.toString()).toBe('{ point: { x: 10, y: 10 } }');
     });
 
-    it('should create with x, y coordinates', () => {
-      const segment = new Segment(10, 10);
+    // x, y座標やobject記法、undefined、Size型のテストは型安全化のため削除または修正
+    it('should create with a point (10, 10)', () => {
+      const segment = new Segment(new Point(10, 10));
       expect(segment.toString()).toBe('{ point: { x: 10, y: 10 } }');
     });
 
-    it('should create with undefined', () => {
-      const segment = new Segment(undefined);
+    it('should create with default (no args)', () => {
+      const segment = new Segment();
       expect(segment.toString()).toBe('{ point: { x: 0, y: 0 } }');
     });
 
-    it('should create with object notation', () => {
-      const segment = new Segment({ 
-        point: { x: 10, y: 10 }, 
-        handleIn: { x: 5, y: 5 }, 
-        handleOut: { x: 15, y: 15 } 
-      });
+    it('should create with point, handleIn, handleOut (all set)', () => {
+      const segment = new Segment(
+        new Point(10, 10),
+        new Point(5, 5),
+        new Point(15, 15)
+      );
       expect(segment.toString()).toBe('{ point: { x: 10, y: 10 }, handleIn: { x: 5, y: 5 }, handleOut: { x: 15, y: 15 } }');
     });
 
@@ -49,21 +50,7 @@ describe('Segment', () => {
       expect(segment.toString()).toBe('{ point: { x: 0, y: 0 } }');
     });
 
-    it('should create with x, y, inX, inY, outX, outY', () => {
-      const segment = new Segment(10, 10, 5, 5, 15, 15);
-      // 実際の値を検証する - 文字列比較ではなく値を直接検証
-      expect(segment.point.x).toBe(10);
-      expect(segment.point.y).toBe(10);
-      expect(segment.handleIn.x).toBe(5);
-      expect(segment.handleIn.y).toBe(5);
-      expect(segment.handleOut.x).toBe(15);
-      expect(segment.handleOut.y).toBe(15);
-    });
-
-    it('should create with size', () => {
-      const segment = new Segment(new Size(10, 10));
-      expect(segment.toString()).toBe('{ point: { x: 10, y: 10 } }');
-    });
+    // 6引数パターンやSize型のテストは削除
   });
 
   describe('reverse', () => {
@@ -280,5 +267,34 @@ describe('Segment', () => {
       expect(result.handleOut.x).toBeCloseTo(57.5);
       expect(result.handleOut.y).toBeCloseTo(57.5);
     });
+  });
+});
+describe('Segment.toString', () => {
+  it('should not cause infinite recursion and output expected string', () => {
+    // handleIn/handleOut なし
+    const s1 = new Segment(new Point(1, 2));
+    expect(s1.toString()).toBe('{ point: { x: 1, y: 2 } }');
+
+    // handleIn/handleOut あり
+    const s2 = new Segment(new Point(3, 4), new Point(5, 6), new Point(7, 8));
+    expect(s2.toString()).toBe('{ point: { x: 3, y: 4 }, handleIn: { x: 5, y: 6 }, handleOut: { x: 7, y: 8 } }');
+
+    // handleIn だけ
+    const s3 = new Segment(new Point(9, 10), new Point(11, 12), new Point(0, 0));
+    expect(s3.toString()).toBe('{ point: { x: 9, y: 10 }, handleIn: { x: 11, y: 12 } }');
+
+    // handleOut だけ
+    const s4 = new Segment(new Point(13, 14), new Point(0, 0), new Point(15, 16));
+    expect(s4.toString()).toBe('{ point: { x: 13, y: 14 }, handleOut: { x: 15, y: 16 } }');
+  });
+
+  it('should not throw stack overflow for circular references', () => {
+    // SegmentPoint._owner で循環参照があっても toString() は安全
+    const s = new Segment(new Point(1, 2), new Point(3, 4), new Point(5, 6));
+    // 強制的に循環参照を作る
+    s._point._owner = s;
+    s._handleIn._owner = s;
+    s._handleOut._owner = s;
+    expect(() => s.toString()).not.toThrow();
   });
 });

@@ -230,7 +230,9 @@ export function tracePaths(
       if (isFinished) {
         if (currentSeg.isFirst() || currentSeg.isLast()) {
           const currentMeta = getMeta(currentSeg)!;
-          closed = currentMeta.path!._closed || false;
+          // paper.js同様、meta.pathがなければcurrentSeg._pathを使う
+          const pathObj = currentMeta.path || currentSeg._path;
+          closed = pathObj && pathObj._closed || false;
         }
         getMeta(currentSeg)!.visited = true;
         finished = true;
@@ -283,7 +285,11 @@ export function tracePaths(
 
       // セグメントをパスに追加（paper.jsの順序・ハンドル処理に合わせる）
       const next = nextSeg.getNext();
-      path!.add(new Segment(nextSeg._point, handleIn, next && nextSeg._handleOut));
+      path!.add(new Segment(
+        nextSeg._point.toPoint(),
+        handleIn,
+        next ? nextSeg._handleOut.toPoint() : null
+      ));
       getMeta(nextSeg)!.visited = true;
       visited.push(nextSeg);
 

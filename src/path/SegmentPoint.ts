@@ -52,6 +52,17 @@ export class SegmentPoint {
       }
     }
 
+    if (typeof x !== 'number') {
+      console.trace();
+      console.log(typeof x);
+      throw new Error("bad argument");
+    }
+    if (typeof y !== 'number') {
+      console.trace();
+      console.log(typeof x);
+      throw new Error("bad argument");
+    }
+
     this._x = x;
     this._y = y;
     this._owner = owner;

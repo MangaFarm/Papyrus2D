@@ -13,13 +13,18 @@ import { Path } from './Path';
 // KAPPAは円や楕円をベジェ曲線で近似する際の制御点の係数
 const kappa = Numerical.KAPPA;
 
-// 楕円の基本セグメント（単位円）
-const ellipseSegments = [
-  new Segment(new Point(-1, 0), new Point(0, kappa), new Point(0, -kappa)),
-  new Segment(new Point(0, -1), new Point(-kappa, 0), new Point(kappa, 0)),
-  new Segment(new Point(1, 0), new Point(0, -kappa), new Point(0, kappa)),
-  new Segment(new Point(0, 1), new Point(kappa, 0), new Point(-kappa, 0))
-];
+/**
+ * 楕円の基本セグメント（単位円）を生成する関数
+ * グローバルな初期化ではなく必要時に生成することで循環参照を回避
+ */
+function getEllipseSegments(): Segment[] {
+  return [
+    new Segment(new Point(-1, 0), new Point(0, kappa), new Point(0, -kappa)),
+    new Segment(new Point(0, -1), new Point(-kappa, 0), new Point(kappa, 0)),
+    new Segment(new Point(1, 0), new Point(0, -kappa), new Point(0, kappa)),
+    new Segment(new Point(0, 1), new Point(kappa, 0), new Point(-kappa, 0))
+  ];
+}
 
 // 型定義
 interface PointLike {
@@ -68,12 +73,15 @@ function createPath(segments: Segment[], closed: boolean): Path {
  * 楕円パスを作成する内部ヘルパー関数
  */
 function createEllipse(center: Point, radius: Point | Size): Path {
+  // 基本セグメントを取得（必要時だけ生成）
+  const baseSegments = getEllipseSegments();
   const segments = new Array(4);
+  
   for (let i = 0; i < 4; i++) {
-    const segment = ellipseSegments[i];
+    const segment = baseSegments[i];
     // Sizeの場合はPointに変換
-    const radiusPoint = radius instanceof Size 
-      ? new Point(radius.width, radius.height) 
+    const radiusPoint = radius instanceof Size
+      ? new Point(radius.width, radius.height)
       : radius;
     
     segments[i] = new Segment(
@@ -290,7 +298,8 @@ export const PathConstructors = {
       const handleOut = v1.multiply(0.5);
       const handleIn = v2.multiply(0.5);
       
-      path.cubicCurveTo(
+      // 型アサーションでType Errorを回避
+      (path as Path).cubicCurveTo(
         fromPoint.subtract(handleOut),
         toPoint.add(handleIn),
         toPoint

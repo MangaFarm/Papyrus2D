@@ -39,62 +39,23 @@ export class Segment {
    * @param handleOut 出力ハンドル
    */
   constructor(
-    point: Point | object | number | null = new Point(0, 0),
-    handleIn: Point | object | number | null = new Point(0, 0),
-    handleOut: Point | object | number | null = new Point(0, 0),
-    arg3?: number, arg4?: number, arg5?: number
+    point: Point | null = new Point(0, 0),
+    handleIn: Point | null = new Point(0, 0),
+    handleOut: Point | null = new Point(0, 0)
   ) {
-    let pointObj: Point | object | number | null = point;
-    let handleInObj: Point | object | number | null = handleIn;
-    let handleOutObj: Point | object | number | null = handleOut;
-
-    // paper.jsと同様の引数解析
-    const count = arguments.length;
-    if (count > 0) {
-      if (point == null || typeof point === 'object') {
-        if (count === 1 && point && 'point' in point) {
-          // オブジェクト記法: { point: ..., handleIn: ..., handleOut: ... }
-          const obj = point as any;
-          pointObj = obj.point;
-          handleInObj = obj.handleIn;
-          handleOutObj = obj.handleOut;
-        } else {
-          // 通常の引数: (point, handleIn, handleOut)
-          pointObj = point;
-          handleInObj = handleIn;
-          handleOutObj = handleOut;
-        }
-      } else {
-        // 座標値の引数処理: 引数の数でケースを分ける
-        const x = point as number;     // arg0
-        const y = handleIn as number;  // arg1
-        
-        // X, Y座標のパターン（引数2つ）
-        if (count === 2) {
-          pointObj = [x, y];
-          handleInObj = null;
-          handleOutObj = null;
-        }
-        // 6引数パターン: (x, y, inX, inY, outX, outY)
-        else {
-          // 正しい引数の割り当て
-          const inX = handleOut as number; // arg2
-          const inY = arg3;                // arg3
-          const outX = arg4;               // arg4
-          const outY = arg5;               // arg5
-          
-          // paper.jsと同じ割り当て
-          pointObj = [x, y];
-          handleInObj = inX !== undefined ? [inX, inY] : null;
-          handleOutObj = outX !== undefined ? [outX, outY] : null;
-        }
-      }
+    if (point !== null && !(point instanceof Point)) {
+      throw new TypeError('Segment: pointはPointまたはnullのみ許可されます');
+    }
+    if (handleIn !== null && !(handleIn instanceof Point)) {
+      throw new TypeError('Segment: handleInはPointまたはnullのみ許可されます');
+    }
+    if (handleOut !== null && !(handleOut instanceof Point)) {
+      throw new TypeError('Segment: handleOutはPointまたはnullのみ許可されます');
     }
 
-    // SegmentPointの作成
-    this._point = new SegmentPoint(pointObj, this, '_point');
-    this._handleIn = new SegmentPoint(handleInObj, this, '_handleIn');
-    this._handleOut = new SegmentPoint(handleOutObj, this, '_handleOut');
+    this._point = new SegmentPoint(point, this, '_point');
+    this._handleIn = new SegmentPoint(handleIn, this, '_handleIn');
+    this._handleOut = new SegmentPoint(handleOut, this, '_handleOut');
   }
 
   /**
@@ -191,25 +152,33 @@ export class Segment {
    * ハンドルを反転した新しいSegmentを返す
    */
   reversed(): Segment {
-    return new Segment(this._point, this._handleOut, this._handleIn);
+    return new Segment(
+      this._point.toPoint(),
+      this._handleOut.toPoint(),
+      this._handleIn.toPoint()
+    );
   }
 
+  /**
+   * デバッグ用の文字列表現を返す。
+   * SegmentPoint#toString() を直接呼ぶと util.inspect などの状況によっては
+   * Segment#toString() が再帰的に呼ばれるケースがあるため、各座標を
+   * プリミティブ値として展開し、確実に再帰が生じない安全な実装とする。
+   */
   toString(): string {
-    // Pointオブジェクトの文字列表現を直接利用してスタックオーバーフローを回避
-    const point = this.getPoint();
-    const parts = [`point: { x: ${point.x}, y: ${point.y} }`];
-    
-    if (!this._handleIn.isZero()) {
-      const handleIn = this.getHandleIn();
-      parts.push(`handleIn: { x: ${handleIn.x}, y: ${handleIn.y} }`);
+    const p = this._point;
+    console.log(p._x, p._y);
+    const parts: string[] = [`point: { x: ${p._x}, y: ${p._y} }`];
+
+    if (this._handleIn && !this._handleIn.isZero()) {
+      const hIn = this._handleIn;
+      parts.push(`handleIn: { x: ${hIn._x}, y: ${hIn._y} }`);
     }
-    
-    if (!this._handleOut.isZero()) {
-      const handleOut = this.getHandleOut();
-      parts.push(`handleOut: { x: ${handleOut.x}, y: ${handleOut.y} }`);
+    if (this._handleOut && !this._handleOut.isZero()) {
+      const hOut = this._handleOut;
+      parts.push(`handleOut: { x: ${hOut._x}, y: ${hOut._y} }`);
     }
-    
-    return '{ ' + parts.join(', ') + ' }';
+    return `{ ${parts.join(', ')} }`;
   }
 
   equals(segment: Segment): boolean {
