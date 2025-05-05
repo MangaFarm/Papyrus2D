@@ -445,8 +445,14 @@ export class CompoundPath extends PathItemBase {
         clockwise
       );
       
-      // nullでないパスだけをフィルタリングして追加
-      this.addChildren(processed.filter(path => path !== null) as Path[]);
+      // nullでないパスだけをフィルタリング
+      const validPaths = processed.filter(path => path !== null) as Path[];
+      
+      // パスを面積の絶対値でソート（大きい順）
+      validPaths.sort((a, b) => Math.abs(b.getArea()) - Math.abs(a.getArea()));
+      
+      // ソートされたパスを追加
+      this.addChildren(validPaths);
     } else if (clockwise !== undefined) {
       this.setClockwise(clockwise);
     }

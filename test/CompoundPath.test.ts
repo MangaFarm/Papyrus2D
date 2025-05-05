@@ -39,9 +39,23 @@ describe('CompoundPath', () => {
     expect(path2.isClosed()).toBe(true);
     expect(path3.isClosed()).toBe(true);
 
+    // 各パスの面積を出力
+    console.log('Path1 area:', path1.getArea(), 'ID:', path1._id);
+    console.log('Path2 area:', path2.getArea(), 'ID:', path2._id);
+    console.log('Path3 area:', path3.getArea(), 'ID:', path3._id);
+
     // CompoundPathを作成して方向を再設定
     const compound = new CompoundPath([path1, path2, path3]);
+    console.log('Before reorient - children:', compound._children.map(c => c._id));
+    console.log('Before reorient - children areas:', compound._children.map(c => c.getArea()));
+    
     compound.reorient();
+    
+    console.log('After reorient - children:', compound._children.map(c => c._id));
+    console.log('After reorient - children areas:', compound._children.map(c => c.getArea()));
+    console.log('After reorient - children[0] is path3:', compound._children[0] === path3);
+    console.log('After reorient - children[1] is path2:', compound._children[1] === path2);
+    console.log('After reorient - children[2] is path1:', compound._children[2] === path1);
 
     // 最も外側のパス（面積が最大）が最初の子パスになる
     expect(compound._children[0]).toBe(path3);
