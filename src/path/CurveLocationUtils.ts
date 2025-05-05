@@ -221,36 +221,29 @@ export class CurveLocationUtils {
    * @returns 交差していればtrue
    */
   static isCrossing(loc: CurveLocation): boolean {
-    console.log("isCrossing called for:", loc);
     // 交点がない場合はfalse
     const inter = loc._intersection;
     if (!inter) {
-      console.log("  No intersection, returning false");
       return false;
     }
 
     // 時間パラメータを取得
     const t1 = loc.getTime();
     const t2 = inter.getTime();
-    console.log("  t1:", t1, "t2:", t2);
     if (t1 === null || t2 === null) {
-      console.log("  Null time parameter, returning false");
       return false;
     }
     
     const tMin = Numerical.CURVETIME_EPSILON;
     const tMax = 1 - tMin;
-    console.log("  tMin:", tMin, "tMax:", tMax);
 
     // 時間パラメータが曲線の内部にあるかを確認
     const t1Inside = t1 >= tMin && t1 <= tMax;
     const t2Inside = t2 >= tMin && t2 <= tMax;
-    console.log("  t1Inside:", t1Inside, "t2Inside:", t2Inside);
 
     // 両方の交点が曲線の内部にある場合、接触でなければ交差
     if (t1Inside && t2Inside) {
       const isTouching = loc.isTouching();
-      console.log("  Both inside, isTouching:", isTouching);
       return !isTouching;
     }
 

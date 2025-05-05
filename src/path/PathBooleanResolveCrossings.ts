@@ -22,11 +22,9 @@ import { CompoundPath } from './CompoundPath';
  */
 export function resolveCrossings(path: PathItem): PathItem {
   // paper.jsのresolveCrossingsアルゴリズムに完全一致させる
-  console.log("resolveCrossings開始:", path);
 
   const children = (path as any)._children;
   let paths = children || [path];
-  console.log("paths数:", paths.length);
 
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
     if (!seg) return false;
@@ -38,30 +36,23 @@ export function resolveCrossings(path: PathItem): PathItem {
   // 交差点・重なり点の検出とフラグ
   let hasOverlaps = false;
   let hasCrossings = false;
-  console.log("交点検出前");
   let intersections = (path as any).getIntersections(null, function(inter: any) {
     const isOverlap = inter.hasOverlap();
     const isCrossing = inter.isCrossing();
-    console.log("交点検出:", inter, "overlap:", isOverlap, "crossing:", isCrossing);
     return isOverlap && (hasOverlaps = true) ||
            isCrossing && (hasCrossings = true);
   });
-  console.log("交点検出後 - hasOverlaps:", hasOverlaps, "hasCrossings:", hasCrossings);
-  console.log("交点数:", intersections ? intersections.length : 0);
   
   // paper.jsと同様にCurveLocation.expandを使用
   intersections = CurveLocation.expand(intersections);
-  console.log("展開後の交点数:", intersections ? intersections.length : 0);
 
   // 交差点がなければ元のパスを返す
   if (!intersections || intersections.length === 0) {
-    console.log("交点なし - 元のパスを返す");
     return path;
   }
 
   // 曲線ハンドルクリア用
   const clearCurves = hasOverlaps && hasCrossings ? [] : undefined;
-  console.log("clearCurves:", clearCurves ? "配列" : "undefined");
 
   // 重なり処理
   if (hasOverlaps) {
@@ -89,16 +80,13 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   // 交差処理
   if (hasCrossings) {
-    console.log("交差処理開始");
     const divideResult = divideLocations(intersections, hasOverlaps ? function(inter: any) {
-      console.log("divideLocations filter:", inter);
       const curve1 = inter.getCurve && inter.getCurve();
       const seg1 = inter.getSegment && inter.getSegment();
       const other = inter._intersection;
       const curve2 = other && other.getCurve && other.getCurve();
       const seg2 = other && other.getSegment && other.getSegment();
       if (curve1 && curve2 && curve1._path && curve2._path) {
-        console.log("  有効な交点");
         return true;
       }
       // paper.jsでは直接_intersectionを操作するが、Papyrus2DではgetMetaを使用
@@ -110,13 +98,10 @@ export function resolveCrossings(path: PathItem): PathItem {
         const meta2 = getMeta(seg2);
         if (meta2) meta2.intersection = null;
       }
-      console.log("  無効な交点");
       return false;
     } : undefined, clearCurves);
-    console.log("divideLocations結果:", divideResult);
 
     if (clearCurves) {
-      console.log("clearCurveHandles実行:", clearCurves.length);
       clearCurveHandles(clearCurves);
     }
 
@@ -125,11 +110,8 @@ export function resolveCrossings(path: PathItem): PathItem {
     for (let i = 0, l = paths.length; i < l; i++) {
       allSegments = allSegments.concat(paths[i]._segments);
     }
-    console.log("tracePaths前のセグメント数:", allSegments.length);
     paths = tracePaths(allSegments, {});
-    console.log("tracePaths後のパス数:", paths.length);
     if (paths.length > 0) {
-      console.log("最初のパスのセグメント数:", paths[0]._segments.length);
     }
   }
 
@@ -168,7 +150,6 @@ function divideLocations(
   include?: (loc: CurveLocation) => boolean,
   clearLater?: Curve[]
 ): CurveLocation[] {
-  console.log("divideLocations開始 - 位置数:", locations.length);
   const results: CurveLocation[] | undefined = include ? [] : undefined;
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
@@ -192,20 +173,15 @@ function divideLocations(
         clearLookup![getId(curve)] = true;
       }
     }
-    console.log("clearLookup作成完了");
   }
   
   // 位置を右から左に処理
   for (let i = locations.length - 1; i >= 0; i--) {
     const loc = locations[i];
-    console.log(`位置[${i}]処理:`, loc);
     const time = loc.getTime()!;
     const origTime = time;
-    console.log("  時間:", time);
     const exclude = include && !include(loc);
-    console.log("  除外:", exclude);
     const curve = loc.getCurve()!;
-    console.log("  曲線:", curve ? "有効" : "無効");
     let segment: Segment | undefined;
     
     if (curve) {
@@ -213,14 +189,12 @@ function divideLocations(
         // 新しい曲線の場合、clearHandles設定を更新
         clearHandles = !curve.hasHandles() ||
                       (clearLookup && clearLookup[getId(curve)]);
-        console.log("  新しい曲線 - clearHandles:", clearHandles);
         renormalizeLocs = [];
         prevTime = undefined;
         prevCurve = curve;
       } else if (prevTime !== undefined && prevTime >= tMin) {
         // 同じ曲線を複数回分割する場合、時間パラメータを再スケール
         // paper.jsと同様に直接代入
-        console.log("  時間再スケール:", time, "->", time / prevTime);
         loc._time = time / prevTime;
       }
     }
@@ -228,43 +202,34 @@ function divideLocations(
     if (exclude) {
       // 除外された位置を後で正規化するために保存
       if (renormalizeLocs) {
-        console.log("  位置を除外して保存");
         renormalizeLocs.push(loc);
       }
       continue;
     } else if (include && results) {
       // paper.jsと同様にunshiftを使用
-      console.log("  結果に位置を追加");
       (results as CurveLocation[]).unshift(loc);
     }
     
     prevTime = origTime;
     
     if (time < tMin) {
-      console.log("  時間が小さすぎる - 最初のセグメントを使用");
       segment = curve._segment1;
     } else if (time > tMax) {
-      console.log("  時間が大きすぎる - 最後のセグメントを使用");
       segment = curve._segment2;
     } else {
       // 曲線を時間で分割 - paper.jsと同様に常にハンドルをセット
-      console.log("  曲線を分割:", time);
       const newCurve = curve.divideAtTime(time, true);
-      console.log("  分割結果:", newCurve ? "成功" : "失敗");
       
       // ハンドルなしの曲線を追跡
       if (clearHandles && newCurve) {
-        console.log("  clearCurvesに追加");
         clearCurves.push(curve, newCurve);
       }
       
       segment = newCurve ? newCurve._segment1 : undefined;
-      console.log("  分割点のセグメント:", segment ? "有効" : "無効");
       
       // 同じ曲線内の他の位置の時間パラメータを正規化
       for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
         const l = renormalizeLocs[j];
-        console.log("  位置を正規化:", l._time, "->", (l._time! - time) / (1 - time));
         l._time = (l._time! - time) / (1 - time);
       }
     }

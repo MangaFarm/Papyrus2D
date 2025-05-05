@@ -47,7 +47,6 @@ export function addLocation(
   t2: number | null,
   overlap: boolean = false
 ): void {
-  console.log("addLocation called - overlap:", overlap, "t1:", t1, "t2:", t2);
   // Paper.jsと同様の実装
   // 端点の除外判定
   const excludeStart = !overlap && c1.getPrevious() === c2;

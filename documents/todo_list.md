@@ -130,21 +130,6 @@
   - [ ] 7.3.1 npmパッケージの設定
   - [ ] 7.3.2 リリースプロセスの整備
 
-## 次のステップ（優先度順）
-- [x] MangaFarm Organizationへのリモートリポジトリ移行（2025/05/02 完了）
-- [ ] PathBoolean.tsの実装改善
-  - [x] PathBoolean.tsの機能を複数のファイルに分割
-    - [x] winding number関連の処理をPathBooleanWinding.tsに移動
-    - [x] 交点計算関連の処理をPathBooleanIntersections.tsに移動
-  - [ ] 非交差矩形のunite操作の修正（バウンディングボックス計算の問題）
-    - [x] paper.jsのreorientPaths関数の移植または同等機能の実装
-    - [ ] tracePaths関数の交点がない場合の処理を修正
-    - [ ] 詳細は documents/pathboolean_unite_issue.md を参照
-  - [ ] subtract操作の修正
-  - [x] PathBooleanWinding.tsのpaper.jsとの挙動の違いを修正
-  - [x] PathBooleanWinding.tsとpaper.jsのアルゴリズム上の違いを分析し文書化（documents/paper_js_vs_papyrus2d_winding.md）
-- [x] Path.getIntersectionsのインターフェースをpaper.jsと完全に一致させる（2025/05/05 完了）
-
 ## 実装方針
 - バグを減らすため、まずpaper.jsの既存コードを流用する
 - グローバル状態や不透明な依存関係を検出したら、透明性を高めるために書き換える

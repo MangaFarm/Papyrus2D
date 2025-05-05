@@ -405,12 +405,9 @@ export class Path extends PathItemBase {
    * @returns 曲線位置情報
    */
   getLocationAt(offset: number): CurveLocation | null {
-    console.log('getLocationAt: offset =', offset);
     const curves = this.getCurves();
     const length = curves.length;
-    console.log('getLocationAt: curves.length =', length);
     if (!length) {
-      console.log('getLocationAt: no curves');
       return null;
     }
     
@@ -420,26 +417,21 @@ export class Path extends PathItemBase {
       const start = curLength;
       const curve = curves[i];
       const curveLength = curve.getLength();
-      console.log(`getLocationAt: curve[${i}].length =`, curveLength);
       curLength += curveLength;
       
       if (curLength > offset) {
         // この曲線上の位置を計算
         const curveOffset = offset - start;
-        console.log(`getLocationAt: found curve[${i}], curveOffset =`, curveOffset);
         const loc = curve.getLocationAt(curveOffset);
-        console.log('getLocationAt: location =', loc ? 'valid' : 'null');
         return loc;
       }
     }
     
     // 誤差により最後の曲線が見逃された場合、offsetが全長以下であれば最後の曲線の終点を返す
     if (curves.length > 0 && offset <= this.getLength()) {
-      console.log('getLocationAt: using last curve endpoint');
       return new CurveLocation(curves[length - 1], 1);
     }
     
-    console.log('getLocationAt: offset out of range');
     return null;
   }
 
@@ -969,15 +961,6 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * 他のパスとの交点を取得
-   * paper.jsのPathItem.getIntersectionsメソッドに相当
-   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
-   * @param includeParam 交点をフィルタリングするコールバック関数
-   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
-   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
-   * @returns 交点情報の配列
-   */
   /**
    * 他のパスとの交点を取得
    * paper.jsのPathItem.getIntersectionsメソッドに相当
