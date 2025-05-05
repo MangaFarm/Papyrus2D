@@ -23,8 +23,14 @@ export type Intersection = IntersectionInfo;
  * paper.jsのfilterIntersection関数と完全に同じ
  */
 export function filterIntersection(inter: CurveLocation): boolean {
-  // 重なりまたは交差のみを返す
-  return inter.hasOverlap() || inter.isCrossing();
+    // TODO: Change isCrossing() to also handle overlaps (hasOverlap())
+    // that are actually involved in a crossing! For this we need proper
+    // overlap range detection / merging first... But as we call
+    // #resolveCrossings() first in boolean operations, removing all
+    // self-touching areas in paths, this works for the known use cases.
+    // The ideal implementation would deal with it in a way outlined in:
+    // https://github.com/paperjs/paper.js/issues/874#issuecomment-168332391
+    return inter.hasOverlap() || inter.isCrossing();
 }
 
 /**
@@ -32,36 +38,28 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
 export function getIntersections(path1: Path, path2: Path): Intersection[] {
- // paper.jsと同様に、CurveLocation.expand()を使用して交点を展開
- const rawIntersections = path1.getIntersections(path2, filterIntersection);
- const expandedIntersections = CurveLocation.expand(rawIntersections);
-  
-  // Intersection型に変換
-  const intersections: Intersection[] = [];
-  
-  for (const loc of expandedIntersections) {
-    // 交点情報を抽出
-    const point = loc.getPoint();
-    const curve = loc.getCurve();
-    const curveIndex = curve ? path1.getCurves().indexOf(curve) : 0;
-    
-    // 交差するカーブの情報
-    const intersection = loc.getIntersection();
-    const otherCurve = intersection ? intersection.getCurve() : null;
-    const otherCurveIndex = otherCurve ? path2.getCurves().indexOf(otherCurve) : 0;
-    
-    // 交点情報を作成
-    intersections.push({
-      point,
-      curve1Index: curveIndex,
-      curve2Index: otherCurveIndex,
-      t1: loc.getTime(),
-      t2: intersection ? intersection.getTime() : null,
-      visited: false
+    // CurveLocation.expand(_path1.getIntersections(_path2, filterIntersection)) を IntersectionInfo[] に変換
+    const locations = CurveLocation.expand(path1.getIntersections(path2, filterIntersection));
+    return locations.map(loc => {
+        // IntersectionInfo型に変換
+        return {
+            point: loc.getPoint(),
+            curve1Index: loc.getCurve() ? loc.getCurve()!.getIndex() : -1,
+            curve2Index: loc.getIntersection() && loc.getIntersection()!.getCurve()
+                ? loc.getIntersection()!.getCurve()!.getIndex()
+                : -1,
+            t1: (loc as any)._time ?? null,
+            t2: (loc.getIntersection() as any)?._time ?? null,
+            type: (loc as any).type,
+            winding: (loc as any).winding,
+            visited: (loc as any).visited,
+            next: (loc as any).next,
+            _previous: (loc as any)._previous,
+            segment: loc.getSegment ? loc.getSegment() : undefined,
+            _overlap: (loc as any)._overlap,
+            _intersection: (loc as any)._intersection
+        } as IntersectionInfo;
     });
-  }
-  
-  return intersections;
 }
 
 /**
@@ -73,172 +71,85 @@ export function divideLocations(
   include?: (loc: CurveLocation) => boolean,
   clearLater?: Curve[]
 ): Segment[] {
-// デバッグ: divideLocations開始時の各CurveLocationのpath
-  for (const loc of locations) {
-    const path = loc.getPath();
-    if (path && path._id) {
-      console.log('[divideLocations][debug] location path id:', path._id, 'segments:', path.getSegments().map(s => s.getPoint().toString()));
-    }
-  }
-  const results = include ? [] as CurveLocation[] : null;
-  const tMin = Numerical.CURVETIME_EPSILON;
-  const tMax = 1 - tMin;
-  let clearHandles = false;
-  const clearCurves = clearLater || [];
-  const clearLookup: Record<string, boolean> = clearLater ? {} : {};
-  let renormalizeLocs: CurveLocation[] = [];
-  let prevCurve: Curve | null = null;
-  let prevTime: number | null = null;
+    // paper.js PathItem.Boolean.js: divideLocations
+    const results = include ? [] as CurveLocation[] : undefined;
+    const tMin = Numerical.CURVETIME_EPSILON;
+    const tMax = 1 - tMin;
+    let clearHandles = false;
+    const clearCurves = clearLater || [];
+    const clearLookup = clearLater ? {} as Record<string, boolean> : undefined;
+    let renormalizeLocs: CurveLocation[] = [];
+    let prevCurve: Curve | undefined;
+    let prevTime: number | undefined;
 
-  // カーブのIDを取得する関数
-  function getId(curve: Curve): string {
-    return curve._path._id + '.' + curve._segment1._index;
-  }
-
-  // clearLaterが指定されている場合、ルックアップテーブルを作成
-  if (clearLater) {
-    for (let i = clearLater.length - 1; i >= 0; i--) {
-      const curve = clearLater[i];
-      if (curve._path) {
-        clearLookup[getId(curve)] = true;
-      }
-    }
-  }
-
-  // 右から左に向かって処理（paper.jsと同じ順序）
-  for (let i = locations.length - 1; i >= 0; i--) {
-    const loc = locations[i];
-    const time = loc.getTime() || 0;
-    const origTime = time;
-    const exclude = include ? !include(loc) : false;
-    const curve = loc.getCurve();
-    let segment: Segment | null = null;
-
-    if (curve) {
-      if (curve !== prevCurve) {
-        // 新しいカーブの場合、clearHandles設定を更新
-        clearHandles = !curve.hasHandles() ||
-                      clearLookup[getId(curve)] === true;
-        renormalizeLocs = [];
-        prevTime = null;
-        prevCurve = curve;
-      } else if (prevTime !== null && prevTime >= tMin) {
-        // 同じカーブを複数回分割する場合、時間パラメータを再スケール
-        loc._time = time / prevTime;
-      }
+    function getId(curve: Curve) {
+        return curve._path._id + '.' + curve._segment1._index;
     }
 
-    if (exclude) {
-      // 除外された位置を後で正規化するために保存
-      renormalizeLocs.push(loc);
-      continue;
-    } else if (include && results) {
-      results.unshift(loc);
-    }
-
-    prevTime = origTime;
-    if (curve) {
-      if (time < tMin) {
-        segment = curve._segment1;
-      } else if (time > tMax) {
-        segment = curve._segment2;
-      } else {
-        // カーブを時間で分割
-        // paper.jsと同様に、_setHandlesパラメータを渡す
-        // divideAtTimeは新しいカーブオブジェクトを返す（Paper.jsと同様）
-        const newCurve = curve.divideAtTime(time, clearHandles);
-        
-        // paper.jsと同様に、clearHandlesがtrueの場合、元のカーブと新しいカーブをclearCurvesに追加
-        if (clearHandles && newCurve) {
-          // 分割が成功した場合、元のカーブと新しいカーブを追加
-          clearCurves.push(curve);
-          clearCurves.push(newCurve);
+    if (clearLater && clearLookup) {
+        for (let i = clearLater.length - 1; i >= 0; i--) {
+            const curve = clearLater[i];
+            if (curve._path)
+                clearLookup[getId(curve)] = true;
         }
-        
-        // 分割が成功した場合、新しいセグメントを取得
-        if (newCurve) {
-          // 新しいセグメントは新しいカーブの最初のセグメント
-          segment = newCurve._segment1;
-// デバッグ: divideAtTime直後の新しいセグメント
-            if (segment) {
-              console.log('[divideLocations][debug] new segment:', {
-                point: segment._point && segment._point.toString(),
-                index: segment._index,
-                pathId: segment._path && segment._path._id,
-                pathSegments: segment._path && segment._path.getSegments && segment._path.getSegments().map(s => s.getPoint().toString())
-              });
+    }
+
+    for (let i = locations.length - 1; i >= 0; i--) {
+        const loc = locations[i];
+        let time = (loc as any)._time;
+        const origTime = time;
+        const exclude = include && !include(loc);
+        const curve = (loc as any)._curve as Curve | undefined;
+        let segment: Segment | undefined;
+        if (curve) {
+            if (curve !== prevCurve) {
+                clearHandles = !curve.hasHandles() || !!(clearLookup && clearLookup[getId(curve)]);
+                renormalizeLocs = [];
+                prevTime = undefined;
+                prevCurve = curve;
+            } else if (prevTime !== undefined && prevTime >= tMin) {
+                time /= prevTime;
             }
-          
-          // 同じカーブ内の他の位置の時間パラメータを正規化
-          for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
-            const l = renormalizeLocs[j];
-            l._time = ((l._time || 0) - time) / (1 - time);
-          }
         }
-      }
-    }
-
-    if (segment) {
-      loc._setSegment(segment);
-      
-      // 交点間のリンクを作成
-      // SegmentMetaを使用して交点情報を管理
-      const meta = getMeta(segment)!;
-      const inter = meta.intersection;
-      const dest = loc._intersection as unknown as Intersection; // 直そうとしたが大工事なので諦めた
-      
-      if (inter) {
-        // リンク処理を行う
-        linkIntersections(inter as Intersection, dest);
-        // 新しいリンクを追加するたびに、他のすべてのエントリから新しいエントリへのリンクを追加
-        let other = inter;
-        while (other) {
-          if (other._intersection) {
-            linkIntersections(other._intersection, inter);
-          }
-          other = other.next!; // next!を使用してnullチェックエラーを回避
+        if (exclude) {
+            if (renormalizeLocs)
+                renormalizeLocs.push(loc);
+            continue;
+        } else if (include && results) {
+            results.unshift(loc);
         }
-      } else {
-        // メタデータに交点情報を設定
-        meta.intersection = dest;
-      }
+        prevTime = origTime;
+        if (time < tMin) {
+            segment = (curve as any)._segment1;
+        } else if (time > tMax) {
+            segment = (curve as any)._segment2;
+        } else {
+            const newCurve = (curve as any).divideAtTime(time, true);
+            if (clearHandles)
+                clearCurves.push(curve!, newCurve!);
+            segment = newCurve._segment1;
+            for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
+                const l = renormalizeLocs[j];
+                (l as any)._time = ((l as any)._time - time) / (1 - time);
+            }
+        }
+        (loc as any)._setSegment(segment);
+        const inter = (segment as any)._intersection;
+        const dest = (loc as any)._intersection;
+        if (inter) {
+            linkIntersections(inter, dest);
+            let other = inter;
+            while (other) {
+                linkIntersections((other as any)._intersection, inter);
+                other = (other as any)._next;
+            }
+        } else {
+            (segment as any)._intersection = dest;
+        }
     }
-  }
-
-  // 後で処理するために保存していない場合は、すぐにカーブハンドルをクリア
-  if (!clearLater) {
-    clearCurveHandles(clearCurves);
-  }
-
-// デバッグ: divideLocations後の全セグメント
-// 分割後、全セグメントのインデックスとカーブ配列を再構築
-  if (locations.length > 0) {
-    const path = locations[0].getPath();
-    if (path && path._segments) {
-      for (let i = 0; i < path._segments.length; i++) {
-        path._segments[i]._index = i;
-      }
-      if (path._curves && typeof path._adjustCurves === 'function') {
-        path._adjustCurves(0, path._segments.length - 1);
-// デバッグ: dividePathAtIntersectionsでlocationsの各CurveLocationのpath
-  for (const loc of locations) {
-    const path = loc.getPath();
-    if (path && path._id) {
-      console.log('[dividePathAtIntersections][debug] location path id:', path._id, 'segments:', path.getSegments().map(s => s.getPoint().toString()));
-    }
-  }
-      }
-    }
-  }
-let allSegments: Segment[] = [];
-if (locations.length > 0) {
-  const path = locations[0].getPath();
-  if (path && path.getSegments) {
-    allSegments = path.getSegments();
-    console.log('[divideLocations][debug] path.getSegments:', allSegments.map(s => s.getPoint().toString()));
-  }
-}
-return allSegments;
+    if (!clearLater)
+        clearCurveHandles(clearCurves);
+    return (results as any) || locations;
 }
 
 /**
@@ -246,23 +157,10 @@ return allSegments;
  * paper.jsのdivideLocations関数を使用した実装
  */
 export function dividePathAtIntersections(path: Path, intersections: Intersection[]): Segment[] {
-  if (intersections.length === 0) return path._segments;
-
-  // CurveLocationの配列に変換
-  const locations: CurveLocation[] = [];
-  for (const inter of intersections) {
-    const curve = path.getCurves()[inter.curve1Index];
-    const loc = new CurveLocation(curve, inter.t1 || 0);
-    loc._path = path; // 明示的にpathをセット
-    (loc as any)._intersection = inter;
-    locations.push(loc);
-  }
-
-  // divideLocations関数を使用して交点でパスを分割
-  divideLocations(locations);
-
-  // 分割後の全セグメントを返す（getSegmentsで順序・重複除去も含めて取得）
-  return path.getSegments();
+    // paper.js: divideLocationsを使って交点でパスを分割
+    // Papyrus2Dでは交点情報をCurveLocation[]として扱う前提で、divideLocationsを呼び出す
+    // 返り値は分割後のセグメント配列
+    return divideLocations(intersections as unknown as CurveLocation[]);
 }
 
 /**
@@ -270,28 +168,28 @@ export function dividePathAtIntersections(path: Path, intersections: Intersectio
  * paper.jsのlinkIntersections関数と完全に同じ実装
  */
 export function linkIntersections(from: Intersection, to: Intersection): void {
-  // 既存のチェーンに既にtoが含まれていないか確認
-  let prev = from;
-  while (prev) {
-    if (prev === to) return;
-    prev = prev._previous!;
-  }
-
-  // 既存のチェーンの末尾を探す
-  while (from.next && from.next !== to) {
-    from = from.next;
-  }
-
-  // チェーンの末尾に到達したら、toを連結
-  if (!from.next) {
-    // toのチェーンの先頭に移動
-    let toStart = to;
-    while (toStart._previous) {
-      toStart = toStart._previous;
+    // paper.js PathItem.Boolean.js: linkIntersections
+    // Only create the link if it's not already in the existing chain, to
+    // avoid endless recursions. First walk to the beginning of the chain,
+    // and abort if we find `to`.
+    let prev: any = from;
+    while (prev) {
+        if (prev === to)
+            return;
+        prev = prev._previous;
     }
-    from.next = toStart;
-    toStart._previous = from;
-  }
+    // Now walk to the end of the existing chain to find an empty spot, but
+    // stop if we find `to`, to avoid adding it again.
+    while ((from as any)._next && (from as any)._next !== to)
+        from = (from as any)._next;
+    // If we're reached the end of the list, we can add it.
+    if (!(from as any)._next) {
+        // Go back to beginning of the other chain, and link the two up.
+        while ((to as any)._previous)
+            to = (to as any)._previous;
+        (from as any)._next = to;
+        (to as any)._previous = from;
+    }
 }
 
 /**
@@ -299,8 +197,8 @@ export function linkIntersections(from: Intersection, to: Intersection): void {
  * paper.jsのclearCurveHandlesメソッドと完全に同じ実装
  */
 export function clearCurveHandles(curves: Curve[]): void {
-  // 各カーブのハンドルをクリア
-  for (let i = curves.length - 1; i >= 0; i--) {
-    curves[i].clearHandles();
-  }
+    // paper.js PathItem.Boolean.js: clearCurveHandles
+    for (let i = curves.length - 1; i >= 0; i--) {
+        curves[i].clearHandles();
+    }
 }
