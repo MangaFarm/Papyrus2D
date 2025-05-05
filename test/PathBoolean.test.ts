@@ -215,6 +215,17 @@ describe('PathBoolean', () => {
       'M0,0L100,0L100,50L150,50L150,150L50,150L50,100L0,100Z'  // exclude
     ];
     
+// デバッグ: セグメントとカーブの内容を出力
+console.log('DEBUG: rect1 segments:', rect1.getSegments().map(s => s.point));
+console.log('DEBUG: rect2 segments:', rect2.getSegments().map(s => s.point));
+console.log('DEBUG: rect1 curves:', rect1.getCurves().map(c => c.getValues()));
+console.log('DEBUG: rect2 curves:', rect2.getCurves().map(c => c.getValues()));
+console.log('DEBUG: rect1 segment indices:', rect1.getSegments().map(s => s._index));
+console.log('DEBUG: rect2 segment indices:', rect2.getSegments().map(s => s._index));
+console.log('DEBUG: rect1 segment point identities:', rect1.getSegments().map(s => s.point));
+console.log('DEBUG: rect2 segment point identities:', rect2.getSegments().map(s => s.point));
+console.log('DEBUG: rect1 curve isStraight:', rect1.getCurves().map(c => c.isStraight()));
+console.log('DEBUG: rect2 curve isStraight:', rect2.getCurves().map(c => c.isStraight()));
     testOperations(rect1, rect2, results);
   });
   

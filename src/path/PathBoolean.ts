@@ -187,6 +187,18 @@ export class PathBoolean {
     const _path1 = preparePath(path1, true) as Path;
     const _path2 = preparePath(path2, true) as Path;
 
+    // デバッグ: カーブ配列の内容を出力
+    console.log('DEBUG: _path1.getCurves() values:');
+    _path1.getCurves().forEach((curve, i) => {
+      console.log(`  path1 curve[${i}]:`, curve.getValues());
+    });
+    if (_path2) {
+      console.log('DEBUG: _path2.getCurves() values:');
+      _path2.getCurves().forEach((curve, i) => {
+        console.log(`  path2 curve[${i}]:`, curve.getValues());
+      });
+    }
+
     // 演算子に応じたフィルタ関数を定義
     const operators: Record<string, Record<string, boolean>> = {
       'unite':     { '1': true, '2': true },
@@ -214,6 +226,7 @@ export class PathBoolean {
 
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
+    console.log('DEBUG: intersections.length:', intersections.length, intersections);
 
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定

@@ -37,7 +37,7 @@ export class Path extends PathItemBase {
   // PathItemBaseから継承したプロパティ以外のプロパティ
   _segments: Segment[];
   _closed: boolean;
-  _curves?: Curve[];
+  _curves: Curve[] | null;
   _length?: number;
   _area?: number;
 
@@ -45,7 +45,7 @@ export class Path extends PathItemBase {
     super();
     this._segments = [];
     this._closed = false;
-    this._curves = undefined;
+    this._curves = null;
     
     // セグメントがある場合は追加
     if (segments.length > 0) {
@@ -77,8 +77,8 @@ export class Path extends PathItemBase {
    * @param segments 新しいセグメント配列
    */
   setSegments(segments: Segment[]): void {
+    this._curves = null;
     this._segments.length = 0;
-    this._curves = undefined;
     
     if (segments && segments.length) {
       this._add(segments);
@@ -95,6 +95,7 @@ export class Path extends PathItemBase {
    * @param index 挿入位置（省略時は末尾に追加）
    */
   _add(segs: Segment[], index?: number): Segment[] {
+    this._curves = null;
     const segments = this._segments;
     const curves = this._curves;
     const amount = segs.length;
@@ -124,22 +125,22 @@ export class Path extends PathItemBase {
     }
 
     // カーブの更新
-    if (curves) {
-      const total = this._countCurves();
-      const start = index > 0 && index + amount - 1 === total ? index - 1 : index;
-      let insert = start;
-      const end = Math.min(start + amount, total);
+    // if (curves) {
+    //   const total = this._countCurves();
+    //   const start = index > 0 && index + amount - 1 === total ? index - 1 : index;
+    //   let insert = start;
+    //   const end = Math.min(start + amount, total);
 
-      // 新しいカーブの挿入
-      for (let i = insert; i < end; i++) {
-        // paper.jsと同様に、カーブを作成する際にパスを指定し、セグメントは後で_adjustCurvesで設定する
-        const curve = new Curve(this, null, null);
-        curves.splice(i, 0, curve);
-      }
+    //   // 新しいカーブの挿入
+    //   for (let i = insert; i < end; i++) {
+    //     // paper.jsと同様に、カーブを作成する際にパスを指定し、セグメントは後で_adjustCurvesで設定する
+    //     const curve = new Curve(this, null, null);
+    //     curves.splice(i, 0, curve);
+    //   }
       
-      // カーブのセグメントを調整
-      this._adjustCurves(start, end);
-    }
+    //   // カーブのセグメントを調整
+    //   this._adjustCurves(start, end);
+    // }
 
     this._changed(ChangeFlag.SEGMENTS);
     return segs;
@@ -605,16 +606,27 @@ export class Path extends PathItemBase {
     if (this._curves) {
       return this._curves;
     }
-    
+
     const curves: Curve[] = [];
     const segments = this._segments;
-    const length = this._countCurves();
-    
-    for (let i = 0; i < length; i++) {
-      const curve = new Curve(this, segments[i], segments[i + 1] || segments[0]);
-      curves.push(curve);
+    const count = segments.length;
+
+    if (count < 2) {
+      this._curves = [];
+      return [];
     }
-    
+
+    if (this._closed) {
+      for (let i = 0; i < count; i++) {
+        const next = (i + 1) % count;
+        curves.push(new Curve(this, segments[i], segments[next]));
+      }
+    } else {
+      for (let i = 0; i < count - 1; i++) {
+        curves.push(new Curve(this, segments[i], segments[i + 1]));
+      }
+    }
+
     this._curves = curves;
     return curves;
   }
@@ -644,6 +656,7 @@ export class Path extends PathItemBase {
    * @param segment 追加するセグメント
    */
   add(segment: Segment): Segment {
+    this._curves = null;
     return this._add([segment])[0];
   }
 
@@ -653,6 +666,7 @@ export class Path extends PathItemBase {
    * @param segment 挿入するセグメント
    */
   insert(index: number, segment: Segment): Segment {
+    this._curves = null;
     return this._add([segment], index)[0];
   }
 
@@ -661,6 +675,7 @@ export class Path extends PathItemBase {
    * @param index 削除するセグメントのインデックス
    */
   removeSegment(index: number): Segment | null {
+    this._curves = null;
     return this.removeSegments(index, index + 1)[0] || null;
   }
 
@@ -670,6 +685,7 @@ export class Path extends PathItemBase {
    * @param to 終了インデックス（省略時は最後まで）
    */
   removeSegments(from: number = 0, to?: number): Segment[] {
+    this._curves = null;
     from = from || 0;
     to = to !== undefined ? to : this._segments.length;
     
@@ -701,6 +717,7 @@ export class Path extends PathItemBase {
    * すべてのセグメントを削除
    */
   clear(): Segment[] {
+    this._curves = null;
     return this.removeSegments();
   }
 
@@ -712,7 +729,7 @@ export class Path extends PathItemBase {
    */
   moveTo(point: Point): Path {
     this._segments.length = 0;
-    this._curves = undefined;
+    this._curves = null;
     this.add(new Segment(point));
     return this;
   }
@@ -1048,8 +1065,9 @@ export class Path extends PathItemBase {
    * @returns 分割後の新しいパス（後半部分）
    */
   splitAt(location: number | CurveLocation): Path | null {
-    const result = splitPathAt(this, location); 
-    this._changed(ChangeFlag.GEOMETRY); 
+    this._curves = null;
+    const result = splitPathAt(this, location);
+    this._changed(ChangeFlag.GEOMETRY);
     return result;
   }
 
@@ -1244,7 +1262,7 @@ export class Path extends PathItemBase {
       segment._index = i;
     }
     // カーブのキャッシュをクリア
-    this._curves = undefined;
+    this._curves = null;
     this._changed(ChangeFlag.GEOMETRY);
     return this;
   }
