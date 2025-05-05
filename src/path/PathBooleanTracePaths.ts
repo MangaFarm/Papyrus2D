@@ -230,14 +230,14 @@ export function tracePaths(
                     segStartInfo._intersection.segment &&
                     asSegmentInfo(segStartInfo._intersection.segment)!._path;
       
-      if (path1.compare && path2 && path1.compare(path2)) {
+      if (path2 && (path1 as any).compare && (path1 as any).compare(path2)) {
         // 面積がある場合のみパスを結果に追加
         if (path1.getArea()) {
           paths.push(path1.clone(false));
         }
         // 関連するすべてのセグメントを訪問済みにマーク
         visitPath(path1);
-        visitPath(path2);
+        if (path2) visitPath(path2);
         validStart = false;
       }
     }
