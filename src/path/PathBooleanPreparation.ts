@@ -12,6 +12,7 @@ import { Segment } from './Segment';
 import { Curve } from './Curve';
 import { reorientPaths } from './PathBooleanReorient';
 import { tracePaths } from './PathBooleanTracePaths';
+import { getMeta, IntersectionInfo } from './SegmentMeta';
 
 /**
  * パスの配列を取得する
@@ -37,8 +38,10 @@ export function resolveCrossings(path: PathItem): PathItem {
   
   // hasOverlap関数の実装
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
-    const inter = seg && (seg as any)._intersection;
-    return !!(inter && inter._overlap && inter._path === path);
+    if (!seg) return false;
+    const meta = getMeta(seg);
+    const inter = meta && meta.intersection;
+    return !!(inter && inter._overlap && meta.path === path);
   }
   
   // 交差と重なりを検出
@@ -129,10 +132,12 @@ export function resolveCrossings(path: PathItem): PathItem {
       
       // 重なり処理に関わった交差点を削除
       if (seg1) {
-        (seg1 as any)._intersection = null;
+        const meta1 = getMeta(seg1);
+        if (meta1) meta1.intersection = null;
       }
       if (seg2) {
-        (seg2 as any)._intersection = null;
+        const meta2 = getMeta(seg2);
+        if (meta2) meta2.intersection = null;
       }
       
       return false;
@@ -302,8 +307,9 @@ function divideLocations(
     loc._setSegment(segment!);
     
     // 交差点のリンクリストを作成
-    const inter = (segment as any)._intersection;
-    const dest = loc._intersection;
+    const meta = getMeta(segment!);
+    const inter = meta && meta.intersection;
+    const dest = loc._intersection as unknown as IntersectionInfo;
     
     if (inter) {
       linkIntersections(inter, dest);
@@ -311,11 +317,13 @@ function divideLocations(
       // リンクリストの他のエントリにも新しいエントリへのリンクを追加
       let other = inter;
       while (other) {
-        linkIntersections(other._intersection, inter);
-        other = other._next;
+        if (other._intersection) {
+          linkIntersections(other._intersection, inter);
+        }
+        other = other.next!; // next!を使用してnullチェックエラーを回避
       }
-    } else {
-      (segment as any)._intersection = dest;
+    } else if (meta) {
+      meta.intersection = dest;
     }
   }
   
@@ -331,27 +339,28 @@ function divideLocations(
  * 交差点情報をリンクリストとして連結する
  * paper.jsのlinkIntersections関数を移植
  */
-function linkIntersections(from: any, to: any): void {
+function linkIntersections(from: IntersectionInfo, to: IntersectionInfo): void {
   // 既存のチェーンに既にtoが含まれていないか確認
   let prev = from;
   while (prev) {
     if (prev === to) return;
-    prev = prev._previous;
+    prev = prev._previous!;
   }
   
   // 既存のチェーンの末尾を探す
-  while (from._next && from._next !== to) {
-    from = from._next;
+  while (from.next && from.next !== to) {
+    from = from.next;
   }
   
   // チェーンの末尾に到達したら、toを連結
-  if (!from._next) {
+  if (!from.next) {
     // toのチェーンの先頭に移動
-    while (to._previous) {
-      to = to._previous;
+    let toStart = to;
+    while (toStart._previous) {
+      toStart = toStart._previous;
     }
-    from._next = to;
-    to._previous = from;
+    from.next = toStart;
+    toStart._previous = from;
   }
 }
 

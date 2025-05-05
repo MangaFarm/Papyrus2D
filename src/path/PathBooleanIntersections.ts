@@ -10,47 +10,13 @@ import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
 import { CollisionDetection } from '../util/CollisionDetection';
+import { getMeta, IntersectionInfo } from './SegmentMeta';
 
 /**
  * 交点情報
- * paper.jsの内部表現に合わせたインターフェース
+ * SegmentMeta.ts の IntersectionInfo を再エクスポート
  */
-export interface Intersection {
-  // 交点の座標
-  point: Point;
-  // 交点のパス1上のカーブインデックス
-  curve1Index: number;
-  // 交点のパス2上のカーブインデックス
-  curve2Index: number;
-  // 交点のパス1上のカーブパラメータ
-  t1?: number | null;
-  // 交点のパス2上のカーブパラメータ
-  t2?: number | null;
-  // 交点の種類（entry/exit）
-  type?: 'entry' | 'exit';
-  // 交点のwinding number
-  winding?: number;
-  // 交点の処理済みフラグ
-  visited?: boolean;
-  // 次の交点への参照（リンクリスト構造）
-  next?: Intersection;
-  // 前の交点への参照（リンクリスト構造）
-  _previous?: Intersection;
-  // 交点のセグメント
-  segment?: Segment;
-  // 交点が重なりかどうか
-  _overlap?: boolean;
-  // 交点の情報
-  _intersection?: Intersection;
-}
-
-/**
- * Segmentの拡張インターフェース（TypeScript制約のため）
- * paper.jsではSegmentに直接プロパティを追加しているが、TypeScriptでは型定義が必要
- */
-interface SegmentWithIntersection extends Segment {
-  _intersection?: Intersection;
-}
+export type Intersection = IntersectionInfo;
 
 /**
  * 交差点と重なりを区別するフィルター関数
@@ -200,27 +166,25 @@ export function divideLocations(
       loc._setSegment(segment);
       
       // 交点間のリンクを作成
-      // paper.jsと同様に、Segmentに直接_intersectionプロパティを追加
-      // TypeScript制約: 型定義のためにキャストは必要だが、コメントで説明
-      const segmentWithInter = segment as unknown as SegmentWithIntersection;
-      const inter = segmentWithInter._intersection;
-      const dest = loc._intersection;
+      // SegmentMetaを使用して交点情報を管理
+      const meta = getMeta(segment)!;
+      const inter = meta.intersection;
+      const dest = loc._intersection as unknown as Intersection;
       
       if (inter) {
-        // paper.jsと同様に、直接リンク処理を行う
-        // TypeScript制約: 型の一致を確保するためにキャストが必要
-        linkIntersections(inter as unknown as Intersection, dest as unknown as Intersection);
+        // リンク処理を行う
+        linkIntersections(inter as Intersection, dest);
         // 新しいリンクを追加するたびに、他のすべてのエントリから新しいエントリへのリンクを追加
-        let other = inter as unknown as Intersection;
+        let other = inter;
         while (other) {
           if (other._intersection) {
-            linkIntersections(other._intersection, inter as unknown as Intersection);
+            linkIntersections(other._intersection, inter);
           }
           other = other.next!; // next!を使用してnullチェックエラーを回避
         }
       } else {
-        // paper.jsと同様に、直接プロパティを設定
-        segmentWithInter._intersection = dest as unknown as Intersection;
+        // メタデータに交点情報を設定
+        meta.intersection = dest;
       }
     }
   }

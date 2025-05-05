@@ -10,36 +10,7 @@ import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveSubdivision } from './CurveSubdivision';
 import { Intersection } from './PathBooleanIntersections';
-
-/**
- * セグメント拡張情報
- * paper.jsのSegmentクラスに追加されるプロパティを定義
- */
-interface SegmentInfo {
-  // セグメントが訪問済みかどうか
-  _visited?: boolean;
-  // セグメントの交点情報
-  _intersection?: Intersection | null;
-  // セグメントのwinding情報
-  _winding?: {
-    winding: number;
-    windingL?: number;
-    windingR?: number;
-  };
-  // セグメントのパス
-  _path?: Path & {
-    _overlapsOnly?: boolean;
-    _closed?: boolean;
-    _id?: number;
-    compare?: (path: Path) => boolean;
-  };
-}
-
-// 型安全性のためのヘルパー関数
-// 注意: paper.jsとの互換性のため、型キャストを使用
-export function asSegmentInfo(segment: Segment | null | undefined): Segment & SegmentInfo | null | undefined {
-  return segment as (Segment & SegmentInfo) | null | undefined;
-}
+import { getMeta, WindingInfo } from './SegmentMeta';
 
 /**
  * winding numberを伝播する
@@ -145,9 +116,9 @@ export function propagateWinding(
   
   // Now assign the winding to the entire curve chain.
   for (let j = chain.length - 1; j >= 0; j--) {
-    const segmentInfo = asSegmentInfo(chain[j].segment);
-    if (segmentInfo) {
-      segmentInfo._winding = windingResult;
+    const meta = getMeta(chain[j].segment);
+    if (meta) {
+      meta.winding = windingResult;
     }
   }
 }
@@ -448,12 +419,12 @@ export function getWindingContribution(
   path2: Path | null,
   operator: Record<string, boolean>
 ): number {
-  const segmentInfo = asSegmentInfo(segment);
-  if (!segmentInfo || !segmentInfo._winding) {
+  const meta = getMeta(segment);
+  if (!meta || !meta.winding) {
     return 0;
   }
   
-  const winding = segmentInfo._winding;
+  const winding = meta.winding;
   return operator.subtract && path2
     ? path1.isClockwise() !== path2.isClockwise()
       ? winding.winding

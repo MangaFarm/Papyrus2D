@@ -14,7 +14,8 @@ import { reorientPaths } from './PathBooleanReorient';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { preparePath } from './PathBooleanPreparation';
 import { tracePaths } from './PathBooleanTracePaths';
-import { propagateWinding, asSegmentInfo } from './PathBooleanWinding';
+import { propagateWinding } from './PathBooleanWinding';
+import { getMeta } from './SegmentMeta';
 import {
   getIntersections,
   dividePathAtIntersections,
@@ -255,8 +256,8 @@ export class PathBoolean {
       
       // 残りのセグメントにもwinding numberを伝播
       for (const segment of segments) {
-        const segInfo = asSegmentInfo(segment);
-        if (segInfo && !segInfo._winding) {
+        const meta = getMeta(segment);
+        if (meta && !meta.winding) {
           propagateWinding(segment, dividedPath1, dividedPath2, curveCollisionsMap, operator);
         }
       }
