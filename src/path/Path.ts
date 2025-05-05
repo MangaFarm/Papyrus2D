@@ -1232,36 +1232,6 @@ export class Path extends PathItemBase {
   }
 
   /**
-   * 指定されたパスの属性をコピーする
-   * paper.jsのItem.copyAttributes()を移植
-   * @param path コピー元のパス
-   * @param excludeMatrix 行列を除外するかどうか
-   * @returns このパス
-   */
-  copyAttributes(path: PathItem, excludeMatrix?: boolean): Path {
-    // 行列のコピー
-    if (!excludeMatrix && path._matrix) {
-      this._matrix = path._matrix.clone();
-    }
-    
-    // styleのコピー（シャローコピー）
-    if ('style' in path) {
-      // @ts-ignore
-      this.style = { ...path.style };
-    }
-    
-    // その他の属性コピー
-    const keys = ['_locked', '_visible', '_blendMode', '_opacity', '_clipMask', '_guide'];
-    for (const key of keys) {
-      if (key in path) {
-        // @ts-ignore
-        this[key] = path[key];
-      }
-    }
-    
-    return this;
-  }
-  /**
    * パスの向きを反転させる
    * paper.jsのPath.reverse()を移植
    * @returns このパス
@@ -1312,15 +1282,6 @@ export class Path extends PathItemBase {
   reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
     // 基底クラスの実装を呼び出す
     return super.reorient(nonZero, clockwise);
-  }
-
-  /**
-   * 塗りつぶしルールを取得する
-   * paper.jsのItem.getFillRule()を移植
-   * @returns 塗りつぶしルール
-   */
-  getFillRule(): string {
-    return super.getFillRule();
   }
 
   // setClockwiseメソッドは基底クラスから継承

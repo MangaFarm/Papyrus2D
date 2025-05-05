@@ -123,7 +123,40 @@ export abstract class PathItemBase implements PathItem {
   /**
    * 指定されたパスの属性をコピーする
    */
-  abstract copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem;
+  /**
+   * 指定されたパスの属性をコピーする
+   * paper.jsのItem.copyAttributes()に準拠
+   */
+  copyAttributes(path: PathItem, excludeMatrix?: boolean): this {
+    // 行列のコピー
+    if (!excludeMatrix && (path as any)._matrix) {
+      // @ts-ignore
+      this._matrix = (path as any)._matrix.clone();
+    }
+    // styleのコピー（シャローコピー）
+    if ('style' in path) {
+      // @ts-ignore
+      this.style = { ...path.style };
+    }
+    // その他の属性コピー
+    const keys = ['_locked', '_visible', '_blendMode', '_opacity', '_clipMask', '_guide'];
+    for (const key of keys) {
+      if (key in path) {
+        // @ts-ignore
+        this[key] = (path as any)[key];
+      }
+    }
+    // データと名前
+    if ('_data' in path) {
+      // @ts-ignore
+      this._data = (path as any)._data ? JSON.parse(JSON.stringify((path as any)._data)) : null;
+    }
+    if ('_name' in path) {
+      // @ts-ignore
+      this._name = (path as any)._name;
+    }
+    return this;
+  }
 
   /**
    * 交差を解決する

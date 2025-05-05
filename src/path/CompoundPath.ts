@@ -708,42 +708,6 @@ export class CompoundPath extends PathItemBase {
   }
 
   /**
-   * 属性コピー（paper.jsのItem#copyAttributesに準拠）
-   */
-  copyAttributes(path: PathItem, excludeMatrix?: boolean): CompoundPath {
-    // styleのコピー（シャローコピー）
-    if ('style' in path) {
-      // @ts-ignore
-      this.style = { ...path.style };
-    }
-    
-    // その他の属性コピー
-    const keys = ['_locked', '_visible', '_blendMode', '_opacity', '_clipMask', '_guide'];
-    for (const key of keys) {
-      if (key in path) {
-        // @ts-ignore
-        this[key] = path[key];
-      }
-    }
-    
-    // 行列
-    if (!excludeMatrix && path._matrix) {
-      this._matrix = path._matrix.clone();
-    }
-    
-    // データと名前
-    if ('_data' in path) {
-      // @ts-ignore
-      this._data = path._data ? JSON.parse(JSON.stringify(path._data)) : null;
-    }
-    if ('_name' in path) {
-      // @ts-ignore
-      this._name = path._name;
-    }
-    return this;
-  }
-
-  /**
    * 指定されたパスが兄弟関係にあるかどうかを判定する
    * paper.jsのItem.isSibling()を移植
    * @param path 判定するパス
@@ -794,14 +758,5 @@ export class CompoundPath extends PathItemBase {
     copy.copyAttributes(this);
     
     return copy;
-  }
-
-  /**
-   * 塗りつぶしルールを取得する
-   * paper.jsのItem.getFillRule()を移植
-   * @returns 塗りつぶしルール
-   */
-  getFillRule(): string {
-    return super.getFillRule();
   }
 }

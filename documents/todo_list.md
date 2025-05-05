@@ -60,6 +60,7 @@
   - [x] 情報取得メソッド（getLength, getBounds）
   - [x] パス操作メソッド（splitAt, equals）の修正
   - [x] 3.2.3 CompoundPath クラスの実装
+- [x] Path/CompoundPathのcopyAttributesをPathItemBaseに集約（2025/05/05 完了）
 - [x] PathItemBase, Path, CompoundPathでStyle型(fillRule)を統一利用（2025/05/05 完了）
 - [ ] 3.3 パス操作メソッドの実装
   - [ ] 3.3.1 パス生成ファクトリメソッド（Circle, Rectangle, Star など）
