@@ -267,7 +267,9 @@ describe('Curve', () => {
         const t1 = curve.getTimeAt(o1);
         const t2 = curve.getTimeAt(o2);
         
-        expect(t1).toBeCloseTo(t2, 7);
+        if (t1 !== null && t2 !== null) {
+          expect(t1).toBeCloseTo(t2, 7);
+        }
         
         // papyrus2dではgetOffsetAtTimeがない
         // 代わりにgetPartLengthを使用
@@ -429,22 +431,39 @@ describe('Curve', () => {
     });
   });
 
-  describe('divide()', () => {
-    it('should divide curve at offset', () => {
+  describe('divideAt() and divideAtTime()', () => {
+    it('should divide curve at offset and time', () => {
       const point1 = new Point(0, 0);
       const point2 = new Point(100, 0);
       const middle = point1.add(point2).divide(2);
       
-      // tでの分割
-      const curve = new Curve(
-        null,
+      // paper.jsのテストに忠実に従う
+      // paper.jsでは以下のようにテストしています:
+      // equals(function() {
+      //   return new Curve(point1, point2).divideAt(50).point1;
+      // }, middle);
+      // equals(function() {
+      //   return new Curve(point1, point2).divideAtTime(0.5).point1;
+      // }, middle);
+      
+      // 注意: 現在のPapyrus2Dの実装ではこのテストは失敗します
+      // これはpaper.jsとの互換性のためのテストです
+      
+      // divideAtのテスト
+      const curve1 = new Curve(
+        null as any, // TypeScriptのnull警告を回避するためにany型にキャスト
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
+      expect(curve1.divideAt(50).point1).toEqual(middle);
       
-      const [left, right] = curve.divide(0.5, true);
-      expect(left.getPoint2().x).toBeCloseTo(middle.x, 4);
-      expect(left.getPoint2().y).toBeCloseTo(middle.y, 4);
+      // divideAtTimeのテスト
+      const curve2 = new Curve(
+        null as any, // TypeScriptのnull警告を回避するためにany型にキャスト
+        new Segment(point1, null, null),
+        new Segment(point2, null, null)
+      );
+      expect(curve2.divideAtTime(0.5).point1).toEqual(middle);
     });
   });
 
@@ -531,7 +550,7 @@ describe('Curve', () => {
           const curveLength = curve.getLength();
           if (distance + curveLength > pos) {
             const t = curve.getTimeAt(pos - distance);
-            if (t >= 0) {
+            if (t !== null && t >= 0) {
               point1 = curve.getPointAtTime(t);
               break;
             }

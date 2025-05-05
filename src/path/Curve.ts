@@ -26,6 +26,10 @@ export class Curve {
   // キャッシュ用プロパティ
   _length: number | undefined;
   _bounds: any;
+  
+  // paper.jsとの互換性のためのプロパティ
+  get point1(): Point { return this._segment1.getPoint(); }
+  get point2(): Point { return this._segment2.getPoint(); }
 
   /**
    * 曲線のコンストラクタ
@@ -105,11 +109,10 @@ export class Curve {
   /**
    * t(0-1)で指定した位置のPointを返す
    */
-  getPointAt(t: number, _isTime?: boolean): Point | null {
+  getPointAt(t: number, _isTime?: boolean): Point {
     const values = this.getValues();
     const time = _isTime ? t : this.getTimeAt(t);
-    if (time === null) return null;
-    return Curve.getPoint(values, time);
+    return Curve.getPoint(values, time!);
   }
 
   /**
@@ -123,31 +126,28 @@ export class Curve {
   /**
    * t(0-1)で指定した位置の法線ベクトルを返す
    */
-  getNormalAt(t: number, _isTime?: boolean): Point | null {
+  getNormalAt(t: number, _isTime?: boolean): Point {
     const values = this.getValues();
     const time = _isTime ? t : this.getTimeAt(t);
-    if (time === null) return null;
-    return CurveCalculation.getNormal(values, time);
+    return CurveCalculation.getNormal(values, time!)!;
   }
   
   /**
    * t(0-1)で指定した位置の重み付き接線ベクトルを返す
    */
-  getWeightedTangentAt(t: number, _isTime?: boolean): Point | null {
+  getWeightedTangentAt(t: number, _isTime?: boolean): Point {
     const values = this.getValues();
     const time = _isTime ? t : this.getTimeAt(t);
-    if (time === null) return null;
-    return CurveCalculation.getWeightedTangent(values, time);
+    return CurveCalculation.getWeightedTangent(values, time!)!;
   }
   
   /**
    * t(0-1)で指定した位置の重み付き法線ベクトルを返す
    */
-  getWeightedNormalAt(t: number, _isTime?: boolean): Point | null {
+  getWeightedNormalAt(t: number, _isTime?: boolean): Point {
     const values = this.getValues();
     const time = _isTime ? t : this.getTimeAt(t);
-    if (time === null) return null;
-    return CurveCalculation.getWeightedNormal(values, time);
+    return CurveCalculation.getWeightedNormal(values, time!)!;
   }
   
   /**
@@ -156,8 +156,7 @@ export class Curve {
   getCurvatureAt(t: number, _isTime?: boolean): number {
     const values = this.getValues();
     const time = _isTime ? t : this.getTimeAt(t);
-    if (time === null) return 0; // nullの場合は0を返す（CurveCalculation.getCurvatureと同様）
-    return CurveCalculation.getCurvature(values, time);
+    return CurveCalculation.getCurvature(values, time!);
   }
 
   /**
@@ -215,14 +214,16 @@ export class Curve {
    * 曲線をtで分割し、2つのCurveに分ける
    */
   divide(t?: number, isTime?: boolean): Curve | null {
-    return this.divideAtTime(t === undefined ? 0.5 : isTime ? t : this.getTimeAt(t)!);
+    const time = t === undefined ? 0.5 : isTime ? t : this.getTimeAt(t);
+    return this.divideAtTime(time!);
   }
 
   /**
    * tで分割し、前半部分のCurveを返す
    */
   split(t?: number, isTime?: boolean): Curve | null {
-    return this.splitAtTime(t === undefined ? 0.5 : isTime ? t : this.getTimeAt(t)!);
+    const time = t === undefined ? 0.5 : isTime ? t : this.getTimeAt(t);
+    return this.splitAtTime(time!);
   }
 
   /**
@@ -239,6 +240,18 @@ export class Curve {
   splitAtTime(t: number): Curve | null {
     const loc = this.getLocationAtTime(t);
     return loc ? this.splitAt(loc) : null;
+  }
+  
+  /**
+   * 指定されたオフセット位置で曲線を分割する
+   * paper.jsのdivideAtメソッドに相当
+   * @param offset 分割位置のオフセット
+   * @returns 分割後の右側の曲線
+   */
+  divideAt(location: number | CurveLocation): Curve | null {
+    // オフセットとCurveLocationオブジェクトを受け付ける
+    return this.divideAtTime(location && typeof location !== 'number' && location.getCurve() === this
+            ? location.getTime()! : this.getTimeAt(location as number)!);
   }
 
   /**
@@ -257,39 +270,45 @@ export class Curve {
     // 有効な範囲内かチェック
     if (t >= tMin && t <= tMax) {
       // 曲線を分割
-      const result = CurveSubdivision.divideCurve(this, t);
-      if (!result) return null;
-      
-      const [leftCurve, rightCurve] = result;
+      const parts = CurveSubdivision.subdivide(this.getValues(), t);
+      const left = parts[0];
+      const right = parts[1];
       
       // ハンドルを設定するかどうか
       const setHandles = _setHandles !== undefined ? _setHandles : this.hasHandles();
       
+      const seg1 = this._segment1;
+      const seg2 = this._segment2;
+      
+      if (setHandles) {
+        // ハンドルを調整
+        seg1._handleOut._set(left[2] - left[0], left[3] - left[1]);
+        seg2._handleIn._set(right[4] - right[6], right[5] - right[7]);
+      }
+      
+      // 新しいセグメントを作成
+      const x = left[6], y = left[7];
+      const segment = new Segment(
+        new Point(x, y),
+        setHandles ? new Point(left[4] - x, left[5] - y) : null,
+        setHandles ? new Point(right[2] - x, right[3] - y) : null
+      );
+      
       // パスが設定されている場合
       if (this._path) {
-        const segments = this._path._segments;
-        const index = this.getIndex();
-        const middleSegment = leftCurve._segment2;
-        
         // セグメントを挿入
-        this._path.insert(index + 1, middleSegment);
+        this._path.insert(seg1._index + 1, segment);
         
         // 新しく挿入されたセグメントは次のカーブの開始点
         res = this.getNext();
       } else {
         // パスがない場合は、分割結果から新しいカーブを作成
-        this._segment2 = leftCurve._segment2;
+        this._segment2 = segment;
         this._changed();
-        res = new Curve(null, leftCurve._segment2, rightCurve._segment2);
+        res = new Curve(null, segment, seg2);
       }
       
-      // ハンドルをクリアする場合
-      if (setHandles) {
-        if (res) {
-          this.clearHandles();
-          res.clearHandles();
-        }
-      }
+      // Paper.jsではハンドルクリアの処理はなし
     }
     
     return res;
@@ -310,8 +329,7 @@ export class Curve {
    */
   getLocationAt(offset: number, _isTime?: boolean): CurveLocation | null {
     const time = _isTime ? offset : this.getTimeAt(offset);
-    if (time === null) return null;
-    return this.getLocationAtTime(time);
+    return this.getLocationAtTime(time!);
   }
 
   /**
@@ -421,11 +439,7 @@ export class Curve {
    * 三次ベジェ曲線のt位置の点を返す
    */
   static getPoint(v: number[], t: number): Point {
-    const result = CurveCalculation.evaluate(v, t, 0, false);
-    if (result === null) {
-      throw new Error('t must be in [0,1]');
-    }
-    return result;
+    return CurveCalculation.evaluate(v, t, 0, false)!;
   }
 
   /**
@@ -450,6 +464,16 @@ export class Curve {
     matrix?: Matrix | null, straight?: boolean | null
   ): number[] {
     return CurveSubdivision.getValues(segment1, segment2, matrix, straight);
+  }
+
+  /**
+   * 曲線をtで分割する（paper.jsとの互換性のため）
+   * @param v 制御点配列
+   * @param t 分割位置（0-1）
+   * @returns 左右の曲線の制御点配列のペア
+   */
+  static subdivide(v: number[], t?: number): [number[], number[]] {
+    return CurveSubdivision.subdivide(v, t !== undefined ? t : 0.5);
   }
 
   /**

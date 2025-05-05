@@ -195,8 +195,9 @@ export class CurveSubdivision {
   }
   /**
    * 曲線をtで分割し、2つのCurveに分ける
+   * paper.jsのCurve.subdivideに相当
    */
-  static divideCurve(curve: Curve, t: number): [Curve, Curve] | null {
+  static subdivideCurve(curve: Curve, t: number): [Curve, Curve] | null {
     // paper.jsと同様に、tが範囲外の場合はnullを返す代わりに、
     // 範囲内に収める
     const tMin = Numerical.CURVETIME_EPSILON;
