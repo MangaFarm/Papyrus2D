@@ -45,9 +45,14 @@ export class CollisionDetection {
     const bounds2 = !curves2 || curves2 === curves1
       ? bounds1
       : this.calculateCurveBounds(curves2);
-    
+
+    // 許容誤差を大きめにして端点一致も衝突とみなす
+    const effectiveTolerance = Math.max(tolerance, 1e-6); // もしくはNumerical.GEOMETRIC_EPSILON * 10
+    // eslint-disable-next-line no-console
+    console.log('[CollisionDetection.findCurveBoundsCollisions] using tolerance', effectiveTolerance);
+
     // 単一方向でチェック
-    return this.findBoundsCollisions(bounds1, bounds2, tolerance || 0);
+    return this.findBoundsCollisions(bounds1, bounds2, effectiveTolerance);
   }
 
   /**

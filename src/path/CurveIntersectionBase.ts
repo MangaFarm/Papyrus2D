@@ -53,34 +53,66 @@ export function addLocation(
   const excludeEnd = !overlap && c1 !== c2 && c1.getNext() === c2;
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
-  
+
+  // eslint-disable-next-line no-console
+  console.log('[addLocation] called', {
+    c1: c1 && c1.toString && c1.toString(),
+    t1,
+    c2: c2 && c2.toString && c2.toString(),
+    t2,
+    overlap,
+    excludeStart,
+    excludeEnd,
+    tMin,
+    tMax,
+    locationsLength: locations.length
+  });
+
   // 範囲チェック - paper.jsと同様の条件判定
   if (t1 !== null && t1 >= (excludeStart ? tMin : 0) && t1 <= (excludeEnd ? tMax : 1)) {
     if (t2 !== null && t2 >= (excludeEnd ? tMin : 0) && t2 <= (excludeStart ? tMax : 1)) {
       // Paper.jsと同様に、交点の座標をnullで初期化
       // 後で必要に応じて計算される
       const point: Point | null = null;
-      
+
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
       // paper.jsでは、交点が見つかった時点でCurveLocationオブジェクトが作成され、
       // 後から曲線インデックスが設定される
       const loc1 = new CurveLocation(c1, t1, null, overlap);
       const loc2 = new CurveLocation(c2, t2, null, overlap);
-      
+
       // 相互参照を設定
       loc1._intersection = loc2;
       loc2._intersection = loc1;
-      
+
       // 交点情報は_intersectionに格納されているので、追加のプロパティは不要
       // loc1._curve は c1、loc2._curve は c2 として設定済み
       // loc1._time は t1、loc2._time は t2 として設定済み
-      
+
       // includeコールバックがなければ、または条件を満たせば追加
-      if (!include || include(loc1)) {
-        // Paper.jsと同様に、insertLocationを使用
+      if (!include) {
+        // eslint-disable-next-line no-console
+        console.log('[addLocation] insertLocation (no include)', { t1, t2, overlap });
         insertLocation(locations, loc1, true);
+      } else {
+        const result = include(loc1);
+        // eslint-disable-next-line no-console
+        console.log('[addLocation] include called', {
+          t1, t2, overlap, includeResult: result, hasOverlap: loc1.hasOverlap(), isCrossing: loc1.isCrossing()
+        });
+        if (result) {
+          // eslint-disable-next-line no-console
+          console.log('[addLocation] insertLocation (with include)', { t1, t2, overlap });
+          insertLocation(locations, loc1, true);
+        }
       }
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[addLocation] t2 out of range', { t2, excludeEnd, excludeStart, tMin, tMax });
     }
+  } else {
+    // eslint-disable-next-line no-console
+    console.log('[addLocation] t1 out of range', { t1, excludeStart, excludeEnd, tMin, tMax });
   }
 }
 
@@ -90,22 +122,22 @@ export function addLocation(
  */
 export function insertLocation(locations: CurveLocation[], location: CurveLocation, includeOverlaps: boolean = false): number {
   const length = locations.length;
-  
+
   // Paper.jsと同様に連結リストを構築
   if (length > 0) {
     let current = locations[length - 1];
     current._next = location;
     location._previous = current;
   }
-  
+
   // Paper.jsと完全に同じ重複判定ロジックを実装
   const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
   const curveEpsilon = Numerical.CURVETIME_EPSILON;
-  
+
   // 既存の交点と比較して、近接している場合は追加しない
   for (let i = 0; i < length; i++) {
     const loc = locations[i];
-    
+
     // 同じ曲線上の交点で、tパラメータが近い場合は重複とみなす
     if (loc._curve !== null && location._curve !== null &&
         loc._time !== null && location._time !== null &&
@@ -115,12 +147,12 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
       const sameCurves =
         (loc._curve === location._curve && loc._intersection?._curve === location._intersection?._curve) ||
         (loc._curve === location._intersection?._curve && loc._intersection?._curve === location._curve);
-      
+
       if (sameCurves) {
         // Paper.jsと同じ重複チェックロジック
         // 曲線が同じ場合、_timeとintersection._timeを適切に比較
         let t1Diff: number, t2Diff: number;
-        
+
         if (loc._curve === location._curve) {
           t1Diff = Math.abs(loc._time! - location._time!);
           t2Diff = Math.abs(loc._intersection!._time! - location._intersection!._time!);
@@ -129,16 +161,18 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
           t1Diff = Math.abs(loc._time! - location._intersection!._time!);
           t2Diff = Math.abs(loc._intersection!._time! - location._time!);
         }
-        
+
         // Paper.jsと同じ条件で重複判定
         if (t1Diff < curveEpsilon && t2Diff < curveEpsilon) {
+          // eslint-disable-next-line no-console
+          console.log('[insertLocation] duplicate (curve)', { t1Diff, t2Diff, i, location, loc });
           // 交点が既に存在する場合は、相互参照を更新
           if (location._intersection && loc._intersection) {
             // 既存の交点の相互参照を新しい交点の相互参照に更新
             loc._intersection._intersection = location._intersection;
             location._intersection._intersection = loc._intersection;
           }
-          
+
           // 重複を許可する場合のみ追加
           if (includeOverlaps) {
             locations.push(location);
@@ -148,30 +182,34 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
         }
       }
     }
-    
+
     // 点の距離が十分に近い場合は重複とみなす
     if (loc._point && location._point) {
       const dist = loc._point.subtract(location._point).getLength();
       if (dist < geomEpsilon) {
+        // eslint-disable-next-line no-console
+        console.log('[insertLocation] duplicate (point)', { dist, i, location, loc });
         // 交点が既に存在する場合は、相互参照を更新
         if (location._intersection && loc._intersection) {
           // 既存の交点の相互参照を新しい交点の相互参照に更新
           loc._intersection._intersection = location._intersection;
           location._intersection._intersection = loc._intersection;
         }
-        
+
         // 重複を許可する場合のみ追加
         if (includeOverlaps) {
           locations.push(location);
           return length;
         }
-        
+
         return i;
       }
     }
   }
-  
+
   // 重複がない場合は追加
+  // eslint-disable-next-line no-console
+  console.log('[insertLocation] push', { location });
   locations.push(location);
   return length;
 }

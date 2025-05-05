@@ -22,16 +22,24 @@ export class CurveLocationUtils {
     const p3 = new Point(v[6], v[7]);
     const epsilon = Numerical.EPSILON;
     const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
-    
+
     // 端点が十分近い場合は早期リターン
-    if (point.isClose(p0, epsilon)) return 0;
-    if (point.isClose(p3, epsilon)) return 1;
-    
+    if (point.isClose(p0, epsilon)) {
+      // eslint-disable-next-line no-console
+      console.log('[getTimeOf] return 0 (epsilon)', { point: point.toString(), p0: p0.toString() });
+      return 0;
+    }
+    if (point.isClose(p3, epsilon)) {
+      // eslint-disable-next-line no-console
+      console.log('[getTimeOf] return 1 (epsilon)', { point: point.toString(), p3: p3.toString() });
+      return 1;
+    }
+
     // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
     // 最小になる t を求める
     const coords = [point.x, point.y];
     const roots: number[] = [];
-    
+
     for (let c = 0; c < 2; c++) {
       // 三次方程式を解く
       const count = Numerical.solveCubic(
@@ -41,21 +49,33 @@ export class CurveLocationUtils {
         v[c] - coords[c],
         roots, { min: 0, max: 1 }
       );
-      
+
       // 各解について、曲線上の点と与えられた点の距離をチェック
       for (let i = 0; i < count; i++) {
         const t = roots[i];
         const p = CurveCalculation.getPoint(v, t)!;
         if (point.isClose(p, geomEpsilon)) {
+          // eslint-disable-next-line no-console
+          console.log('[getTimeOf] return t (root match)', { t, point: point.toString(), p: p.toString(), c });
           return t;
         }
       }
     }
-    
+
     // 端点が十分近い場合は幾何学的イプシロンでも確認
-    if (point.isClose(p0, geomEpsilon)) return 0;
-    if (point.isClose(p3, geomEpsilon)) return 1;
-    
+    if (point.isClose(p0, geomEpsilon)) {
+      // eslint-disable-next-line no-console
+      console.log('[getTimeOf] return 0 (geomEpsilon)', { point: point.toString(), p0: p0.toString() });
+      return 0;
+    }
+    if (point.isClose(p3, geomEpsilon)) {
+      // eslint-disable-next-line no-console
+      console.log('[getTimeOf] return 1 (geomEpsilon)', { point: point.toString(), p3: p3.toString() });
+      return 1;
+    }
+
+    // eslint-disable-next-line no-console
+    console.log('[getTimeOf] return null', { point: point.toString(), p0: p0.toString(), p3: p3.toString() });
     return null;
   }
 

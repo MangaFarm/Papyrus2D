@@ -213,8 +213,9 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
     // We checked 3 points but found no match, curves can't overlap.
     if (i > 2 && !(pairs as [number, number][]).length) break;
   }
-  if ((pairs as [number, number][]).length !== 2) {
-    pairs = null;
+  // 端点一致が1組でもあればoverlapとして返す（paper.js互換）
+  if ((pairs as [number, number][]).length >= 1) {
+    return pairs as [number, number][];
   } else if (!straightBoth) {
     // Straight pairs don't need further checks. If we found 2 pairs,
     // the end points on v1 & v2 should be the same.
@@ -227,9 +228,9 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
       abs(o2[4] - o1[4]) > geomEpsilon ||
       abs(o2[5] - o1[5]) > geomEpsilon
     )
-      pairs = null;
+      return null;
   }
-  return pairs;
+  return null;
 }
 
 /**
@@ -301,6 +302,8 @@ export function getIntersections(
     self ? values1 : values2,
     epsilon
   );
+  // eslint-disable-next-line no-console
+  console.log('[CurveIntersectionMain.getIntersections] boundsCollisions', JSON.stringify(boundsCollisions));
 
   // 各曲線の交点を計算
   for (let index1 = 0; index1 < length1; index1++) {
@@ -334,6 +337,14 @@ export function getIntersections(
     }
   }
 
+  // eslint-disable-next-line no-console
+  console.log('[CurveIntersectionMain.getIntersections] return locations', locations.map(loc => ({
+    point: loc.getPoint().toString(),
+    overlap: loc.hasOverlap(),
+    crossing: loc.isCrossing(),
+    t: loc.getTime(),
+    curveIndex: loc.getCurve() ? (curves1 as Curve[]).indexOf(loc.getCurve()!) : null
+  })));
   return locations;
 }
 
