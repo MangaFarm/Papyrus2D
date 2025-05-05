@@ -8,6 +8,7 @@ import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
 import { CurveGeometry } from './CurveGeometry';
+import { getMeta } from './SegmentMeta';
 
 /**
  * 自己交差チェック
@@ -68,6 +69,26 @@ export function addLocation(
       // 後から曲線インデックスが設定される
       const loc1 = new CurveLocation(c1, t1, null, overlap);
       const loc2 = new CurveLocation(c2, t2, null, overlap);
+
+      // paper.js同様、segment, path, meta情報を必ずセット
+      if (c1 && c1._segment1) {
+        loc1._segment = c1._segment1;
+        const meta1 = getMeta(c1._segment1);
+        if (meta1) meta1.path = c1._path;
+      }
+      if (c2 && c2._segment1) {
+        loc2._segment = c2._segment1;
+        const meta2 = getMeta(c2._segment1);
+        if (meta2) meta2.path = c2._path;
+      }
+      // intersection.segmentもセット
+      // IntersectionInfo型の場合のみsegmentをセット
+      if (loc1._intersection && '_segment' in loc2) {
+        (loc1._intersection as any).segment = loc2._segment;
+      }
+      if (loc2._intersection && '_segment' in loc1) {
+        (loc2._intersection as any).segment = loc1._segment;
+      }
 
       // 相互参照を設定
       loc1._intersection = loc2;

@@ -70,9 +70,16 @@ export function resolveCrossings(path: PathItem): PathItem {
         seg.remove();
         prev._handleOut.set(0, 0);
         next._handleIn.set(0, 0);
-        if (prev !== seg && !prev.getCurve().hasLength()) {
-          next._handleIn.set(prev._handleIn);
-          prev.remove();
+        const prevCurve = prev.getCurve();
+        if (prev !== seg) {
+          if (!prevCurve) {
+            console.log('[resolveCrossings] prev.getCurve() is null', prev, prev?._index, prev?._path);
+          } else if (typeof prevCurve.hasLength !== 'function') {
+            console.log('[resolveCrossings] prev.getCurve() is not Curve', prevCurve, typeof prevCurve, prevCurve && Object.keys(prevCurve));
+          } else if (!prevCurve.hasLength()) {
+            next._handleIn.set(prev._handleIn);
+            prev.remove();
+          }
         }
       }
     }
@@ -80,6 +87,11 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   // 交差処理
   if (hasCrossings) {
+    // デバッグ: divideLocations前のパス情報
+    for (const p of paths) {
+      console.log('[resolveCrossings] before divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
+    }
+
     const divideResult = divideLocations(intersections, hasOverlaps ? function(inter: any) {
       const curve1 = inter.getCurve && inter.getCurve();
       const seg1 = inter.getSegment && inter.getSegment();
@@ -100,6 +112,11 @@ export function resolveCrossings(path: PathItem): PathItem {
       }
       return false;
     } : undefined, clearCurves);
+
+    // デバッグ: divideLocations後のパス情報
+    for (const p of paths) {
+      console.log('[resolveCrossings] after divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
+    }
 
     if (clearCurves) {
       clearCurveHandles(clearCurves);
@@ -219,14 +236,15 @@ function divideLocations(
     } else {
       // 曲線を時間で分割 - paper.jsと同様に常にハンドルをセット
       const newCurve = curve.divideAtTime(time, true);
-      
+
       // ハンドルなしの曲線を追跡
       if (clearHandles && newCurve) {
         clearCurves.push(curve, newCurve);
       }
-      
-      segment = newCurve ? newCurve._segment1 : undefined;
-      
+
+      // paper.js同様、分割できなかった場合も必ずsegmentをセット
+      segment = newCurve ? newCurve._segment1 : curve._segment2;
+
       // 同じ曲線内の他の位置の時間パラメータを正規化
       for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
         const l = renormalizeLocs[j];
@@ -235,6 +253,9 @@ function divideLocations(
     }
     
     // セグメントに交差情報を設定
+    if (!segment) {
+      console.log('[divideLocations] segment is undefined', { time, curve, loc });
+    }
     loc._setSegment(segment!);
     
     // 交差点のリンクリストを作成 - paper.jsでは直接segment._intersectionを使用するが、

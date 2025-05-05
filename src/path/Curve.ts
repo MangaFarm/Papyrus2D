@@ -298,7 +298,6 @@ export class Curve {
       if (this._path) {
         // セグメントを挿入
         this._path.insert(seg1._index + 1, segment);
-        
         // 新しく挿入されたセグメントは次のカーブの開始点
         res = this.getNext();
       } else {
@@ -307,10 +306,7 @@ export class Curve {
         this._changed();
         res = new Curve(null, segment, seg2);
       }
-      
-      // Paper.jsではハンドルクリアの処理はなし
     }
-    
     return res;
   }
 
@@ -389,6 +385,15 @@ export class Curve {
   isStraight(epsilon?: number): boolean {
     // CurveGeometryのisStraightメソッドを使用
     return CurveGeometry.isStraight(this.getValues());
+  }
+
+  /**
+   * カーブの長さが0でないか判定（paper.jsのhasLength実装）
+   * @returns {boolean}
+   */
+  hasLength(): boolean {
+    // paper.js: return !!this.getLength();
+    return !!this.getLength();
   }
 
   isLinear(epsilon?: number): boolean {
