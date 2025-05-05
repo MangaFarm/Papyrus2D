@@ -202,7 +202,6 @@ export function divideLocations(
  * paper.jsのdivideLocations関数を使用した実装
  */
 export function dividePathAtIntersections(path: Path, intersections: Intersection[]): Path {
-  console.log('DEBUG: dividePathAtIntersections intersections', intersections);
   if (intersections.length === 0) return path;
   
   // CurveLocationの配列に変換
@@ -218,7 +217,6 @@ export function dividePathAtIntersections(path: Path, intersections: Intersectio
   
   // divideLocations関数を使用して交点でパスを分割
   const dividedLocs = divideLocations(locations);
-  console.log('DEBUG: divideLocations result', dividedLocs);
   
   return path;
 }

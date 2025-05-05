@@ -26,7 +26,6 @@ export function addLineIntersection(
   // オーバーラップ（重なり）を検出
   const overlaps = getOverlaps(v1, v2);
   if (overlaps) {
-    console.log('DEBUG: overlaps', overlaps);
     for (const [t1, t2] of overlaps) {
       addLocation(locations, include, c1, t1, c2, t2, true);
     }
@@ -38,7 +37,6 @@ export function addLineIntersection(
     v2[0], v2[1], v2[6], v2[7],
     true // asVector - Papyrus2DのAPIでは必須
   );
-  console.log('DEBUG: addLineIntersection', v1[0], v1[1], v1[6], v1[7], v2[0], v2[1], v2[6], v2[7], 'pt:', pt);
   
   if (pt) {
     addLocation(locations, include,
@@ -65,7 +63,6 @@ export function addLineIntersection(
       // デバッグ: winding number
       const meta1 = getMeta(seg1);
       const meta2 = getMeta(seg2);
-      console.log('DEBUG: endpoint overlap winding', meta1 && meta1.winding, meta2 && meta2.winding);
     }
   }
   

@@ -40,13 +40,6 @@ export class PathBoolean {
     operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
   ): Path[] {
     // デバッグ出力
-    console.log('DEBUG: handleNoIntersections called');
-    console.log('  operation:', operation);
-    console.log('  path1 bounds:', path1.getBounds && path1.getBounds());
-    console.log('  path2 bounds:', path2 && path2.getBounds && path2.getBounds());
-    console.log('  path1 segments:', path1.getSegments && path1.getSegments().map(s => s.point && s.point.toString && s.point.toString()));
-    console.log('  path2 segments:', path2 && path2.getSegments && path2.getSegments().map(s => s.point && s.point.toString && s.point.toString()));
-
     // getInteriorPointメソッドが存在するか確認するヘルパー関数
     const getInteriorPoint = (path: PathItem): Point => {
       if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
@@ -73,7 +66,6 @@ export class PathBoolean {
     
     // path2の処理
     if (path1 === path2) {
-      console.log('DEBUG: path1 === path2, returning [path1]');
       return [path1];
     }
     
@@ -82,7 +74,6 @@ export class PathBoolean {
       path2 ? [path1, path2] : [path1],
       (w: number) => !!operator[w]
     );
-    console.log('DEBUG: reorientPaths result:', result);
     return result;
   }
   
@@ -99,7 +90,6 @@ export class PathBoolean {
   ): PathItem {
     // パスの配列が空の場合のフォールバック処理
     if (paths.length === 0) {
-      console.log('DEBUG: createResult received empty paths array, creating empty path');
       
       // paper.jsの実装に合わせて、空のパスを作成
       const emptyPath = new Path();
@@ -120,25 +110,19 @@ export class PathBoolean {
     }
 
     // デバッグ出力
-    console.log('DEBUG: createResult paths.length:', paths.length);
     if (paths.length > 0) {
       for (let i = 0; i < paths.length; i++) {
         if (!paths[i]) continue;
-        console.log(`  paths[${i}] area:`, paths[i].getArea && paths[i].getArea());
-        console.log(`  paths[${i}] segments:`, paths[i].getSegments && paths[i].getSegments().map(s => s.point && s.point.toString && s.point.toString()));
       }
     }
     
     // 結果のCompoundPathを作成
     const result = new CompoundPath();
     result.addChildren(paths);
-    console.log('DEBUG: CompoundPath children count:', result._children.length);
 
     // パスを簡略化（reduce相当の処理）
     const simplified = result.reduce({ simplify });
-    console.log('DEBUG: result.reduce() type:', simplified && simplified.constructor && simplified.constructor.name);
     if (simplified instanceof CompoundPath) {
-      console.log('DEBUG: simplified._children.length:', simplified._children.length);
     }
 
     // 挿入オプションが明示的にfalseでない場合、結果を挿入
@@ -187,18 +171,6 @@ export class PathBoolean {
     const _path1 = preparePath(path1, true) as Path;
     const _path2 = preparePath(path2, true) as Path;
 
-    // デバッグ: カーブ配列の内容を出力
-    console.log('DEBUG: _path1.getCurves() values:');
-    _path1.getCurves().forEach((curve, i) => {
-      console.log(`  path1 curve[${i}]:`, curve.getValues());
-    });
-    if (_path2) {
-      console.log('DEBUG: _path2.getCurves() values:');
-      _path2.getCurves().forEach((curve, i) => {
-        console.log(`  path2 curve[${i}]:`, curve.getValues());
-      });
-    }
-
     // 演算子に応じたフィルタ関数を定義
     const operators: Record<string, Record<string, boolean>> = {
       'unite':     { '1': true, '2': true },
@@ -226,7 +198,6 @@ export class PathBoolean {
 
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
-    console.log('DEBUG: intersections.length:', intersections.length, intersections);
 
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定
