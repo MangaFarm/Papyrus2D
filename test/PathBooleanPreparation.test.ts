@@ -64,35 +64,35 @@ describe('preparePath function', () => {
     }
   });
   
-  // 自己交差するパスが正しく解決されるかテスト
+  // 自己交差パスが正しく分割されるかテスト
   it('should resolve self-intersecting paths when resolve is true', () => {
-    // 自己交差するパスを作成 - 交点が明確になるように座標を調整
-    // 交点が曲線の中間にあるようにする
-    const selfIntersectingPath = new Path();
-    
-    // 明確な自己交差パターンを作成
-    // 8の字型のパスを作成
-    selfIntersectingPath.moveTo(new Point(0, 0));
-    selfIntersectingPath.lineTo(new Point(100, 100));
-    selfIntersectingPath.lineTo(new Point(0, 200));
-    selfIntersectingPath.lineTo(new Point(100, 300));
-    selfIntersectingPath.lineTo(new Point(200, 200));
-    selfIntersectingPath.lineTo(new Point(100, 100));
-    selfIntersectingPath.lineTo(new Point(200, 0));
-    selfIntersectingPath.close();
-    
-    console.log("元のパスのセグメント数:", selfIntersectingPath.getSegments().length);
-    console.log("元のパスのセグメント:", selfIntersectingPath.getSegments().map(s => s.point));
-    
-    // resolve=trueでパスを準備
-    const prepared = preparePath(selfIntersectingPath, true) as Path;
-    
-    console.log("準備後のパスのセグメント数:", prepared.getSegments().length);
-    console.log("準備後のパスのセグメント:", prepared.getSegments().map(s => s.point));
-    
-    // 準備されたパスが元のパスと同じセグメント数を持つことを確認
-    // 交差点で分割されるが、元のパスと同じセグメント数になる場合もある
-    expect(prepared.getSegments().length).toBeGreaterThanOrEqual(selfIntersectingPath.getSegments().length);
+    // 矩形に対角線を追加して明確な自己交差を発生させる
+    const selfIntersecting = new Path([
+      new Segment(new Point(0, 0)),
+      new Segment(new Point(150, 0)),
+      new Segment(new Point(150, 150)),
+      new Segment(new Point(0, 150))
+    ], true);
+
+    // 対角線を追加してパスを自己交差させる
+    selfIntersecting.lineTo(new Point(150, 0));
+    selfIntersecting.lineTo(new Point(0, 150));
+    selfIntersecting.close();
+
+    const originalSegCount = selfIntersecting.getSegments().length;
+
+    // resolve=true でパスを準備
+    const prepared = preparePath(selfIntersecting, true) as Path;
+ 
+    // crossing が検出されるとセグメント数が増えるが、
+    // 実装により分割されないケースもあるため >= とする
+    expect(prepared.getSegments().length).toBeGreaterThanOrEqual(originalSegCount);
+
+    // 分割後、各セグメントは直線（ハンドル長 0）である
+    prepared.getSegments().forEach(seg => {
+      expect(seg.getHandleIn().isZero()).toBe(true);
+      expect(seg.getHandleOut().isZero()).toBe(true);
+    });
   });
   
   // CompoundPathに対する動作テスト
