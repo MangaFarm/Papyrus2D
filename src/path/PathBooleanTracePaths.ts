@@ -70,7 +70,7 @@ export function tracePaths(
         x = pt.x; y = pt.y;
       }
       console.log('🔥 isValid: winding is undefined for seg', seg && seg._index, x, y);
-      return true;
+      return false;
     }
 
     const op = operator[winding.winding];

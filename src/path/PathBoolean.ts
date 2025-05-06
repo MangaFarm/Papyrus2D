@@ -250,10 +250,11 @@ export class PathBoolean {
     }
 
     // セグメントを収集
+    // paper.jsと同じく、分割後の全パスの全セグメントをsegmentsに集める
     const segments: Segment[] = [];
-    segments.push(...dividedLocs1.map(loc => loc._segment));
-    if (dividedLocs2) {
-      segments.push(...dividedLocs2.map(loc => loc._segment));
+    segments.push(..._path1.getSegments());
+    if (_path2) {
+      segments.push(..._path2.getSegments());
     }
     console.log("🔥 runBoolean: segments.length =", segments.length);
 
