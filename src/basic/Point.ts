@@ -16,10 +16,11 @@ export class Point {
     Object.freeze(this);
   }
 
-  equals(point: Point | number[]): boolean {
-    return this === point ||
-           (point instanceof Point && this.x === point.x && this.y === point.y) ||
-           (Array.isArray(point) && point.length >= 2 && this.x === point[0] && this.y === point[1]);
+  equals(point: Point, tolerance?: number): boolean {
+    if (tolerance !== undefined) {
+      return this.getDistance(point) < tolerance;
+    }
+    return this.x === point.x && this.y === point.y;
   }
 
   clone(): Point {

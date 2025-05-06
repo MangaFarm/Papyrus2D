@@ -20,8 +20,7 @@ import { getWinding } from './PathBooleanWinding';
 import { PathFlattener } from './PathFlattener';
 import { PathFitter } from './PathFitter';
 import { toPathData, fromPathData, fromSVG } from './PathSVG';
-
-// PathConstructorsからメソッドをインポート
+import { reducePath } from './PathReduce';
 import { PathConstructors } from './PathConstructors';
 import { smoothPath, splitPathAt } from './PathUtils';
 import { resolveCrossings } from './PathBooleanResolveCrossings';
@@ -1229,8 +1228,7 @@ export class Path extends PathItemBase {
    * @returns 簡略化されたPathItemオブジェクト
    */
   reduce(options?: { simplify?: boolean }): PathItem {
-    // 単一のPathの場合は、そのまま返す
-    return this;
+    return reducePath(this, options);
   }
 
   /**

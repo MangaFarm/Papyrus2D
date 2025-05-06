@@ -369,6 +369,8 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
 for (const path of paths) {
   const segs = path.getSegments();
   console.log('🔥 traced path:', segs.map(s => s.getPoint().toString()).join(' | '));
+  // paper.js同様、collinearな直線をreduceでマージ
+  path.reduce();
 }
-  return paths;
+return paths;
 }

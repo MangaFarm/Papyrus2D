@@ -6,6 +6,7 @@
 
 import { strict as assert } from 'assert';
 import { Segment } from './Segment';
+import { Line } from '../basic/Line';
 import { Point } from '../basic/Point';
 import { Matrix } from '../basic/Matrix';
 import { Rectangle } from '../basic/Rectangle';
@@ -404,9 +405,17 @@ export class Curve {
    * カーブの長さが0でないか判定（paper.jsのhasLength実装）
    * @returns {boolean}
    */
-  hasLength(): boolean {
-    // paper.js: return !!this.getLength();
-    return !!this.getLength();
+  /**
+   * 指定した許容値（epsilon）で長さ判定（paper.js精密移植）
+   * @param epsilon 許容長さ
+   * @returns 長さがepsilonより大きければtrue
+   */
+  hasLength(epsilon?: number): boolean {
+    // paper.js: (!this.getPoint1().equals(this.getPoint2()) || this.hasHandles()) && this.getLength() > (epsilon || 0)
+    return (
+      !this.getPoint1().equals(this.getPoint2()) ||
+      this.hasHandles()
+    ) && this.getLength() > (epsilon || 0);
   }
 
   isLinear(epsilon?: number): boolean {
@@ -726,5 +735,45 @@ export class Curve {
   static getMonoCurves(v: number[], dir = false): number[][] {
       return CurveSubdivision.getMonoCurves(v, dir);
   }
+    /**
+     * 2点を通るLineオブジェクトを返す (paper.js getLine精密移植)
+     */
+    getLine(): Line {
+        return new Line(this._segment1.getPoint(), this._segment2.getPoint());
+    }
+
+    /**
+     * paper.js Curve#remove 精密移植
+     * このカーブをパスから削除（_segment2をremoveし、_segment1のhandleOutを_segment2のhandleOutで上書き）
+     * @returns {boolean} 削除された場合はtrue
+     */
+    remove(): boolean {
+        let removed = false;
+        if (this._path) {
+            const segment2 = this._segment2;
+            const handleOut = segment2._handleOut;
+            // Segment#remove()はPapyrus2Dでも実装されている前提
+            removed = segment2.remove();
+            if (removed) {
+                this._segment1._handleOut._set(handleOut._x, handleOut._y);
+            }
+        }
+        return removed;
+    }
+
+    /**
+     * Checks if the the two curves describe straight lines that are
+     * collinear, meaning they run in parallel.
+     *
+     * @param {Curve} curve the other curve to check against
+     * @return {Boolean} {@true if the two lines are collinear}
+     */
+    isCollinear(curve: Curve): boolean {
+        // paper.js精密移植
+        return curve && this.isStraight() && curve.isStraight()
+            && this.getLine().isCollinear(curve.getLine());
+    }
 }
 
+
+// --- paper.js isCollinear 精密移植 ---
