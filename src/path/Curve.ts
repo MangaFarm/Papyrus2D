@@ -706,6 +706,18 @@ export class Curve {
   }
 
   /**
+   * ベジェ曲線の一部区間を切り出す
+   * CurveSubdivision.getPartへの委譲
+   * @param v 制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2]
+   * @param from 開始t（0-1）
+   * @param to 終了t（0-1）
+   * @returns 指定区間の制御点配列
+   */
+  static getPart(v: number[], from: number, to: number): number[] {
+      return CurveSubdivision.getPart(v, from, to);
+  }
+
+  /**
    * モノトーン分割: 曲線をx方向またはy方向に単調な部分曲線に分割
    * paper.jsのCurve.getMonoCurves()と同じ
    * @param v 制御点配列 [x1,y1,h1x,h1y,h2x,h2y,x2,y2]
@@ -713,7 +725,7 @@ export class Curve {
    * @returns 分割された制御点配列の配列
    */
   static getMonoCurves(v: number[], dir = false): number[][] {
-    return CurveSubdivision.getMonoCurves(v, dir);
+      return CurveSubdivision.getMonoCurves(v, dir);
   }
 }
 
