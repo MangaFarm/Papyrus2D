@@ -222,10 +222,10 @@ export class CurveLocationUtils {
   static equals(loc1: CurveLocation, loc2: CurveLocation, ignoreOther: boolean = false): boolean {
     let res = loc1 === loc2;
     if (!res && loc2 instanceof CurveLocation) {
-      const c1 = loc1.getCurve();
-      const c2 = loc2.getCurve();
-      const p1 = c1?._path;
-      const p2 = c2?._path;
+      const c1 = loc1.getCurve()!;
+      const c2 = loc2.getCurve()!;
+      const p1 = c1._path;
+      const p2 = c2._path;
       if (p1 === p2) {
         // 曲線時間ではなく、実際のオフセットを比較して
         // 同じ位置にあるかどうかを判断
@@ -234,8 +234,8 @@ export class CurveLocationUtils {
         const diff = abs(loc1.getOffset() - loc2.getOffset());
         const i1 = !ignoreOther && loc1._intersection;
         const i2 = !ignoreOther && loc2._intersection;
-        res = (diff < epsilon || (p1 && abs(p1.getLength() - diff) < epsilon))
-          && (!i1 && !i2 || i1 && i2 && i1.equals(i2, true));
+        res = !!((diff < epsilon || Boolean(p1 && abs(p1.getLength() - diff) < epsilon))
+          && (!i1 && !i2 || (i1 && i2 && !!i1.equals(i2, true))));
       }
     }
     return res;

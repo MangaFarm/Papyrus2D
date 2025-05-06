@@ -3,9 +3,8 @@
  * Utility providing convex hull and recursive intersection calculation functions
  */
 
-import { Curve, CurveLocation } from './Curve';
-import { Numerical } from '../util/Numerical';
-import { Point } from '../basic/Point';
+import { Curve } from './Curve';
+import { CurveLocation } from './CurveLocation'
 import { Line } from '../basic/Line';
 import { addLocation } from './CurveIntersectionBase';
 

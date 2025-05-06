@@ -9,8 +9,7 @@ import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveSubdivision } from './CurveSubdivision';
-import { Intersection } from './PathBooleanIntersections';
-import { getMeta, WindingInfo } from './SegmentMeta';
+import { getMeta } from './SegmentMeta';
 
 /**
  * winding numberを伝播する

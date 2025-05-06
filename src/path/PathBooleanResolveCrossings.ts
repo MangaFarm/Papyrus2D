@@ -5,12 +5,10 @@
 
 import { Path } from './Path';
 import { PathItem } from './PathItem';
-import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
-import { Curve } from './Curve';
 import { tracePaths } from './PathBooleanTracePaths';
-import { getMeta, IntersectionInfo } from './SegmentMeta';
+import { getMeta } from './SegmentMeta';
 import { CompoundPath } from './CompoundPath';
 import { divideLocations, clearCurveHandles } from './PathBooleanIntersections';
 

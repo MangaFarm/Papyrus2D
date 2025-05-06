@@ -1,7 +1,6 @@
 import { Path } from './Path';
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
-import { ChangeFlag } from './ChangeFlag';
 import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 

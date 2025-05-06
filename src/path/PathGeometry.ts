@@ -9,7 +9,6 @@ import { Curve } from './Curve';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
-import { CurveCalculation } from './CurveCalculation';
 import { getWinding } from './PathBooleanWinding';
 
 /**

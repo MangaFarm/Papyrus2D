@@ -5,18 +5,10 @@
 
 import { Path } from './Path';
 import { Segment } from './Segment';
-import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
-import { CollisionDetection } from '../util/CollisionDetection';
-import { getMeta, IntersectionInfo } from './SegmentMeta';
-
-/**
- * 交点情報
- * SegmentMeta.ts の IntersectionInfo を再エクスポート
- */
-export type Intersection = IntersectionInfo;
+import { getMeta } from './SegmentMeta';
 
 /**
  * 交差点と重なりを区別するフィルター関数
