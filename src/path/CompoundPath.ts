@@ -673,7 +673,7 @@ export class CompoundPath extends PathItemBase {
     const children = this._children;
     // nullの要素をフィルタリング
     const validChildren = children.filter(child => child !== null);
-    
+
     // 有効な子パスがない場合は空のパスを返す
     if (validChildren.length === 0) {
       const path = new Path();
@@ -682,7 +682,7 @@ export class CompoundPath extends PathItemBase {
       this.remove();
       return path;
     }
-    
+
     // 有効な子パスを処理
     for (let i = validChildren.length - 1; i >= 0; i--) {
       const path = validChildren[i].reduce(options) as Path;
@@ -690,10 +690,10 @@ export class CompoundPath extends PathItemBase {
         path.remove();
       }
     }
-    
+
     // 処理後に残った子パスを再度フィルタリング
     const remainingChildren = this._children.filter(child => child !== null);
-    
+
     if (remainingChildren.length === 0) {
       const path = new Path();
       path.copyAttributes(this);
@@ -701,19 +701,45 @@ export class CompoundPath extends PathItemBase {
       this.remove();
       return path;
     }
-    
+
+    // --- Papyrus2D拡張: 全ての子パスが閉じている場合は1つのPathに統合 ---
+    const allClosed = remainingChildren.length > 1 && remainingChildren.every(child => child._closed);
+    if (allClosed) {
+      // 面積の大きい順（外周→内周）でソート
+      // 面積の大きい順（外周が先頭）でソート
+      const sorted = remainingChildren.slice().sort((a, b) => b.getArea() - a.getArea());
+      const newPath = new Path();
+      for (let c = 0; c < sorted.length; c++) {
+        const segs = sorted[c].getSegments();
+        for (let i = 0; i < segs.length; i++) {
+          // 各サブパスの最初のセグメントはmoveToで開始
+          if (i === 0) {
+            newPath.moveTo(segs[i].point);
+          } else {
+            newPath.lineTo(segs[i].point);
+          }
+        }
+        // サブパスごとにclose
+        newPath.close();
+      }
+      newPath.copyAttributes(this);
+      newPath.insertAbove(this);
+      this.remove();
+      return newPath;
+    }
+
     if (remainingChildren.length === 1) {
       const child = remainingChildren[0];
       child.insertAbove(this);
       this.remove();
       return child;
     }
-    
+
     // 子パスの配列を更新
     if (remainingChildren.length !== children.length) {
       this._children = remainingChildren;
     }
-    
+
     return this;
   }
 

@@ -104,8 +104,14 @@ export function divideLocations(
     prevTime = origTime;
     if (time < tMin) {
       _segment = curve._segment1;
+      // meta.pathのセット漏れ防止
+      const meta = getMeta(_segment);
+      if (meta && !meta.path) meta.path = curve._path;
     } else if (time > tMax) {
       _segment = curve._segment2;
+      // meta.pathのセット漏れ防止
+      const meta = getMeta(_segment);
+      if (meta && !meta.path) meta.path = curve._path;
     } else {
       var newCurve = curve.divideAtTime(time, true)!;
       if (clearHandles) clearCurves.push(curve, newCurve);
