@@ -55,8 +55,8 @@ function segmentsFromArray(arr: any[]): Segment[] {
         if (Array.isArray(s)) {
             if (s.length >= 2 && typeof s[0] === 'number' && typeof s[1] === 'number') {
                 const point = new Point(s[0], s[1]);
-                let handleIn = null;
-                let handleOut = null;
+                let handleIn: Point | null = null;
+                let handleOut: Point | null = null;
                 if (s.length >= 4 && typeof s[2] === 'number' && typeof s[3] === 'number') {
                     handleIn = new Point(s[2], s[3]);
                 }
@@ -89,11 +89,11 @@ function segmentsFromArray(arr: any[]): Segment[] {
 describe('Path Boolean Operations - Part 3', () => {
   it('#1239 / #1073', () => {
     const p1_segments = segmentsFromArray([[890.91, 7.52, 0, 0, 85.40999999999997, 94.02], [1024, 351.78, 0, -127.03999999999996, 0, 127.14999999999998], [890.69, 696.28, 85.54999999999995, -94.03999999999996, 0, 0], [843.44, 653.28, 0, 0, 75.20000000000005, -82.66999999999996], [960, 351.78, 0, 111.75, 0, -111.63], [843.65, 50.51999999999998, 75.07000000000005, 82.63999999999999, 0, 0]]);
-    const p1 = new Path({ segments: p1_segments, closed: true });
+    const p1 = new Path(p1_segments, true);
 
 
     const p2_segments = segmentsFromArray([[960, 352, -0.05999999999994543, 111.67999999999995, 0, 0], [1024, 352, 0, 0, -0.05999999999994543, 127.07], [890.69, 696.28, 85.5, -93.98000000000002, 0, 0], [843.44, 653.28, 0, 0, 75.14999999999998, -82.61000000000001]]);
-    const p2 = new Path({ segments: p2_segments, closed: true });
+    const p2 = new Path(p2_segments, true);
 
     // project.activeLayer.scale(0.25); // Papyrus2D does not have project/layers
     // The coordinates in the expected string might be scaled, so we will compare the SVG string directly
@@ -257,8 +257,8 @@ describe('Path Boolean Operations - Part 3', () => {
 
 
   it('#1506', () => {
-    const path1 = new Path({ pathData: 'M250,175c27.61424,0 50,22.38576 50,50c0,27.61424 -22.38576,50 -50,50c-9.10718,0 -17.64567,-2.43486 -25,-6.68911c14.94503,-8.64524 25,-24.80383 25,-43.31089c0,-18.50706 -10.05497,-34.66565 -25,-43.31089c7.35433,-4.25425 15.89282,-6.68911 25,-6.68911z' });
-    const path2 = new Path({ pathData: 'M250,225c0,-27.61424 22.38576,-50 50,-50c27.61424,0 50,22.38576 50,50c0,27.61424 -22.38576,50 -50,50c-27.61424,0 -50,-22.38576 -50,-50z' });
+    const path1 = Path.fromPathData('M250,175c27.61424,0 50,22.38576 50,50c0,27.61424 -22.38576,50 -50,50c-9.10718,0 -17.64567,-2.43486 -25,-6.68911c14.94503,-8.64524 25,-24.80383 25,-43.31089c0,-18.50706 -10.05497,-34.66565 -25,-43.31089c7.35433,-4.25425 15.89282,-6.68911 25,-6.68911z');
+    const path2 = Path.fromPathData('M250,225c0,-27.61424 22.38576,-50 50,-50c27.61424,0 50,22.38576 50,50c0,27.61424 -22.38576,50 -50,50c-27.61424,0 -50,-22.38576 -50,-50z');
     const result = 'M250,175c9.10718,0 17.64567,2.43486 25,6.68911c-14.94503,8.64523 -25,24.80383 -25,43.31089c0,18.50706 10.05497,34.66566 25,43.31089c-7.35433,4.25425 -15.89282,6.68911 -25,6.68911c-9.10718,0 -17.64567,-2.43486 -25,-6.68911c14.94503,-8.64524 25,-24.80383 25,-43.31089c0,-18.50706 -10.05497,-34.66565 -25,-43.31089c7.35433,-4.25425 15.89282,-6.68911 25,-6.68911z';
     compareBoolean(() => path1.subtract(path2), result, '#1506 subtract');
   });
@@ -273,14 +273,8 @@ describe('Path Boolean Operations - Part 3', () => {
 
   it('#1419', () => {
     // Path.Circle constructor takes an object
-    const circle1 = PathConstructors.Circle({
-        center: new Point(0, 0),
-        radius: 50
-    });
-    const circle2 = PathConstructors.Circle({
-        center: new Point(0, 0).subtract(25), // Subtracting 25 from point (0,0) means point (-25,-25)
-        radius: 50
-    });
+    const circle1 = PathConstructors.Circle(new Point(0, 0), 50);
+    const circle2 = PathConstructors.Circle(new Point(0, 0).subtract(new Point(25, 25)), 50);
     const result = 'M-50,0c0,-27.61424 22.38576,-50 50,-50c7.33673,0 14.30439,1.5802 20.58119,4.41881c-7.84546,-17.34804 -25.30368,-29.41881 -45.58119,-29.41881c-27.61424,0 -50,22.38576 -50,50c0,20.27751 12.07077,37.73573 29.41881,45.58119c-2.83861,-6.2768 -4.41881,-13.24446 -4.41881,-20.58119zM50,0c0,27.61424 -22.38576,50 -50,50c-20.27751,0 -37.73573,-12.07077 -45.58119,-29.41881c6.2768,2.83861 13.24446,4.41881 20.58119,4.41881c27.61424,0 50,-22.38576 50,-50c0,-7.33673 -1.5802,-14.30439 -4.41881,-20.58119c17.34804,7.84546 29.41881,25.30368 29.41881,45.58119z';
     compareBoolean(() => circle1.exclude(circle2), result, '#1419 exclude');
   });
@@ -288,10 +282,11 @@ describe('Path Boolean Operations - Part 3', () => {
   it('#1351', () => {
     // CompoundPath constructor takes an object { children: [...] }
     // Path constructor with array points is Path({ segments: [...] })
-    const path1 = new CompoundPath({ children: [new Path({ segments: [new Point(10, 10), new Point(100, 100)] }), new Path({ segments: [new Point(150, 25)] })] });
-    const path2 = new Path({ segments: [new Point(20, 80), new Point(80, 20)] });
+    const path1 = new CompoundPath([new Path([new Segment(new Point(10, 10)), new Segment(new Point(100, 100))], false), new Path([new Segment(new Point(150, 25))], false)]);
+    const path2 = new Path([new Segment(new Point(20, 80)), new Segment(new Point(80, 20))], false);
     const result = ''; // empty!
-    compareBoolean(() => path1.unite(path2), result, '#1351 unite');
+    // CompoundPathにはuniteメソッドがないため、PathBooleanの静的メソッドを使用
+    compareBoolean(() => import('../src/path/PathBoolean').then(module => module.PathBoolean.unite(path1, path2)), result, '#1351 unite');
   });
 
   it('#1647', () => {
@@ -306,26 +301,26 @@ describe('Path Boolean Operations - Part 3', () => {
 
   it('#1619', () => {
     // Path.Rectangle constructor takes an object { from: ..., to: ... }
-    const path1 = new PathConstructors.Rectangle({
+    const path1 = PathConstructors.Rectangle({
         from: new Point(200, 600),
         to: new Point(400, 300)
     });
 
     // CompoundPath constructor takes an object { children: [...] }
-    const path2 = new CompoundPath({
-        children: [
-            new Path({ // Path constructor takes an object { segments: ..., closed: ... }
-                segments: segmentsFromArray([[420,320],[380,580],[220,580],[220,320]]),
-                closed: true
-            }),
-            new Path({
-                segments: segmentsFromArray([[313.36486,413.71682],[243.351,483.70296],[313.33714,553.71682],[383.351,483.73068]]),
-                closed: true
-            })
+    const path2 = new CompoundPath([
+            new Path(
+                segmentsFromArray([[420,320],[380,580],[220,580],[220,320]]),
+                true
+            ), // カンマを追加
+            new Path(
+                segmentsFromArray([[313.36486,413.71682],[243.351,483.70296],[313.33714,553.71682],[383.351,483.73068]]),
+                true
+            )
         ]
-    });
+    );
     const result = 'M380,580h-160v-260l180,0v130zM313.36486,413.71682l-70.01386,69.98614l69.98614,70.01386l70.01386,-69.98614z';
-    compareBoolean(() => path1.intersect(path2), result, '#1619 intersect');
+    // PathBooleanの静的メソッドを使用
+    compareBoolean(() => import('../src/path/PathBoolean').then(module => module.PathBoolean.intersect(path1, path2)), result, '#1619 intersect');
   });
 
 });

@@ -9,7 +9,7 @@ import { Segment } from '../src/path/Segment';
 import { PathItem } from '../src/path/PathItem'; // PathItemをインポート
 
 // Helper functions (assuming they are available or defined as in PathBoolean.test.ts)
-function compareBoolean(actualFn: () => any, expected: any, message?: string, options?: any) {
+function compareBoolean(actualFn: () => Path | CompoundPath | string, expected: Path | CompoundPath | string, message?: string, options?: any) {
   const actual = typeof actualFn === 'function' ? actualFn() : actualFn;
   if (expected && typeof expected === 'object' && 'pathData' in expected && typeof actual === 'object' && 'pathData' in actual) {
     expect(actual.pathData).toBe(expected.pathData);
@@ -73,7 +73,7 @@ describe('Path Boolean Operations - Part 2', () => {
     let p_segments = segmentsFromArray([ [732, 418, 0, 0, 0, 52.45802606694065], [676.3444534355956, 552.3444534355972, 34.385686865893945, -34.38568686589349], [630, 704], [400, 704], [542, 228] ]);
     let p = new Path(p_segments);
     p.setClosed(true);
-    compareBoolean(() => (cp as any).subtract(p),
+    compareBoolean(() => cp.subtract(p),
         'M491.6437,396.8l-45.8637,0l-19.78,-136.8l91.51486,50.07693z M676.40276,552.28613c19.70425,20.76653 -42.80276,205.5493 -42.80276,180.51387l27.46296,-130.44906l15.28149,-50.00648c0.01944,-0.01944 0.03887,-0.03888 0.0583,-0.05833z');
 
     let cp2_path1 = new Path(segmentsFromArray([[576, 396.8], [345.78, 396.8],  [249.6, 243.20000000000002]]));
@@ -85,7 +85,7 @@ describe('Path Boolean Operations - Part 2', () => {
     p_segments = segmentsFromArray([[323.0000000000002, 228.0000000000001, 0, 0, 51.95879291356505, 0], [410.9999999999998, 704.0000000000002], [-21.000000000000227, 703.9999999999998], [-21.692900774253758, 356.5535001949528]]);
     p = new Path(p_segments);
     p.setClosed(true);
-    compareBoolean(() => (cp as any).subtract(p),
+    compareBoolean(() => cp.subtract(p),
         'M576,396.8l-199.38152,0c-6.06278,-38.62456 -12.80947,-74.58601 -20.1433,-103.3058z M255.78013,253.06971l-6.18013,-9.86971l14.43275,6.79188z M624.84,550.46l47.16,-0.06l57.6,57.6z');
   });
 
@@ -120,7 +120,7 @@ describe('Path Boolean Operations - Part 2', () => {
     const p2_923 = PathConstructors.Circle(new Point(150, 100), 20);
     const cp_923 = new CompoundPath([p1_923, p2_923]);
     const p3_923 = PathConstructors.Circle(new Point(100, 100), 20);
-    compareBoolean(() => (cp_923 as any).unite(p3_923),
+    compareBoolean(() => cp_923.unite(p3_923),
         'M80,100c0,-11.04569 8.95431,-20 20,-20c11.04569,0 20,8.95431 20,20c0,11.04569 -8.95431,20 -20,20c-11.04569,0 -20,-8.95431 -20,-20z M130,100c0,-11.04569 8.95431,-20 20,-20c11.04569,0 20,8.95431 20,20c0,11.04569 -8.95431,20 -20,20c-11.04569,0 -20,-8.95431 -20,-20z');
   });
 
@@ -130,7 +130,7 @@ describe('Path Boolean Operations - Part 2', () => {
     const cp_958 = new CompoundPath([p1_958, p2_958]);
     const bounds_958 = cp_958.getBounds();
     const boundsPath_958 = bounds_958 ? PathConstructors.Rectangle(bounds_958) : new Path();
-    compareBoolean(() => boundsPath_958.intersect(cp_958 as any),
+    compareBoolean(() => boundsPath_958.intersect(cp_958),
         'M100,220l0,-20l200,0l0,20z M140,100l20,0l0,20l-20,0z');
   });
 
@@ -217,7 +217,7 @@ describe('Path Boolean Operations - Part 2', () => {
     const p_1054_segments = segmentsFromArray([ [200, 100], [200, 150], [120, 150], [120, 100] ]);
     const p_1054 = new Path(p_1054_segments);
     p_1054.setClosed(true);
-    compareBoolean(() => (cp_1054 as any).unite(p_1054),
+    compareBoolean(() => cp_1054.unite(p_1054),
         'M100,150l0,-50l120,0l0,50z');
   });
 
@@ -272,7 +272,7 @@ describe('Path Boolean Operations - Part 2', () => {
         const path_1091 = Path.fromSVG(data_1091[i]);
         // path_1091.remove(); // Not needed
         const prev_1091 = res_1091;
-        res_1091 = (res_1091 as any).unite(path_1091);
+        res_1091 = res_1091.unite(path_1091) as CompoundPath;
         // prev_1091.remove(); // Not needed
     };
     compareBoolean(() => res_1091,
@@ -315,11 +315,11 @@ describe('Path Boolean Operations - Part 2', () => {
     p4_1109_segments_path.setClosed(true);
     const p4_1109 = new CompoundPath([p4_1109_rect, p4_1109_segments_path]);
 
-    compareBoolean(() => (p1_1109 as any).unite(p2_1109),
+    compareBoolean(() => p1_1109.unite(p2_1109),
         'M200,300v-200h200v200zM274.61605,215.30654l21.86206,-12.61714l0.54857,-42.36332l-36.4396,21.6707v25.20877z');
-    compareBoolean(() => (p1_1109 as any).unite(p3_1109),
+    compareBoolean(() => p1_1109.unite(p3_1109),
         'M200,300v-200h200v200zM274.61605,215.30654l21.86206,-12.61714l0.54857,-42.36332l-36.4396,21.6707v25.20877z');
-    compareBoolean(() => (p1_1109 as any).unite(p4_1109),
+    compareBoolean(() => p1_1109.unite(p4_1109),
         'M200,300v-200h200v200zM265.58708,201l-5,1v5.20555l14.02897,8.101l21.86206,-12.61714l0.54857,-42.36332l-36.4396,21.6707v18.00322z');
   });
 
