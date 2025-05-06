@@ -19,6 +19,7 @@ import { computeBounds, isOnPath, getIntersections, contains } from './PathGeome
 import { getWinding } from './PathBooleanWinding';
 import { PathFlattener } from './PathFlattener';
 import { PathFitter } from './PathFitter';
+import { toPathData, fromPathData, fromSVG } from './PathSVG';
 
 // PathConstructorsからメソッドをインポート
 import { PathConstructors } from './PathConstructors';
@@ -1413,4 +1414,22 @@ export class Path extends PathItemBase {
     }
   }
 
+  // --- SVGパスデータ getter/setter・staticメソッド ---
+  get pathData(): string {
+    return toPathData(this);
+  }
+
+  set pathData(val: string) {
+    const path = fromPathData(val);
+    this.setSegments(path.getSegments());
+    this.setClosed(path.closed);
+  }
+
+  static fromPathData(val: string): Path {
+    return fromPathData(val);
+  }
+
+  static fromSVG(val: string): Path {
+    return fromSVG(val);
+  }
 }
