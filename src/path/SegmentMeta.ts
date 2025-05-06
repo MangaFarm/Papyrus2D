@@ -28,15 +28,15 @@ export interface IntersectionInfo {
   winding?: number;
   // 交点の処理済みフラグ
   visited?: boolean;
-  // 次の交点への参照（リンクリスト構造）
-  next?: IntersectionInfo;
-  // 前の交点への参照（リンクリスト構造）
+  // 次の交点への参照（リンクリスト構造, paper.js互換）
+  _next?: IntersectionInfo;
+  // 前の交点への参照（リンクリスト構造, paper.js互換）
   _previous?: IntersectionInfo;
-  // 交点のセグメント
-  segment?: Segment;
+  // 交点のセグメント（paper.js互換）
+  _segment?: Segment;
   // 交点が重なりかどうか
   _overlap?: boolean;
-  // 交点の情報（自己参照または他の交点への参照）
+  // 交点の情報（自己参照または他の交点への参照, paper.js互換）
   _intersection?: IntersectionInfo;
 }
 

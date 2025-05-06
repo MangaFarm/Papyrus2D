@@ -22,6 +22,8 @@ export function tracePaths(
   segments: Segment[],
   operator: Record<string, boolean>
 ): Path[] {
+  // 🔥 tracePaths: input segments
+  console.log("🔥 tracePaths: input segments.length =", segments.length);
   // paper.jsのtracePathsアルゴリズムに完全一致させる
   const paths: Path[] = [];
   let starts: Segment[] = [];
@@ -61,9 +63,18 @@ export function tracePaths(
     if (!operator) return true;
 
     const winding = meta.winding;
-    if (!winding) return true;
+    if (!winding) {
+      let x = undefined, y = undefined;
+      if (seg && seg._point && typeof seg._point.toPoint === 'function') {
+        const pt = seg._point.toPoint();
+        x = pt.x; y = pt.y;
+      }
+      console.log('🔥 isValid: winding is undefined for seg', seg && seg._index, x, y);
+      return true;
+    }
 
     const op = operator[winding.winding];
+    console.log('🔥 isValid: winding', winding, 'op', op, 'operator', operator, 'seg', seg && seg._index);
     return !!(
       op &&
       !(
@@ -108,7 +119,7 @@ export function tracePaths(
 
     function collect(inter: Intersection | null | undefined, end?: Intersection): void {
       while (inter && inter !== end) {
-        const other = inter.segment!;
+        const other = inter._segment!;
         const otherMeta = getMeta(other)!;
         const path = otherMeta.path;
         
@@ -123,7 +134,7 @@ export function tracePaths(
               isStart(next) ||
               (next &&
                 (isValid(other) &&
-                  (isValid(next) || (nextInter && isValid(nextInter.segment))))))
+                  (isValid(next) || (nextInter && isValid(nextInter._segment))))))
           ) {
             crossings.push(other);
           }
@@ -133,7 +144,7 @@ export function tracePaths(
           }
         }
         
-        inter = inter.next!;
+        inter = inter._next!;
       }
     }
 
@@ -188,6 +199,9 @@ export function tracePaths(
     const segStart = segments[i];
     const meta = getMeta(segStart);
     let validStart = isValid(segStart);
+    // 🔥 tracePaths: segment info
+    const winding = meta && meta.winding ? meta.winding.winding : undefined;
+    console.log(`🔥 tracePaths: i=${i} segStart=(${segStart._point.toPoint().x},${segStart._point.toPoint().y}) winding=${winding} visited=${meta ? meta.visited : "?"} validStart=${validStart}`);
     let path: Path | null = null;
     let finished = false;
     let closed = true;
@@ -201,8 +215,8 @@ export function tracePaths(
     const path1 = startMeta.path;
     if (validStart && path1 && path1._overlapsOnly) {
       const path2 = startMeta.intersection &&
-        startMeta.intersection.segment &&
-        getMeta(startMeta.intersection.segment)!.path;
+        startMeta.intersection._segment &&
+        getMeta(startMeta.intersection._segment)!.path;
       if (path2 && (path1 as any).compare && (path1 as any).compare(path2)) {
         if (path1.getArea()) {
           paths.push(path1.clone(false));
@@ -294,7 +308,8 @@ export function tracePaths(
       visited.push(nextSeg);
 
       // 次のセグメントに移動
-      const nextPath = getMeta(nextSeg)!.path!;
+      const nextPath = getMeta(nextSeg || currentSeg)!.path!;
+      if (!next && !nextPath) break;
       currentSeg = (next || nextPath.getFirstSegment()) as Segment;
       handleIn = next ? next._handleIn.toPoint() : null;
     }
@@ -310,6 +325,16 @@ export function tracePaths(
         paths.push(path!);
       }
     }
+  }
+  // 🔥 tracePaths: output paths
+  console.log("🔥 tracePaths: output paths.length =", paths.length);
+  for (let i = 0; i < paths.length; i++) {
+    const segs = paths[i].getSegments();
+    console.log("🔥 tracePaths: paths[" + i + "].segments.length =", segs.length);
+    console.log("🔥 tracePaths: paths[" + i + "].coords =", segs.map(s => {
+      const pt = s._point.toPoint();
+      return `${pt.x},${pt.y}`;
+    }).join(" -> "));
   }
   return paths;
 }

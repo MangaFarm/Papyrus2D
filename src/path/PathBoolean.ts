@@ -174,6 +174,7 @@ export class PathBoolean {
     // 交点計算
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
+    console.log("🔥 runBoolean: intersections.length =", intersections.length);
 
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定
@@ -186,6 +187,7 @@ export class PathBoolean {
     // 交点でパスを分割
     const dividedLocs1 = divideLocations(intersections);
     const dividedLocs2 = _path2 ? divideLocations(intersections) : null;
+    console.log("🔥 runBoolean: dividedLocs1.length =", dividedLocs1.length, "dividedLocs2.length =", dividedLocs2 ? dividedLocs2.length : "null");
     
     // 交点のwinding number計算
     if (dividedLocs2) {
@@ -253,9 +255,14 @@ export class PathBoolean {
     if (dividedLocs2) {
       segments.push(...dividedLocs2.map(loc => loc._segment));
     }
+    console.log("🔥 runBoolean: segments.length =", segments.length);
 
     // マーチングアルゴリズムで結果パスを構築
     const paths = tracePaths(segments, operator);
+    console.log("🔥 runBoolean: tracePaths returned", paths.length, "paths");
+    for (let i = 0; i < paths.length; i++) {
+      console.log("🔥 runBoolean: paths[" + i + "].segments.length =", paths[i].getSegments().length);
+    }
 
     // 結果パスを結合
     return this.createResult(paths, true, path1, path2 as PathItem, options);

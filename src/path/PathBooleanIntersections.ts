@@ -67,6 +67,10 @@ export function divideLocations(
     return curve._path._id + '.' + curve._segment1._index;
   }
 
+  // Papyrus2D拡張: 同一座標・同一パスID・同一indexのSegment再利用マップ
+  // キー: `${x},${y},${curve._path._id},${_segment._index}`
+  const _segmentReuseMap = new Map<string, Segment>();
+
   if (clearLater) {
     for (let i = clearLater.length - 1; i >= 0; i--) {
       const curve = clearLater[i];
@@ -80,7 +84,7 @@ export function divideLocations(
       origTime = time,
       exclude = include && !include(loc),
       curve = loc._curve!,
-      segment;
+      _segment;
     if (curve) {
       if (curve !== prevCurve) {
         clearHandles = !curve.hasHandles() || (clearLookup && clearLookup[getId(curve)]);
@@ -99,20 +103,24 @@ export function divideLocations(
     }
     prevTime = origTime;
     if (time < tMin) {
-      segment = curve._segment1;
+      _segment = curve._segment1;
     } else if (time > tMax) {
-      segment = curve._segment2;
+      _segment = curve._segment2;
     } else {
       var newCurve = curve.divideAtTime(time, true)!;
       if (clearHandles) clearCurves.push(curve, newCurve);
-      segment = newCurve._segment1;
+      _segment = newCurve._segment1;
+      // 新しいセグメントのmetaにpathを必ずセット
+      const meta = getMeta(_segment);
+      if (meta) meta.path = curve._path;
       for (var j = renormalizeLocs.length - 1; j >= 0; j--) {
         var l = renormalizeLocs[j];
         l._time = (l._time - time) / (1 - time);
       }
     }
-    loc._setSegment(segment);
-    var inter = segment._intersection,
+    // 元のpaper.jsと同様、Segmentはcurve.divideAtTime等で生成されたものをそのまま使う
+    loc._setSegment(_segment);
+    var inter = _segment._intersection,
       dest = loc._intersection;
     if (inter) {
       linkIntersections(inter, dest!);
@@ -122,11 +130,19 @@ export function divideLocations(
         other = other._next;
       }
     } else {
-      segment._intersection = dest;
+      _segment._intersection = dest;
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);
-  return results || locations;
+  const out = results || locations;
+  // 🔥 divideLocations: output _segments
+  for (let i = 0; i < out.length; i++) {
+    const seg = out[i]._segment;
+    const pt = seg._point.toPoint();
+    const pathId = seg._path ? seg._path._id : "none";
+    console.log(`🔥 divideLocations: i=${i} seg=(${pt.x},${pt.y}) id=${seg._id} index=${seg._index}`);
+  }
+  return out;
 }
 
 
