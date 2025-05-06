@@ -517,20 +517,10 @@ describe('Path', () => {
   describe('splitAt', () => {
     it('Splitting a straight path should produce segments without handles', () => {
       const path1 = Path.Line(new Point(0, 0), new Point(50, 50));
-      console.log('Original path1:', path1.toString());
-      console.log('path1 length:', path1.getLength());
       const splitPoint = path1.getLength() / 2;
-      console.log('Split point:', splitPoint);
       const path2 = path1.splitAt(splitPoint);
       
-      console.log('After split - path1:', path1.toString());
-      console.log('After split - path2:', path2 ? path2.toString() : 'null');
-      
       if (path2) {
-        console.log('path1 last segment:', path1.getLastSegment()?.toString());
-        console.log('path1 last segment has handles:', path1.getLastSegment()?.hasHandles());
-        console.log('path2 first segment:', path2.getFirstSegment()?.toString());
-        console.log('path2 first segment has handles:', path2.getFirstSegment()?.hasHandles());
         expect(!path1.getLastSegment()!.hasHandles() && !path2.getFirstSegment()!.hasHandles()).toBe(true);
       } else {
         expect(path2).not.toBeNull();
@@ -539,23 +529,14 @@ describe('Path', () => {
     
     it('Splitting a path with one curve in the middle result in two paths of the same length with one curve each', () => {
       const path1 = Path.Line(new Point(0, 0), new Point(100, 100));
-      console.log('Original path1:', path1.toString());
-      console.log('path1 length:', path1.getLength());
       const loc = path1.getLocationAt(path1.getLength() / 2);
-      console.log('Location at midpoint:', loc ? loc.toString() : 'null');
       
       expect(loc).not.toBeNull();
       
       if (loc) {
         const path2 = path1.splitAt(loc);
-        console.log('After split - path1:', path1.toString());
-        console.log('After split - path2:', path2 ? path2.toString() : 'null');
         
         if (path2) {
-          console.log('path1 curves length:', path1.getCurves().length);
-          console.log('path2 curves length:', path2.getCurves().length);
-          console.log('path1 length:', path1.getLength());
-          console.log('path2 length:', path2.getLength());
           expect(path1.getCurves().length).toBe(1);
           expect(path2.getCurves().length).toBe(1);
           expect(path1.getLength()).toBeCloseTo(path2.getLength(), 4);

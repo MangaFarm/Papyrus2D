@@ -73,10 +73,8 @@ export function resolveCrossings(path: PathItem): PathItem {
         const prevCurve = prev.getCurve();
         if (prev !== seg) {
           if (!prevCurve) {
-            console.log('[resolveCrossings] prev.getCurve() is null', prev, prev?._index, prev?._path);
             // paper.js: do nothing if prevCurve is null
           } else if (typeof prevCurve.hasLength !== 'function') {
-            console.log('[resolveCrossings] prev.getCurve() is not Curve', prevCurve, typeof prevCurve, prevCurve && Object.keys(prevCurve));
           } else if (!prevCurve.hasLength()) {
             // prev._handleInはSegmentPoint型
             next._handleIn._set(prev._handleIn.getX(), prev._handleIn.getY());
@@ -102,11 +100,6 @@ export function resolveCrossings(path: PathItem): PathItem {
       if (seg2) getMeta(seg2)._intersection = null;
       return false;
     } : undefined, clearCurves);
-
-    // デバッグ: divideLocations後のパス情報
-    for (const p of paths) {
-      console.log('[resolveCrossings] after divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
-    }
 
     if (clearCurves) {
       clearCurveHandles(clearCurves);

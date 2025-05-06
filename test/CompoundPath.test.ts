@@ -39,24 +39,10 @@ describe('CompoundPath', () => {
     expect(path2.isClosed()).toBe(true);
     expect(path3.isClosed()).toBe(true);
 
-    // 各パスの面積を出力
-    console.log('Path1 area:', path1.getArea(), 'ID:', path1._id);
-    console.log('Path2 area:', path2.getArea(), 'ID:', path2._id);
-    console.log('Path3 area:', path3.getArea(), 'ID:', path3._id);
-
     // CompoundPathを作成して方向を再設定
     const compound = new CompoundPath([path1, path2, path3]);
-    console.log('Before reorient - children:', compound._children.map(c => c._id));
-    console.log('Before reorient - children areas:', compound._children.map(c => c.getArea()));
-    
     compound.reorient();
     
-    console.log('After reorient - children:', compound._children.map(c => c._id));
-    console.log('After reorient - children areas:', compound._children.map(c => c.getArea()));
-    console.log('After reorient - children[0] is path3:', compound._children[0] === path3);
-    console.log('After reorient - children[1] is path2:', compound._children[1] === path2);
-    console.log('After reorient - children[2] is path1:', compound._children[2] === path1);
-
     // 最も外側のパス（面積が最大）が最初の子パスになる
     expect(compound._children[0]).toBe(path3);
     
@@ -109,20 +95,13 @@ describe('CompoundPath', () => {
 
     // 各パスの境界ボックスを確認
     const bounds1 = path1.getBounds();
-    console.log('Path1 bounds:', bounds1);
-    
     const bounds2 = path2.getBounds();
-    console.log('Path2 bounds:', bounds2);
     
-    // パスのセグメントを確認
-    console.log('Path2 segments:', path2.getSegments().map(s => s.getPoint().toString()));
-
     // CompoundPathを作成
     const compound = new CompoundPath([path1, path2]);
 
     // 境界ボックスは両方の矩形を含む
     const bounds = compound.getBounds();
-    console.log('Compound bounds:', bounds);
     
     expect(bounds.x).toBe(0);
     expect(bounds.y).toBe(0);
@@ -135,42 +114,20 @@ describe('CompoundPath', () => {
     const path1 = Path.Rectangle({ from: new Point(0, 0), to: new Point(100, 100) });
     const path2 = Path.Rectangle({ from: new Point(25, 25), to: new Point(75, 75) });
 
-    console.log('Path1 area:', path1.getArea());
-    console.log('Path2 area:', path2.getArea());
-    
-    // 点の包含チェック
-    console.log('Path1 contains (10,10):', path1.contains(new Point(10, 10)));
-    console.log('Path2 contains (10,10):', path2.contains(new Point(10, 10)));
-
     // CompoundPathを作成
     const compound = new CompoundPath([path1, path2]);
-    console.log('Before reorient - children count:', compound._children.length);
-    console.log('Before reorient - first child area:', compound._children[0].getArea());
-    
     compound.reorient(); // 方向を適切に設定
     
-    console.log('After reorient - children count:', compound._children.length);
-    console.log('After reorient - children areas:', compound._children.map(c => c.getArea()));
-    console.log('After reorient - first child is path1:', compound._children[0] === path1);
-    console.log('After reorient - second child is path2:', compound._children[1] === path2);
-
     // 外側の矩形内、内側の矩形外の点は含まれる
     const testPoint = new Point(10, 10);
-    console.log('Test point:', testPoint.toString());
-    console.log('Compound contains test point:', compound.contains(testPoint));
-    
     expect(compound.contains(testPoint)).toBe(true);
 
     // 内側の矩形内の点は含まれない（穴）
     const innerPoint = new Point(50, 50);
-    console.log('Inner point:', innerPoint.toString());
-    console.log('Compound contains inner point:', compound.contains(innerPoint));
     expect(compound.contains(innerPoint)).toBe(false);
 
     // 外側の矩形外の点は含まれない
     const outerPoint = new Point(200, 200);
-    console.log('Outer point:', outerPoint.toString());
-    console.log('Compound contains outer point:', compound.contains(outerPoint));
     expect(compound.contains(outerPoint)).toBe(false);
   });
   
@@ -179,25 +136,9 @@ describe('CompoundPath', () => {
     const path1 = Path.Rectangle({ from: new Point(0, 0), to: new Point(100, 100) });
     const path2 = Path.Rectangle({ from: new Point(25, 25), to: new Point(75, 75) });
   
-    // 個別のパスでの包含チェック
-    console.log('Path1 area:', path1.getArea());
-    console.log('Path2 area:', path2.getArea());
-    console.log('Path1 contains (10,10):', path1.contains(new Point(10, 10)));
-    console.log('Path2 contains (10,10):', path2.contains(new Point(10, 10)));
-    console.log('Path1 contains (50,50):', path1.contains(new Point(50, 50)));
-    console.log('Path2 contains (50,50):', path2.contains(new Point(50, 50)));
-  
     // CompoundPathを作成
     const compound = new CompoundPath([path1, path2]);
-    
-    // reorient前後の状態を確認
-    console.log('Before reorient - children:', compound._children.map(c => c === path1 ? 'path1' : 'path2').join(', '));
-    console.log('Before reorient - children areas:', compound._children.map(c => c.getArea()));
-    
     compound.reorient();
-    
-    console.log('After reorient - children:', compound._children.map(c => c === path1 ? 'path1' : 'path2').join(', '));
-    console.log('After reorient - children areas:', compound._children.map(c => c.getArea()));
     
     // 点の包含チェック
     const testPoints = [
@@ -205,9 +146,5 @@ describe('CompoundPath', () => {
       new Point(50, 50),  // 内側の矩形内
       new Point(150, 150) // 両方の矩形外
     ];
-    
-    for (const point of testPoints) {
-      console.log(`Point ${point.toString()} - compound.contains:`, compound.contains(point));
-    }
   });
 });

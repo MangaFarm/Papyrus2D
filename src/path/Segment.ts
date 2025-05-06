@@ -174,7 +174,6 @@ export class Segment {
    */
   toString(): string {
     const p = this._point;
-    console.log(p._x, p._y);
     const parts: string[] = [`point: { x: ${p._x}, y: ${p._y} }`];
 
     if (this._handleIn && !this._handleIn.isZero()) {

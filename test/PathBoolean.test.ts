@@ -27,8 +27,6 @@ function compareBoolean(actualFn: () => any, expected: any, message?: string, op
     const actualPathData = (actual && typeof actual.getPathData === 'function')
       ? actual.getPathData()
       : ((actual as any).pathData ?? (actual + ''));
-    // 🔥 デバッグ出力
-    console.log("🔥 compareBoolean actualPathData:", actualPathData, "expected:", expected);
     expect(actualPathData).toBe(expected + '');
   }
 }

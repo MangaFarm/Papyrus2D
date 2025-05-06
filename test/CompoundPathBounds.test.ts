@@ -11,10 +11,7 @@ describe('CompoundPathBounds', () => {
 
     // 各パスの境界ボックスを確認
     const bounds1 = path1.getBounds();
-    console.log('Path1 bounds:', bounds1);
-    
     const bounds2 = path2.getBounds();
-    console.log('Path2 bounds:', bounds2);
     
     // 期待される結果を確認
     expect(bounds1.x).toBe(0);
@@ -38,11 +35,9 @@ describe('CompoundPathBounds', () => {
     
     // _getBoundsメソッドを直接テスト
     const bounds = compound._getBounds();
-    console.log('Compound _getBounds result:', bounds);
     
     // getBoundsメソッドの結果も確認
     const publicBounds = compound.getBounds();
-    console.log('Compound getBounds result:', publicBounds);
     
     // 期待される結果を確認
     expect(bounds.x).toBe(0);
