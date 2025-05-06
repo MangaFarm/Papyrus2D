@@ -81,12 +81,8 @@ export function addLocation(
       // Paper.jsと同様に2つのCurveLocationを作成し、相互参照を設定
       // Point型でなければtoPoint()で変換
       // Point型でなければtoPoint()で変換（SegmentPoint型や未初期化も含む）
-      function ensurePoint(obj: any): Point {
-        if (!obj) return new Point(0, 0);
-        if (obj instanceof Point) return obj;
-        if (typeof obj.x === 'number' && typeof obj.y === 'number') return new Point(obj.x, obj.y);
-        if (typeof obj.toPoint === 'function') return obj.toPoint();
-        return new Point(0, 0);
+      function ensurePoint(obj: Point | null | undefined): Point {
+        return obj instanceof Point ? obj : new Point(0, 0);
       }
       const pt1Final = ensurePoint(pt1);
       const pt2Final = ensurePoint(pt2);
@@ -97,16 +93,16 @@ export function addLocation(
       if (c1 && c1._segment1) {
         loc1._segment = c1._segment1;
         const meta1 = getMeta(c1._segment1);
-        if (meta1) meta1.path = c1._path;
+        meta1._path = c1._path!;
         // _segment._intersectionにloc1をセット
-        (c1._segment1 as any)._intersection = loc1;
+        meta1._intersection = loc1 as any;
       }
       if (c2 && c2._segment1) {
         loc2._segment = c2._segment1;
         const meta2 = getMeta(c2._segment1);
-        if (meta2) meta2.path = c2._path;
+        meta2._path = c2._path!;
         // _segment._intersectionにloc2をセット
-        (c2._segment1 as any)._intersection = loc2;
+        meta2._intersection = loc2 as any;
       }
       // intersection.segmentもセット
       // IntersectionInfo型の場合のみsegmentをセット

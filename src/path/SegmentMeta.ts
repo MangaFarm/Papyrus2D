@@ -79,9 +79,7 @@ const metaStore = new WeakMap<Segment, SegmentMeta>();
  * セグメントの拡張情報を取得
  * 存在しない場合は新しく作成して返す
  */
-export function getMeta(segment: Segment | null | undefined): SegmentMeta | null | undefined {
-  if (!segment) return null;
-  
+export function getMeta(segment: Segment): SegmentMeta {
   let meta = metaStore.get(segment);
   if (!meta) {
     meta = {};
