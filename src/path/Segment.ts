@@ -258,7 +258,7 @@ export class Segment {
    * @param coords 座標配列（出力）
    * @param change 変更フラグ
    */
-  _transformCoordinates(matrix: Matrix, coords: number[], change: boolean): number[] {
+  _transformCoordinates(matrix: Matrix | null, coords: number[], change: boolean): number[] {
     // 行列変換バージョンを使用して、複数の点を一度に処理し、
     // Point.read()やPointコンストラクタの呼び出しを避けることで
     // パフォーマンスを大幅に向上させます。

@@ -26,9 +26,9 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
     return new Rectangle(0, 0, 0, 0);
   }
   
-  const coords = new Array(6);
+  let coords = new Array(6);
   // 最初のセグメントの座標を取得
-  const prevCoords = new Array(6);
+  let prevCoords = new Array(6);
   first._transformCoordinates(null, prevCoords, true);
   
   const min = prevCoords.slice(0, 2); // 最初の点の値で初期化
@@ -39,7 +39,7 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
   // 各セグメントを処理する関数
   function processSegment(segment: Segment) {
     segment._transformCoordinates(null, coords, true);
-    
+
     for (let i = 0; i < 2; i++) {
       // Paper.jsのCurve._addBoundsと同じロジック
       addBezierBounds(
@@ -48,19 +48,17 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
         coords[i + 2],      // segment.handleIn
         coords[i],          // segment.point
         i,
-        padding,
+        Array.isArray(padding) ? padding[i] : padding,
         min,
         max,
         roots
       );
     }
-    
-    // 座標バッファを交換
-    for (let i = 0; i < 6; i++) {
-      const tmp = prevCoords[i];
-      prevCoords[i] = coords[i];
-      coords[i] = tmp;
-    }
+
+    // バッファごとスワップ（paper.jsと同じ）
+    const tmp = prevCoords;
+    prevCoords = coords;
+    coords = tmp;
   }
 
   // 全セグメントを処理
