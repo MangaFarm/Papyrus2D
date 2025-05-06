@@ -75,13 +75,11 @@ export class PathBoolean {
       // @ts-ignore
       const pathData = p.getPathData ? p.getPathData() : '';
       // @ts-ignore
-      console.log(`🔥handleNoIntersections id=${id} area=${area} cw=${clockwise} segs=${segs} bounds=${bounds} pathData=${pathData}`);
     }
     for (const p of result) {
       if (!p) continue;
       // @ts-ignore
       const pathData = p.getPathData ? p.getPathData() : '';
-      console.log('🔥handleNoIntersections result pathData:', pathData);
     }
     return result;
   }

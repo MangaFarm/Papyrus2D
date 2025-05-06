@@ -70,9 +70,6 @@ describe('Path Boolean Operations', () => {
       'M0,200v-200h200v200zM150,150v-100h-100v100z',
     ]);
     // 🔥 Papyrus2Dのintersect出力をデバッグ出力
-    console.log('🔥 Papyrus2D intersect:', path1.intersect(path2).toString());
-    // 🔥 Papyrus2DのresolveCrossings出力をデバッグ出力
-    console.log('🔥 Papyrus2D resolveCrossings:', path1.resolveCrossings().toString());
 
     testOperations(path1, path3, [
       'M0,200v-200h200v200zM250,150v-100h100v100z',
@@ -113,7 +110,6 @@ describe('Path Boolean Operations', () => {
       (path as any).fillRule = 'evenodd';
       const resolved = (path as any).resolveCrossings();
       if (resolved.getSegments) {
-        console.log('🔥 Papyrus2D resolveCrossings segments:', resolved.getSegments().map(s => s.getPoint().toString()).join(' | '));
       }
       compareBoolean(
         () => resolved,

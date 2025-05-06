@@ -37,14 +37,12 @@ describe('🔥 PathBoolean intersect no crossing debug', () => {
       // @ts-ignore
       const pathData = p.getPathData ? p.getPathData() : '';
       // @ts-ignore
-      console.log(`🔥 id=${id} area=${area} cw=${clockwise} segs=${segs} bounds=${bounds} pathData=${pathData}`);
     }
     // 結果のパスデータも出力
     for (const p of result) {
       if (!p) continue;
       // @ts-ignore
       const pathData = p.getPathData ? p.getPathData() : '';
-      console.log('🔥 result pathData:', pathData);
     }
     // テスト自体は常に通す
     expect(true).toBe(true);

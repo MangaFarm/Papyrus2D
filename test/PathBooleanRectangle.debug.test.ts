@@ -13,8 +13,5 @@ describe('🔥 PathConstructors.Rectangle debug', () => {
     });
     // デバッグ出力
     // eslint-disable-next-line no-console
-    console.log('🔥 path1.pathData:', (path1 as any).pathData ?? (path1 + ''));
-    // eslint-disable-next-line no-console
-    console.log('🔥 path2.pathData:', (path2 as any).pathData ?? (path2 + ''));
   });
 });

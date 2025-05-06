@@ -13,7 +13,6 @@ describe('PathBooleanResolveCrossings debug', () => {
     const segs = (path as any).getSegments();
     for (let i = 0; i < segs.length; i++) {
       const pt = segs[i].getPoint();
-      console.log(`🔥 before: seg[${i}] = (${pt.x},${pt.y})`);
     }
 
     // resolveCrossings実行
@@ -23,17 +22,14 @@ describe('PathBooleanResolveCrossings debug', () => {
     const segs2 = (resolved as any).getSegments();
     for (let i = 0; i < segs2.length; i++) {
       const pt = segs2[i].getPoint();
-      console.log(`🔥 after: seg[${i}] = (${pt.x},${pt.y})`);
     }
 
     // SVGパス出力
-    console.log('🔥 resolved SVG:', (resolved as any).getPathData());
 
     // winding値デバッグ
     for (let i = 0; i < segs2.length; i++) {
       // Papyrus2DではwindingはgetMetaで管理
       const winding = getMeta(segs2[i])._winding || {};
-      console.log(`🔥 seg[${i}] winding:`, JSON.stringify(winding));
     }
 
     // 期待値（paper.jsと同じ）

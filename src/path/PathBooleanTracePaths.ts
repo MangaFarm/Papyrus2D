@@ -28,10 +28,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
   function isValid(seg: Segment | null): boolean {
     // 🔥 デバッグ出力
     const meta = getMeta(seg!);
-    console.log('🔥 isValid getMeta', {
-      seg: seg ? seg.getPoint().toString() : null,
-      winding: meta._winding
-    });
     var winding: {
       winding: number;
       windingL: number;
@@ -116,13 +112,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
           ) {
             crossings.push(other);
 // 🔥 デバッグ: collect時のother/next/nextInter/crossings/starts
-          console.log('🔥 collect:', {
-            other: other.getPoint().toString(),
-            next: next ? next.getPoint().toString() : null,
-            nextInter: nextInter ? (nextInter._segment ? nextInter._segment.getPoint().toString() : null) : null,
-            crossings: crossings.map(s => s.getPoint().toString()),
-            starts: starts.map(s => s.getPoint().toString())
-          });
           }
           // paper.js互換: collectStarts時はstarts.push(other)する
           if (collectStarts) starts.push(other);
@@ -368,7 +357,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
 // 🔥 生成パスのセグメント列をデバッグ出力
 for (const path of paths) {
   const segs = path.getSegments();
-  console.log('🔥 traced path:', segs.map(s => s.getPoint().toString()).join(' | '));
   // paper.js同様、collinearな直線をreduceでマージ
   path.reduce();
 }

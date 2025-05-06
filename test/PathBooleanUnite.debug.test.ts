@@ -12,12 +12,8 @@ describe('🔥 PathBoolean.unite debug', () => {
       size: { width: 100, height: 100 },
     });
     // eslint-disable-next-line no-console
-    console.log('🔥 path1.pathData:', (path1 as any).pathData ?? (path1 + ''));
-    // eslint-disable-next-line no-console
-    console.log('🔥 path2.pathData:', (path2 as any).pathData ?? (path2 + ''));
     // unite
     const united = (path1 as any).unite(path2);
-    // eslint-disable-next-line no-console
-    console.log('🔥 unite.pathData:', (united as any).pathData ?? (united + ''));
+    
   });
 });
