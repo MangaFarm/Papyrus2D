@@ -21,7 +21,7 @@ import { resolveCrossings } from './PathBooleanResolveCrossings';
 export class CompoundPath extends PathItemBase {
   // 追加のプロパティ
   _name?: string;
-  _data?: any;
+  // _dataは未使用のため削除
 
   // 子パスの配列
   _children: Path[] = [];
@@ -30,33 +30,16 @@ export class CompoundPath extends PathItemBase {
    * CompoundPathコンストラクタ
    * @param paths 子パスの配列または引数
    */
-  constructor(paths?: Path[] | any) {
+  constructor(paths?: Path[]) {
     super();
     this._children = [];
-    
-    if (!this._initialize(paths)) {
-      if (typeof paths === 'string') {
-        // SVGパスデータからの作成はサポート外
-        console.warn('SVG path data is not supported in Papyrus2D');
-      } else {
-        if (Array.isArray(paths)) {
-          this.addChildren(paths);
-        } else {
-          // 引数が配列でない場合は引数リストとして扱う
-          this.addChildren(Array.prototype.slice.call(arguments) as Path[]);
-        }
-      }
+    if (paths && Array.isArray(paths)) {
+      this.addChildren(paths);
     }
   }
 
   // paper.jsのBase.each()の代わりに使用する内部メソッド
-  private _initialize(object: any): boolean {
-    if (object && object.children) {
-      this.addChildren(object.children);
-      return true;
-    }
-    return false;
-  }
+  // _initializeは多様な型を受け入れていたが、不要になったので削除
 
   /**
    * 子パスを追加
@@ -253,7 +236,7 @@ export class CompoundPath extends PathItemBase {
    * @param options オプション
    * @returns 境界ボックス
    */
-  _getBounds(matrix?: Matrix | null, options?: any): Rectangle {
+  _getBounds(matrix?: Matrix | null): Rectangle {
     const children = this._children;
     if (!children || !children.length) {
       return new Rectangle(0, 0, 0, 0);
@@ -626,7 +609,7 @@ export class CompoundPath extends PathItemBase {
   /**
    * パスの平滑化
    */
-  smooth(param?: any): CompoundPath {
+  smooth(param?: { type?: "asymmetric" | "continuous"; from?: number | Segment; to?: number | Segment }): CompoundPath {
     const children = this._children;
     let res;
     for (let i = 0, l = children.length; i < l; i++) {
@@ -828,7 +811,7 @@ export class CompoundPath extends PathItemBase {
    */
   getPathData(): string {
     return this._children
-      .map(child => (typeof (child as any).getPathData === 'function' ? (child as any).getPathData() : ''))
+      .map(child => (typeof child.getPathData === 'function' ? child.getPathData() : ''))
       .filter(str => str && str.length > 0)
       .join('');
   }

@@ -381,15 +381,6 @@ export class Matrix {
   }
 
   /**
-   * Canvas用（Papyrus2Dでは空実装）
-   */
-  applyToContext(ctx: any): void {
-    if (!this.isIdentity()) {
-      ctx.transform(this.a, this.b, this.c, this.d, this.tx, this.ty);
-    }
-  }
-
-  /**
    * 座標配列を変換する
    * paper.jsの_transformCoordinatesメソッドに相当
    * @param src 変換元の座標配列
