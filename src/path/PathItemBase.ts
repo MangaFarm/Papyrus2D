@@ -19,7 +19,11 @@ export abstract class PathItemBase implements PathItem {
   _matrixDirty: boolean = false;
   _bounds?: Rectangle;
   _version: number = 0;
-  _id: string = Math.random().toString(36).substring(2, 15);
+  static _idCount: number = 0;
+  _id: number;
+  constructor() {
+    this._id = ++PathItemBase._idCount;
+  }
   
   // スタイル設定
   style: Style = {

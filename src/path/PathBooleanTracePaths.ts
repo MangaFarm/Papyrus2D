@@ -299,11 +299,15 @@ export function tracePaths(
 
       // セグメントをパスに追加（paper.jsの順序・ハンドル処理に合わせる）
       const next = nextSeg.getNext();
-      path!.add(new Segment(
+      const newSeg = new Segment(
         nextSeg._point.toPoint(),
         handleIn,
         next ? nextSeg._handleOut.toPoint() : null
-      ));
+      );
+      path!.add(newSeg);
+      // 新規セグメントのmeta.pathを必ずセット
+      const meta = getMeta(newSeg);
+      if (meta) meta.path = path! as any;
       getMeta(nextSeg)!.visited = true;
       visited.push(nextSeg);
 
