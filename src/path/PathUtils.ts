@@ -19,18 +19,20 @@ export function smoothPath(
   const that = path;
   const opts = options || {};
   const type = opts.type || 'asymmetric';
-  const segments = (path as any)._segments as Segment[];
+  // paper.jsの実装に合わせて、_segments, _closedはPath型にprivateで持っている前提で型アサーション
+  const segments = (path as unknown as { _segments: Segment[] })._segments;
   const length = segments.length;
-  const closed = (path as any)._closed as boolean;
+  const closed = (path as unknown as { _closed: boolean })._closed;
 
   function getIndex(value: number | Segment | undefined, _default: number): number {
     if (value && (value as Segment).point) {
       const segment = value as Segment;
-      const segPath = (segment as any)._path;
+      // paper.jsの実装に合わせて、_path, _indexはSegment型にprivateで持っている前提で型アサーション
+      const segPath = (segment as unknown as { _path: Path })._path;
       if (segPath && segPath !== that) {
-        throw new Error(`Segment ${segment._index} of another path cannot be used as a parameter`);
+        throw new Error(`Segment ${(segment as unknown as { _index: number })._index} of another path cannot be used as a parameter`);
       }
-      return (segment as any)._index;
+      return (segment as unknown as { _index: number })._index;
     } else {
       const index = typeof value === 'number' ? value : _default;
       return Math.min(index < 0 && closed
@@ -179,10 +181,10 @@ export function splitPathAt(path: Path, location: number | CurveLocation): Path 
       curveIndex++;
     }
 
-    const segs = path.removeSegments(curveIndex, (path as any)._segments.length);
+    const segs = path.removeSegments(curveIndex, (path as unknown as { _segments: Segment[] })._segments.length);
 
     let path2;
-    if ((path as any)._closed) {
+    if ((path as unknown as { _closed: boolean })._closed) {
       path.setClosed(false);
       path2 = path;
     } else {
@@ -195,8 +197,8 @@ export function splitPathAt(path: Path, location: number | CurveLocation): Path 
       path2.add(segs[i]);
     }
 
-    (path as any)._length = undefined;
-    (path2 as any)._length = undefined;
+    (path as unknown as { _length: undefined })._length = undefined;
+    (path2 as unknown as { _length: undefined })._length = undefined;
     path.getCurves();
     path2.getCurves();
 
