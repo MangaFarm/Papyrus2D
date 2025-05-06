@@ -9,6 +9,8 @@ import { SegmentPoint } from './SegmentPoint';
 import { Path } from './Path';
 import { CurveLocation } from './CurveLocation';
 import { ChangeFlag } from './ChangeFlag';
+import { Matrix } from '../basic/Matrix';
+import { Curve } from './Curve';
 
 export class Segment {
   _point: SegmentPoint;
@@ -94,7 +96,7 @@ export class Segment {
     return this._point.toPoint();
   }
 
-  setPoint(...args: any[]): void {
+  setPoint(...args: (Point | [number, number] | number[])[]): void {
     this._point.setPoint(Point.read(args));
   }
 
@@ -102,7 +104,7 @@ export class Segment {
     return this._handleIn.toPoint();
   }
 
-  setHandleIn(...args: any[]): void {
+  setHandleIn(...args: (Point | [number, number] | number[])[]): void {
     this._handleIn.setPoint(Point.read(args));
   }
 
@@ -110,7 +112,7 @@ export class Segment {
     return this._handleOut.toPoint();
   }
 
-  setHandleOut(...args: any[]): void {
+  setHandleOut(...args: (Point | [number, number] | number[])[]): void {
     this._handleOut.setPoint(Point.read(args));
   }
 
@@ -193,7 +195,7 @@ export class Segment {
     return this._index !== undefined ? this._index : null;
   }
 
-  getPath(): any {
+  getPath(): Path | null {
     return this._path || null;
   }
 
@@ -203,7 +205,7 @@ export class Segment {
    *
    * @return {Curve | null} セグメントが属するカーブ、または存在しない場合はnull
    */
-  getCurve(): any {
+  getCurve(): Curve | null {
     const path = this._path;
     const index = this._index;
     if (path) {
@@ -219,9 +221,9 @@ export class Segment {
   /**
    * このセグメントのパス上の位置を表すカーブロケーションを取得します。
    *
-   * @return {any} カーブロケーション、または存在しない場合はnull
+   * @return {CurveLocation | null} カーブロケーション、または存在しない場合はnull
    */
-  getLocation(): any {
+  getLocation(): CurveLocation | null {
     const curve = this.getCurve();
     return curve
             ? new CurveLocation(curve, this === curve._segment1 ? 0 : 1)
@@ -247,7 +249,7 @@ export class Segment {
    * 行列変換する
    * @param matrix 変換行列
    */
-  transform(matrix: any): Segment {
+  transform(matrix: Matrix): Segment {
     this._transformCoordinates(matrix, new Array(6), true);
     this._changed();
     return this;
@@ -259,7 +261,7 @@ export class Segment {
    * @param coords 座標配列（出力）
    * @param change 変更フラグ
    */
-  _transformCoordinates(matrix: any, coords: number[], change: boolean): number[] {
+  _transformCoordinates(matrix: Matrix, coords: number[], change: boolean): number[] {
     // 行列変換バージョンを使用して、複数の点を一度に処理し、
     // Point.read()やPointコンストラクタの呼び出しを避けることで
     // パフォーマンスを大幅に向上させます。
@@ -330,7 +332,11 @@ export class Segment {
    * @param _first 最初のセグメントフラグ（内部用）
    * @param _last 最後のセグメントフラグ（内部用）
    */
-  smooth(options: any = {}, _first?: boolean, _last?: boolean): void {
+  smooth(
+    options: { type?: string; factor?: number } = {},
+    _first?: boolean,
+    _last?: boolean
+  ): void {
     const opts = options || {};
     const type = opts.type;
     const factor = opts.factor;
