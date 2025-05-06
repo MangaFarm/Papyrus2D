@@ -49,14 +49,6 @@ export class SegmentPoint {
   }
 
   /**
-   * 別のSegmentPointの値をこのSegmentPointにセット
-   * @param point セットするSegmentPoint
-   */
-  set(point: SegmentPoint): SegmentPoint {
-    return this._set(point._x, point._y);
-  }
-
-  /**
    * X座標を取得
    */
   getX(): number {

@@ -4,6 +4,8 @@
  */
 
 import { Path } from './Path';
+import { Point } from '../basic/Point';
+import { SegmentPoint } from './SegmentPoint';
 import { PathItem } from './PathItem';
 import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
@@ -84,8 +86,9 @@ export function resolveCrossings(path: PathItem): PathItem {
       const next = seg.getNext()!;
       if (hasOverlap(prev, path) && hasOverlap(next, path)) {
         seg.remove();
-        prev._handleOut.set(new (prev._handleOut.constructor as any)(0, 0));
-        next._handleIn.set(new (next._handleIn.constructor as any)(0, 0));
+        // paper.jsでは new Point(0, 0) などを使うため、Point型で明示
+        prev._handleOut._set(0, 0);
+        next._handleIn._set(0, 0);
         const prevCurve = prev.getCurve();
         if (prev !== seg) {
           if (!prevCurve) {
@@ -94,7 +97,8 @@ export function resolveCrossings(path: PathItem): PathItem {
           } else if (typeof prevCurve.hasLength !== 'function') {
             console.log('[resolveCrossings] prev.getCurve() is not Curve', prevCurve, typeof prevCurve, prevCurve && Object.keys(prevCurve));
           } else if (!prevCurve.hasLength()) {
-            next._handleIn.set(new (next._handleIn.constructor as any)(prev._handleIn));
+            // prev._handleInはSegmentPoint型
+            next._handleIn._set(prev._handleIn.getX(), prev._handleIn.getY());
             prev.remove();
           }
         }
@@ -138,7 +142,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     // tracePaths呼び出し - paper.jsと同様の方法で
     let allSegments: Segment[] = [];
     for (let i = 0, l = paths.length; i < l; i++) {
-      allSegments = allSegments.concat((paths[i] as any)._segments);
+      allSegments = allSegments.concat((paths[i] as Path)._segments);
     }
     paths = tracePaths(allSegments, {});
     if (paths.length > 0) {
@@ -160,7 +164,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     result = path;
   } else {
     const compoundPath = new CompoundPath();
-    compoundPath.addChildren(paths as any as Path[]);
+    compoundPath.addChildren(paths as Path[]);
     const reduced = compoundPath.reduce();
     reduced.copyAttributes(path);
     result = reduced;
@@ -276,6 +280,7 @@ function divideLocations(
     const meta = getMeta(segment!);
     const inter = meta._intersection;
     // IntersectionInfo型への変換はas unknown as IntersectionInfoでTypeScriptエラーを抑制
+    // paper.js同様、型安全性を無視してIntersectionInfoとして扱う
     const dest = loc._intersection as unknown as IntersectionInfo;
     
     if (inter) {
