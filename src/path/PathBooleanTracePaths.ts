@@ -64,7 +64,7 @@ export function tracePaths(
 
     const winding = meta.winding;
     if (!winding) {
-      let x = undefined, y = undefined;
+      let x:number | undefined ,y:number | undefined;
       if (seg && seg._point && typeof seg._point.toPoint === 'function') {
         const pt = seg._point.toPoint();
         x = pt.x; y = pt.y;
@@ -118,16 +118,16 @@ export function tracePaths(
     }
 
     function collect(inter: Intersection | null | undefined, end?: Intersection): void {
-      while (inter && inter !== end) {
+      while (inter && (end === undefined || inter !== end)) {
         const other = inter._segment!;
         const otherMeta = getMeta(other)!;
         const path = otherMeta.path;
-        
+
         if (path) {
           const next = other.getNext() || path.getFirstSegment();
           const nextMeta = getMeta(next)!;
           const nextInter = nextMeta.intersection;
-          
+
           if (
             other !== segment &&
             (isStart(other) ||
@@ -138,12 +138,12 @@ export function tracePaths(
           ) {
             crossings.push(other);
           }
-          
+
           if (collectStarts) {
             starts.push(other);
           }
         }
-        
+
         inter = inter._next!;
       }
     }

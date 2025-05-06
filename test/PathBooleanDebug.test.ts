@@ -47,9 +47,15 @@ describe('PathBoolean 下位flow debug', () => {
     }
 
     // segments収集: divideLocationsで得られた全セグメントも含める
-    const segments: Segment[] = [];
-    for (const loc of dividedLocsA) segments.push(loc._segment);
-    for (const loc of dividedLocsB) segments.push(loc._segment);
+    // segments収集: divideLocationsで得られた全セグメントを一意化
+    const segMap = new Map<string, Segment>();
+    for (const loc of dividedLocsA.concat(dividedLocsB)) {
+      const seg = loc._segment;
+      const pt = seg._point.toPoint();
+      const key = `${pt.x},${pt.y},${seg._index}`;
+      if (!segMap.has(key)) segMap.set(key, seg);
+    }
+    const segments: Segment[] = Array.from(segMap.values());
 // segments重複チェック
 const segSet = new Set();
 for (const seg of segments) {
