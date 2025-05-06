@@ -137,6 +137,8 @@ export function divideLocations(
       }
     } else {
       _segment._intersection = dest;
+      // paper.jsと同じく、interが定義されている場合のみリンク
+      if (inter && inter !== dest) linkIntersections(inter!, dest!);
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);
@@ -146,7 +148,9 @@ export function divideLocations(
     const seg = out[i]._segment;
     const pt = seg._point.toPoint();
     const pathId = seg._path ? seg._path._id : "none";
-    console.log(`🔥 divideLocations: i=${i} seg=(${pt.x},${pt.y}) id=${seg._id} index=${seg._index}`);
+    const meta = getMeta(seg);
+    const winding = meta && meta.winding ? meta.winding.winding : undefined;
+    console.log(`🔥 divideLocations: i=${i} seg=(${pt.x},${pt.y}) id=${seg._id} index=${seg._index} winding=${winding}`);
   }
   return out;
 }

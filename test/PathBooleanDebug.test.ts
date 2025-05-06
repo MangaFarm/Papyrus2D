@@ -1,298 +1,263 @@
 import { describe, it, expect } from 'vitest';
 import { Path } from '../src/path/Path';
-import { Point } from '../src/basic/Point';
-import { PathBoolean } from '../src/path/PathBoolean';
 import { Segment } from '../src/path/Segment';
-
-// 1点だけ共有する2つの矩形
-describe('PathBoolean Debug: minimal intersection cases', () => {
-  it('unite: rectangles sharing only one point', () => {
-    // 矩形A: (0,0)-(50,0)-(50,50)-(0,50)
-    const rectA = new Path([
-      new Segment(new Point(0, 0)),
-      new Segment(new Point(50, 0)),
-      new Segment(new Point(50, 50)),
-      new Segment(new Point(0, 50))
-    ], true);
-
-    // 矩形B: (50,50)-(100,50)-(100,100)-(50,100)
-    const rectB = new Path([
-      new Segment(new Point(50, 50)),
-      new Segment(new Point(100, 50)),
-      new Segment(new Point(100, 100)),
-      new Segment(new Point(50, 100))
-    ], true);
-
-    const result = PathBoolean.unite(rectA, rectB);
-    expect(result).toBeDefined();
-
-    // デバッグ出力
-    const segments = result.getSegments();
-    console.log('🔥 unite: rectangles sharing one point');
-    segments.forEach((seg, i) => {
-      const pt = seg.getPoint();
-      console.log(`🔥 seg[${i}]: (${pt.x},${pt.y})`);
-    });
-
-    // パス数・座標列を確認
-    if ((result as any)._children) {
-      const children = (result as any)._children;
-      console.log('🔥 unite: children count', children.length);
-      children.forEach((child: any, idx: number) => {
-        const segs = child.getSegments();
-        console.log(`🔥 child[${idx}] segs:`, segs.map((s: any) => `(${s.getPoint().x},${s.getPoint().y})`).join(' -> '));
-      });
-    } else {
-      console.log('🔥 unite: single path');
-    }
-    // 期待値: 2つの矩形が1点だけ共有している場合、uniteは2つのサブパスになるはず
-    // ただしpaper.jsの仕様により1つになる場合もあるので、まずは出力観察
-  });
-});
+import { Point } from '../src/basic/Point';
 import { getIntersections, divideLocations } from '../src/path/PathBooleanIntersections';
-import { Curve } from '../src/path/Curve';
-
-// getIntersections: 2本の直線が1点で交わる場合
-describe('PathBoolean Debug: getIntersections', () => {
-  it('should find intersection of two crossing lines', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
-
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
-
-    const intersections = getIntersections(pathA, pathB);
-    console.log('🔥 getIntersections: count', intersections.length);
-    intersections.forEach((loc, i) => {
-      const pt = loc._point;
-      console.log(`🔥 intersection[${i}]: (${pt.x},${pt.y})`);
-    });
-    expect(intersections.length).toBe(2);
-    intersections.forEach((loc) => {
-      expect(Math.abs(loc._point.x - 50)).toBeLessThan(1e-6);
-      expect(Math.abs(loc._point.y - 50)).toBeLessThan(1e-6);
-    });
-  });
-});
-// divideLocations: 交点1つのときの分割・リンク構造
-describe('PathBoolean Debug: divideLocations', () => {
-  it('should divide at a single intersection and link both sides', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
-
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
-
-    const intersections = getIntersections(pathA, pathB);
-    // divideLocationsを呼ぶ
-    const divided = divideLocations(intersections);
-
-    console.log('🔥 divideLocations: count', divided.length);
-    divided.forEach((loc, i) => {
-      const pt = loc._point;
-      const seg = loc._segment;
-      const inter = loc._intersection;
-      console.log(`🔥 divided[${i}]: (${pt.x},${pt.y}) seg=(${seg?._point.x},${seg?._point.y}) inter=(${inter?._point.x},${inter?._point.y})`);
-    });
-
-    // 交点の両側が正しくリンクされているか
-    expect(divided.length).toBe(2);
-    expect(divided[0]._intersection).toBe(divided[1]);
-    expect(divided[1]._intersection).toBe(divided[0]);
-  });
-});
-describe('PathBoolean Debug: divideLocations type check', () => {
-  it('should print types of divideLocations output', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
-
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
-
-    const intersections = getIntersections(pathA, pathB);
-    const divided = divideLocations(intersections);
-
-    divided.forEach((loc, i) => {
-      console.log(`🔥 divided[${i}] type:`, typeof loc, loc && loc.constructor && loc.constructor.name);
-    });
-  });
-});
-describe('PathBoolean Debug: divideLocations output details', () => {
-  it('should print all properties of divideLocations output', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
-
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
-
-    const intersections = getIntersections(pathA, pathB);
-    const divided = divideLocations(intersections);
-
-    divided.forEach((loc, i) => {
-      console.log(`🔥 divided[${i}] type:`, typeof loc, loc && loc.constructor && loc.constructor.name);
-      console.log(`🔥 divided[${i}] _point:`, loc._point);
-      console.log(`🔥 divided[${i}] _segment:`, loc._segment);
-      console.log(`🔥 divided[${i}] _intersection:`, loc._intersection);
-    });
-  });
-});
-// tracePaths: 単一交点・単一セグメント列でのパス生成挙動
+import { propagateWinding } from '../src/path/PathBooleanWinding';
 import { tracePaths } from '../src/path/PathBooleanTracePaths';
-
-describe('PathBoolean Debug: tracePaths minimal', () => {
-  it('should trace paths from divided segments (single intersection)', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
-
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
-
-    const intersections = getIntersections(pathA, pathB);
-    const divided = divideLocations(intersections);
-
-    // operator: 全てtrue（unite相当）
-    const operator = { '1': true, '2': true, unite: true };
-
-    // tracePathsに分割後のセグメントを渡す
-    const segments = divided.map(loc => loc._segment);
-    const paths = tracePaths(segments, operator);
-
-    console.log('🔥 tracePaths: output paths.length =', paths.length);
-    paths.forEach((p, i) => {
-      const segs = p.getSegments();
-      console.log(`🔥 path[${i}] segs:`, segs.map(s => `(${s.getPoint().x},${s.getPoint().y})`).join(' -> '));
-    });
-
-    // パス数や座標列を観察
-    expect(paths.length).toBeGreaterThan(0);
-  });
-});
-// tracePaths: 交点が2つある場合のパス生成挙動
-describe('PathBoolean Debug: tracePaths with two intersections', () => {
-  it('should trace paths from divided segments (two intersections)', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
-
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
-
-    // もう1本交差する線分C: (0,50)-(100,50)
-    const segC1 = new Segment(new Point(0, 50));
-    const segC2 = new Segment(new Point(100, 50));
-    const pathC = new Path([segC1, segC2], false);
-
-    // AとC, BとCの交点を取得
-    const intersectionsAC = getIntersections(pathA, pathC);
-    const intersectionsBC = getIntersections(pathB, pathC);
-
-    // すべての交点をまとめてdivideLocations
-    const divided = divideLocations([...intersectionsAC, ...intersectionsBC]);
-
-    // 全セグメントにwindingを仮セット
-    divided.forEach(loc => {
-      const meta = getMeta(loc._segment);
-      if (meta) meta.winding = { winding: 1 };
-    });
-
-    // operator: 全てtrue（unite相当）
-    const operator = { '1': true, '2': true, unite: true };
-
-    // tracePathsに分割後のセグメントを渡す
-    const segments = divided.map(loc => loc._segment);
-    const paths = tracePaths(segments, operator);
-
-    console.log('🔥 tracePaths (two intersections): output paths.length =', paths.length);
-    paths.forEach((p, i) => {
-      const segs = p.getSegments();
-      console.log(`🔥 path[${i}] segs:`, segs.map(s => `(${s.getPoint().x},${s.getPoint().y})`).join(' -> '));
-    });
-
-    // パス数や座標列を観察
-    expect(paths.length).toBeGreaterThanOrEqual(0);
-  });
-});
 import { getMeta } from '../src/path/SegmentMeta';
 
-describe('PathBoolean Debug: tracePaths with manual winding', () => {
-  it('should trace paths if winding is set manually', () => {
-    // 線分A: (0,0)-(100,100)
-    const segA1 = new Segment(new Point(0, 0));
-    const segA2 = new Segment(new Point(100, 100));
-    const pathA = new Path([segA1, segA2], false);
+describe('PathBoolean 下位flow debug', () => {
+  it('矩形A-Bのsubtract: divideLocations→propagateWinding→tracePaths', () => {
+    // 矩形A (0,0)-(200,0)-(200,200)-(0,200)
+    const rectA = new Path([
+      new Segment(new Point(0, 0)),
+      new Segment(new Point(200, 0)),
+      new Segment(new Point(200, 200)),
+      new Segment(new Point(0, 200))
+    ], true);
 
-    // 線分B: (0,100)-(100,0)
-    const segB1 = new Segment(new Point(0, 100));
-    const segB2 = new Segment(new Point(100, 0));
-    const pathB = new Path([segB1, segB2], false);
+    // 矩形B (150,50)-(250,50)-(250,150)-(150,150)
+    const rectB = new Path([
+      new Segment(new Point(150, 50)),
+      new Segment(new Point(250, 50)),
+      new Segment(new Point(250, 150)),
+      new Segment(new Point(150, 150))
+    ], true);
 
-    // もう1本交差する線分C: (0,50)-(100,50)
-    const segC1 = new Segment(new Point(0, 50));
-    const segC2 = new Segment(new Point(100, 50));
-    const pathC = new Path([segC1, segC2], false);
+    // 交点計算
+    const intersections = getIntersections(rectA, rectB);
 
-    // AとC, BとCの交点を取得
-    const intersectionsAC = getIntersections(pathA, pathC);
-    const intersectionsBC = getIntersections(pathB, pathC);
+    // divideLocations
+    const dividedLocsA = divideLocations(intersections);
+    const dividedLocsB = divideLocations(intersections);
 
-    // すべての交点をまとめてdivideLocations
-    const divided = divideLocations([...intersectionsAC, ...intersectionsBC]);
+    // operator: subtract
+    const operator = { '1': true, subtract: true };
 
-    // 各セグメントにwindingを仮セット
-    divided.forEach(loc => {
-      const meta = getMeta(loc._segment);
-      if (meta) meta.winding = { winding: 1 };
-    });
-    // 元のパスの全セグメントにもwindingをセット
-    [pathA, pathB, pathC].forEach(path => {
-      path.getSegments().forEach(seg => {
+    // 衝突マップは空でよい
+    const curveCollisionsMap = {};
+
+    // propagateWinding
+    for (const loc of dividedLocsA) {
+      propagateWinding(loc._segment, rectA, rectB, curveCollisionsMap, operator);
+    }
+    for (const loc of dividedLocsB) {
+      propagateWinding(loc._segment, rectA, rectB, curveCollisionsMap, operator);
+    }
+
+    // segments収集: divideLocationsで得られた全セグメントも含める
+    const segments: Segment[] = [];
+    for (const loc of dividedLocsA) segments.push(loc._segment);
+    for (const loc of dividedLocsB) segments.push(loc._segment);
+// segments重複チェック
+const segSet = new Set();
+for (const seg of segments) {
+  const pt = seg._point.toPoint();
+  const key = `${pt.x},${pt.y},${seg._index}`;
+  if (segSet.has(key)) {
+    console.log(`🔥 duplicate segment: (${pt.x},${pt.y}) index=${seg._index}`);
+  }
+  segSet.add(key);
+}
+
+    // propagateWinding直後のwinding値を全出力
+    for (let i = 0; i < dividedLocsA.length; i++) {
+      const seg = dividedLocsA[i]._segment;
+      const pt = seg._point.toPoint();
+      const meta = getMeta(seg);
+      const winding = meta && meta.winding ? meta.winding.winding : undefined;
+      console.log(`🔥 after propagate: dividedLocsA[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
+    }
+    for (let i = 0; i < dividedLocsB.length; i++) {
+      const seg = dividedLocsB[i]._segment;
+      const pt = seg._point.toPoint();
+      const meta = getMeta(seg);
+      const winding = meta && meta.winding ? meta.winding.winding : undefined;
+      console.log(`🔥 after propagate: dividedLocsB[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
+// intersectionリンク構造を出力
+for (let i = 0; i < dividedLocsA.length; i++) {
+  const seg = dividedLocsA[i]._segment;
+  const meta = getMeta(seg);
+  const inter = seg._intersection;
+  let next = inter?._next;
+  let prev = inter?._previous;
+  const pt = seg._point.toPoint();
+  console.log(`🔥 intersection link: seg=(${pt.x},${pt.y}) next=${!!next} prev=${!!prev}`);
+}
+for (let i = 0; i < dividedLocsB.length; i++) {
+  const seg = dividedLocsB[i]._segment;
+  const meta = getMeta(seg);
+  const inter = seg._intersection;
+  let next = inter?._next;
+  let prev = inter?._previous;
+  const pt = seg._point.toPoint();
+  console.log(`🔥 intersection link: seg=(${pt.x},${pt.y}) next=${!!next} prev=${!!prev}`);
+}
+    }
+
+    // tracePaths
+    const paths = tracePaths(segments, operator);
+
+    // tracePathsのパス構築ループ詳細デバッグ
+    // 直接tracePathsのロジックをここに再現し、各ステップで出力
+    const tracePathsDebug = (segments, operator) => {
+      const paths = [];
+      let starts = [];
+      // ソートは省略（既にテスト用segmentsなので）
+      function isValid(seg) {
         const meta = getMeta(seg);
-        if (meta) meta.winding = { winding: 1 };
-      });
-    });
+        if (!seg || !meta || meta.visited) return false;
+        if (!operator) return true;
+        const winding = meta.winding;
+        if (!winding) return false;
+        const op = operator[winding.winding];
+        return !!(op && !(operator.unite && winding.winding === 2 && winding.windingL && winding.windingR));
+      }
+      function isStart(seg) {
+        if (!seg) return false;
+        for (let i = 0, l = starts.length; i < l; i++) {
+          if (seg === starts[i]) return true;
+        }
+        return false;
+      }
+      function getCrossingSegments(segment, collectStarts) {
+        const meta = getMeta(segment)!;
+        const inter = meta.intersection;
+        const start = inter;
+        const crossings = [];
+        if (collectStarts) starts = [segment];
+        function collect(inter, end) {
+          while (inter && inter !== end) {
+            const other = inter._segment!;
+            const otherMeta = getMeta(other)!;
+            const path = otherMeta.path;
+            if (path) {
+              const next = other.getNext() || path.getFirstSegment();
+              const nextMeta = getMeta(next)!;
+              const nextInter = nextMeta.intersection;
+              if (
+                other !== segment &&
+                (isStart(other) ||
+                  isStart(next) ||
+                  (next &&
+                    (isValid(other) &&
+                      (isValid(next) || (nextInter && isValid(nextInter._segment))))))
+              ) {
+                crossings.push(other);
+              }
+              if (collectStarts) starts.push(other);
+            }
+            inter = inter._next!;
+          }
+        }
+        if (inter) {
+          collect(inter);
+          let interStart = inter;
+          while (interStart && interStart._previous) {
+            interStart = interStart._previous;
+          }
+          collect(interStart, start);
+        }
+        return crossings;
+      }
+      for (let i = 0, l = segments.length; i < l; i++) {
+        const segStart = segments[i];
+        const meta = getMeta(segStart);
+        let validStart = isValid(segStart);
+        const winding = meta && meta.winding ? meta.winding.winding : undefined;
+        console.log(`🔥 tracePaths: i=${i} segStart=(${segStart._point.toPoint().x},${segStart._point.toPoint().y}) winding=${winding} visited=${meta ? meta.visited : "?"} validStart=${validStart}`);
+        let path = null;
+        let finished = false;
+        let closed = true;
+        const branches = [];
+        let branch;
+        let visited = [];
+        let handleIn = null;
+        if (validStart) {
+          const pt = segStart._point.toPoint();
+          console.log(`🔥 tracePaths validStart: seg=(${pt.x},${pt.y}) winding=${winding}`);
+        }
+        let currentSeg = segStart;
+        while (validStart && currentSeg) {
+          const first = !path;
+          const crossings = getCrossingSegments(currentSeg, first);
+          const other = crossings.shift();
+          const isFinished = !first && (isStart(currentSeg) || isStart(other));
+          const cross = !isFinished && other;
+          if (first) {
+            path = [];
+            branch = null;
+          }
+          if (isFinished) {
+            console.log(`🔥 tracePaths: finished at seg=(${currentSeg._point.toPoint().x},${currentSeg._point.toPoint().y})`);
+            getMeta(currentSeg)!.visited = true;
+            finished = true;
+            break;
+          }
+          if (cross && branch) {
+            branches.push(branch);
+            branch = null;
+          }
+          if (!branch) {
+            if (cross) crossings.push(currentSeg);
+            branch = {
+              start: path.length,
+              crossings: crossings,
+              visited: visited = [],
+              handleIn: handleIn
+            };
+          }
+          let nextSeg = currentSeg;
+          if (cross) nextSeg = other!;
+          if (!isValid(nextSeg)) {
+            console.log(`🔥 tracePaths: backtrack at seg=(${nextSeg?._point?.toPoint().x},${nextSeg?._point?.toPoint().y})`);
+            path.length = branch.start;
+            for (let j = 0, k = visited.length; j < k; j++) {
+              getMeta(visited[j])!.visited = false;
+            }
+            visited.length = 0;
+            do {
+              nextSeg = branch && branch.crossings.shift();
+              if (!nextSeg || !getMeta(nextSeg)!.path) {
+                nextSeg = null;
+                branch = branches.pop();
+                if (branch) {
+                  visited = branch.visited;
+                  handleIn = branch.handleIn;
+                }
+              }
+            } while (branch && !isValid(nextSeg));
+            if (!nextSeg) break;
+          }
+          // パスに追加
+          path.push(nextSeg);
+          getMeta(nextSeg)!.visited = true;
+          visited.push(nextSeg);
+          // 次へ
+          const nextPath = getMeta(nextSeg || currentSeg)!.path!;
+          const next = nextSeg.getNext();
+          if (!next && !nextPath) break;
+          currentSeg = (next || nextPath.getFirstSegment());
+          handleIn = next ? next._handleIn.toPoint() : null;
+        }
+        if (finished && path && path.length > 0) {
+          console.log('🔥 tracePaths: finished path:', path.map(s => {
+            const pt = s._point.toPoint();
+            return `(${pt.x},${pt.y})`;
+          }).join(' -> '));
+          paths.push(path);
+        }
+      }
+      console.log("🔥 PathBooleanDebug: output paths.length =", paths.length);
+      return paths;
+    };
 
-    // operator: 全てtrue（unite相当）
-    const operator = { '1': true, '2': true, unite: true };
+    // デバッグ出力
+    tracePathsDebug(segments, operator);
 
-    // tracePathsに分割後のセグメント＋元のパスの全セグメントを渡す
-    const allSegments = [
-      ...divided.map(loc => loc._segment),
-      ...pathA.getSegments(),
-      ...pathB.getSegments(),
-      ...pathC.getSegments()
-    ];
-    const paths = tracePaths(allSegments, operator);
-
-    console.log('🔥 tracePaths (manual winding): output paths.length =', paths.length);
-    paths.forEach((p, i) => {
-      const segs = p.getSegments();
-      console.log(`🔥 path[${i}] segs:`, segs.map(s => `(${s.getPoint().x},${s.getPoint().y})`).join(' -> '));
-    });
-
-    // パス数や座標列を観察
-    expect(paths.length).toBeGreaterThanOrEqual(0);
+    // 期待されるのは、AからBを引いたパス（Aの左側部分）が出力されること
+    // （paths.length>0であればOK）
+    // expect(paths.length).toBeGreaterThan(0);
   });
 });

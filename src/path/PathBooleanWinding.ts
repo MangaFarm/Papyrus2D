@@ -27,27 +27,31 @@ export function propagateWinding(
   // for the curve-chain starting with this segment. Once we have enough
   // confidence in the winding contribution, we can propagate it until the
   // next intersection or end of a curve chain.
-  const chain: { segment: Segment; curve: Curve; length: number }[] = [];
+  const chain: { segment: Segment; curve: Curve | null; length: number }[] = [];
   let start = segment;
   let totalLength = 0;
-  
+
+  // paper.jsと同じ: segmentがstartに戻るか、交点に到達するまでchainを構築
+  let seg: Segment | null = segment;
   do {
-    const curve = segment.getCurve();
-    // We can encounter paths with only one segment, which would not
-    // have a curve.
+    const curve = seg.getCurve();
     if (curve) {
       const length = curve.getLength();
-      chain.push({ segment, curve, length });
+      chain.push({ segment: seg, curve, length });
       totalLength += length;
+    } else {
+      // curveがない場合もchainにsegmentのみ追加（length=0, curve=null）
+      chain.push({ segment: seg, curve: null, length: 0 });
     }
-    segment = segment.getNext()!;
-  } while (segment && !(segment as any)._intersection && segment !== start);
+    seg = seg ? seg.getNext() : null;
+  } while (seg && !((seg as any)._intersection) && seg !== segment);
+
   
   // Determine winding at three points in the chain. If a winding with
   // sufficient quality is found, use it. Otherwise use the winding with
   // the best quality.
   const offsets = [0.5, 0.25, 0.75];
-  let windingResult = { winding: 0, quality: -1 };
+  let windingResult: { winding: number; quality: number; windingL: number; windingR: number; onPath: boolean } = { winding: 0, quality: -1, windingL: 0, windingR: 0, onPath: false };
   // Don't go too close to segments, to avoid special winding cases:
   const tMin = 1e-3;
   const tMax = 1 - tMin;
@@ -62,6 +66,11 @@ export function propagateWinding(
       
       if (length <= chainLength + curveLength) {
         const curve = entry.curve;
+        if (!curve) {
+          // curveがない場合はwinding=0, quality=1をセットしてbreak
+          windingResult = { winding: 0, quality: 1, windingL: 0, windingR: 0, onPath: false };
+          break;
+        }
         const path = curve._path;
         const parent = path._parent;
         const operand = parent instanceof CompoundPath ? parent : path;
@@ -69,13 +78,13 @@ export function propagateWinding(
         // この文脈では、getTimeAtがnullを返すことはないと想定
         const t = Numerical.clamp(curve.getTimeAt(length - chainLength)!, tMin, tMax);
         const pt = curve.getPointAtTime(t);
-        
+
         // Determine the direction in which to check the winding
         // from the point (horizontal or vertical), based on the
         // curve's direction at that point. If tangent is less
         // than 45°, cast the ray vertically, else horizontally.
         const dir = Math.abs(curve.getTangentAtTime(t).y) < Math.SQRT1_2;
-        
+
         // While subtracting, we need to omit this curve if it is
         // contributing to the second operand and is outside the
         // first operand.
@@ -84,7 +93,7 @@ export function propagateWinding(
           // Calculate path winding at point depending on operand.
           const otherPath = operand === path1 ? path2 : path1;
           const pathWinding = otherPath._getWinding(pt, dir, true);
-          
+
           // Check if curve should be omitted.
           if (operand === path1 && pathWinding.winding ||
               operand === path2 && !pathWinding.winding) {
@@ -98,7 +107,7 @@ export function propagateWinding(
             }
           }
         }
-        
+
         const ccmap = curveCollisionsMap[path._id!];
         const curvesArg = (ccmap && ccmap[curve.getIndex()]) || path.getCurves();
         wind = wind || getWinding(
@@ -107,10 +116,10 @@ export function propagateWinding(
           dir,
           true
         );
-        
+
         if (wind.quality > windingResult.quality)
           windingResult = wind;
-        
+
         break;
       }
       
@@ -120,10 +129,7 @@ export function propagateWinding(
   
   // Now assign the winding to the entire curve chain.
   // 端点overlapなセグメントにもwindingをセット
-  const meta0 = getMeta(segment);
-  if (meta0) {
-    meta0.winding = windingResult;
-  }
+  // paper.jsと同じ: chain内の全セグメントにwindingをセット
   for (let j = chain.length - 1; j >= 0; j--) {
     const meta = getMeta(chain[j].segment);
     if (meta) {

@@ -74,6 +74,14 @@ export class PathBoolean {
     path2?: PathItem,
     options?: { insert?: boolean }
   ): PathItem {
+    // デバッグ: pathsの内容を出力
+    console.log("🔥 createResult: paths.length =", paths.length);
+    for (let i = 0; i < paths.length; i++) {
+      const p = paths[i];
+      console.log(
+        `🔥 createResult: paths[${i}] isEmpty=${p.isEmpty()} segments.length=${p.getSegments().length}`
+      );
+    }
     // パスの配列が空の場合のフォールバック処理
     if (paths.length === 0) {
       
@@ -234,30 +242,67 @@ export class PathBoolean {
       }
       
       // 交点からwinding numberを伝播
-      for (const intersection of intersections) {
-        if (intersection.getSegment && intersection.getSegment()) {
-          propagateWinding(intersection.getSegment(), _path1, _path2, curveCollisionsMap, operator);
+      // divideLocationsで得られた全セグメントに必ずwindingを伝播
+      for (const loc of dividedLocs1) {
+        propagateWinding(loc._segment, _path1, _path2, curveCollisionsMap, operator);
+      }
+      if (dividedLocs2) {
+        for (const loc of dividedLocs2) {
+          propagateWinding(loc._segment, _path1, _path2, curveCollisionsMap, operator);
         }
       }
-      
-      // 残りのセグメントにもwinding numberを伝播
+      // segments全体にもwinding未セットなら伝播（冗長だが安全）
       for (const segment of segments) {
-        const meta = getMeta(segment);
-        if (meta && !meta.winding) {
+        let meta = getMeta(segment);
+        if (!meta || !meta.winding) {
           propagateWinding(segment, _path1, _path2, curveCollisionsMap, operator);
         }
       }
     }
 
+    // デバッグ: dividedLocs1/2のwindingを出力
+    for (let i = 0; i < dividedLocs1.length; i++) {
+      const seg = dividedLocs1[i]._segment;
+      const pt = seg._point.toPoint();
+      const meta = getMeta(seg);
+      const winding = meta && meta.winding ? meta.winding.winding : undefined;
+      console.log(`🔥 after propagate: dividedLocs1[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
+    }
+    if (dividedLocs2) {
+      for (let i = 0; i < dividedLocs2.length; i++) {
+        const seg = dividedLocs2[i]._segment;
+        const pt = seg._point.toPoint();
+        const meta = getMeta(seg);
+        const winding = meta && meta.winding ? meta.winding.winding : undefined;
+        console.log(`🔥 after propagate: dividedLocs2[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
+      }
+    }
+
     // セグメントを収集
     // paper.jsと同じく、分割後の全パスの全セグメントをsegmentsに集める
+    // paper.jsと同じ: 分割後の全パスの全セグメントをsegmentsに集める
     const segments: Segment[] = [];
-    segments.push(..._path1.getSegments());
+    function collectSegments(path: Path) {
+      if ((path as any)._children) {
+        for (const child of (path as any)._children) {
+          collectSegments(child);
+        }
+      } else {
+        segments.push(...path.getSegments());
+      }
+    }
+    collectSegments(_path1);
     if (_path2) {
-      segments.push(..._path2.getSegments());
+      collectSegments(_path2);
     }
     console.log("🔥 runBoolean: segments.length =", segments.length);
 
+    // デバッグ: segmentsのwinding分布を出力
+    for (let i = 0; i < segments.length; i++) {
+      const meta = getMeta(segments[i]);
+      const winding = meta && meta.winding ? meta.winding.winding : undefined;
+      console.log(`🔥 runBoolean: segments[${i}] winding=${winding}`);
+    }
     // マーチングアルゴリズムで結果パスを構築
     const paths = tracePaths(segments, operator);
     console.log("🔥 runBoolean: tracePaths returned", paths.length, "paths");
