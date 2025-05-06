@@ -12,6 +12,8 @@ import { getMeta } from './SegmentMeta';
 import { CompoundPath } from './CompoundPath';
 import { divideLocations, clearCurveHandles } from './PathBooleanIntersections';
 
+import { propagateWinding } from './PathBooleanWinding';
+import { CollisionDetection } from '../util/CollisionDetection';
 /**
  * パスの交差を解決する
  * paper.jsのresolveCrossings関数を移植
@@ -33,12 +35,7 @@ export function resolveCrossings(path: PathItem): PathItem {
   // 交差点・重なり点の検出とフラグ
   let hasOverlaps = false;
   let hasCrossings = false;
-  let intersections = (path as PathItem & {
-    getIntersections: (
-      arg: null,
-      callback: (inter: CurveLocation) => boolean
-    ) => CurveLocation[];
-  }).getIntersections(null, function(inter: CurveLocation) {
+  let intersections = path.getIntersections(null, function(inter: CurveLocation) {
     const isOverlap = inter.hasOverlap();
     const isCrossing = inter.isCrossing();
     return isOverlap && (hasOverlaps = true) ||
@@ -115,10 +112,65 @@ export function resolveCrossings(path: PathItem): PathItem {
       clearCurveHandles(clearCurves);
     }
 
-    // tracePaths呼び出し - paper.jsと同様の方法で
+    // --- winding numberの伝播（paper.jsと同じ） ---
+    // 1. 全カーブを集める
+    let allCurves: any[] = [];
+    for (let i = 0, l = paths.length; i < l; i++) {
+      allCurves = allCurves.concat(paths[i].getCurves());
+    }
+    // 2. 衝突マップを作成
+    // CollisionDetectionはutil/CollisionDetection.ts
+    // findCurveBoundsCollisionsWithBothAxis(curves1, curves2, tolerance)
+    // curves1, curves2はcurve.getValues()の配列
+    // toleranceは0でOK
+    // 衝突マップをpaper.jsと同じ形式に変換
+    // import { CollisionDetection } を追加する必要あり
+    // ここでimportを追加
+    // import { CollisionDetection } from '../util/CollisionDetection';
+    // 既存importの下に追加してください
+    // --- 衝突マップ作成 ---
+    // 1. 各カーブのgetValues()を取得
+    const curvesValues = allCurves.map(curve => curve.getValues());
+    // 2. 衝突情報を取得
+    const curveCollisions = CollisionDetection.findCurveBoundsCollisionsWithBothAxis(
+      curvesValues, curvesValues, 0
+    );
+    // 3. curveCollisionsMapを作成
+    const curveCollisionsMap: Record<string, Record<number, { hor: any[]; ver: any[] }>> = {};
+    for (let i = 0; i < allCurves.length; i++) {
+      const curve = allCurves[i];
+      const id = curve._path._id;
+      if (!curveCollisionsMap[id]) curveCollisionsMap[id] = {};
+      curveCollisionsMap[id][curve.getIndex()] = {
+        hor: curveCollisions[i]!.hor.map((idx: number) => allCurves[idx]),
+        ver: curveCollisions[i]!.ver.map((idx: number) => allCurves[idx]),
+      };
+    }
+    // 4. 全セグメントにwindingを伝播
+    // operatorは{1:true}
+    const operator = { 1: true };
+    // 1. 交点（divideLocationsで得られるintersections配列）の各_segmentにまず伝播
+    for (let i = 0; i < intersections.length; i++) {
+      const seg = intersections[i]._segment;
+      if (seg) {
+        const meta = getMeta(seg);
+        if (!meta._winding) {
+          propagateWinding(seg, seg._path, null, curveCollisionsMap, operator);
+        }
+      }
+    }
+    // --- tracePaths呼び出し用に全セグメントを集める ---
     let allSegments: Segment[] = [];
     for (let i = 0, l = paths.length; i < l; i++) {
       allSegments = allSegments.concat(paths[i]._segments);
+    }
+    // 2. 分割後の全セグメント（tracePathsに渡すallSegments）にもwinding未セットなら伝播
+    for (let i = 0; i < allSegments.length; i++) {
+      const seg = allSegments[i];
+      const meta = getMeta(seg);
+      if (!meta._winding) {
+        propagateWinding(seg, seg._path, null, curveCollisionsMap, operator);
+      }
     }
     // paper.js互換: operator = { 1: true } を渡す
     paths = tracePaths(allSegments, { 1: true });

@@ -11,6 +11,7 @@ import { CurveLocation } from './CurveLocation';
 import { ChangeFlag } from './ChangeFlag';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
+import { getMeta } from './SegmentMeta';
 
 export class Segment {
   _point: SegmentPoint;
@@ -129,11 +130,18 @@ export class Segment {
 
   clone(): Segment {
     // 直接SegmentPointを渡すのではなくPointに変換する
-    return new Segment(
+    const cloned = new Segment(
       this.getPoint(),
       this.getHandleIn(),
       this.getHandleOut()
     );
+    // メタ情報もコピー（winding, _intersection など）
+    const srcMeta = getMeta(this);
+    const dstMeta = getMeta(cloned);
+    if (srcMeta._winding !== undefined) dstMeta._winding = JSON.parse(JSON.stringify(srcMeta._winding));
+    if (srcMeta._intersection !== undefined) dstMeta._intersection = srcMeta._intersection;
+    if (srcMeta._path !== undefined) dstMeta._path = srcMeta._path;
+    return cloned;
   }
 
   /**

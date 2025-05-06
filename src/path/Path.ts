@@ -99,11 +99,8 @@ export class Path extends PathItemBase {
 
     // セグメントの設定
     for (let i = 0; i < amount; i++) {
-      const segment = segs[i];
-      // 他のパスに属している場合はクローン
-      if (segment._path) {
-        segs[i] = segment.clone();
-      }
+      // 必ずクローン（メタ情報も含めてコピー）
+      segs[i] = segs[i].clone();
       segs[i]._path = this;
       segs[i]._index = index + i;
     }
@@ -1333,64 +1330,8 @@ export class Path extends PathItemBase {
    * 直線のみ対応（ハンドルがあればL→Cに拡張すること）
    */
   getPathData(): string {
-    const segments = this.getSegments();
-    if (!segments.length) return '';
-    let d = '';
-    let lastCmd = '';
-    let lastH = 0, lastV = 0;
-    for (let i = 0; i < segments.length; i++) {
-      const seg = segments[i];
-      const pt = seg.getPoint();
-      if (i === 0) {
-        d += `M${pt.x},${pt.y}`;
-        lastCmd = 'M';
-      } else {
-        const prev = segments[i - 1].getPoint();
-        const dx = pt.x - prev.x;
-        const dy = pt.y - prev.y;
-        // ハンドルが全て0なら直線
-        const hasHandles =
-          (seg.handleIn && (!seg.handleIn.isZero && !seg.handleIn.isZero())) ||
-          (seg.handleOut && (!seg.handleOut.isZero && !seg.handleOut.isZero()));
-        if (!hasHandles) {
-          if (dx !== 0 && dy === 0) {
-            if (lastCmd === 'h') {
-              lastH += dx;
-              // 直前がhなら合成
-              d = d.replace(/h-?\d+$/, `h${lastH}`);
-            } else {
-              d += `h${dx}`;
-              lastCmd = 'h';
-              lastH = dx;
-              lastV = 0;
-            }
-          } else if (dx === 0 && dy !== 0) {
-            if (lastCmd === 'v') {
-              lastV += dy;
-              d = d.replace(/v-?\d+$/, `v${lastV}`);
-            } else {
-              d += `v${dy}`;
-              lastCmd = 'v';
-              lastV = dy;
-              lastH = 0;
-            }
-          } else {
-            d += `L${pt.x},${pt.y}`;
-            lastCmd = 'L';
-            lastH = 0;
-            lastV = 0;
-          }
-        } else {
-          // ハンドル対応は未実装
-          d += `L${pt.x},${pt.y}`;
-          lastCmd = 'L';
-          lastH = 0;
-          lastV = 0;
-        }
-      }
-    }
-    if (this.closed) d += 'z';
-    return d;
+    // PathSVG.tsに外注
+    return toPathData(this);
   }
 
   /**

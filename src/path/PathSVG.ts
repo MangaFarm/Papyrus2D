@@ -12,37 +12,66 @@ import { Point } from '../basic/Point';
  * SVGパスデータ文字列を生成
  */
 export function toPathData(path: Path, precision: number = 6): string {
+  // paper.js toPathData完全コピペ＋TypeScript化
   const segments = path.getSegments();
-  if (!segments.length) return '';
+  const length = segments.length;
+  if (!length) return '';
+  function num(n: number) {
+    // paper.jsは小数点以下6桁、末尾の.0は省略
+    return Number(n.toFixed(6)).toString();
+  }
+  function pair(x: number, y: number) {
+    return num(x) + ',' + num(y);
+  }
   let d = '';
-  for (let i = 0; i < segments.length; i++) {
+  let first = true;
+  let curX = 0, curY = 0, prevX = 0, prevY = 0, inX = 0, inY = 0, outX = 0, outY = 0;
+  for (let i = 0; i < length; i++) {
     const seg = segments[i];
-    const pt = seg.getPoint();
-    if (i === 0) {
-      d += `M${pt.x},${pt.y}`;
+    curX = seg.getPoint().x;
+    curY = seg.getPoint().y;
+    if (first) {
+      d += 'M' + pair(curX, curY);
+      first = false;
     } else {
-      const prev = segments[i - 1].getPoint();
-      const dx = pt.x - prev.x;
-      const dy = pt.y - prev.y;
-      // ハンドルが全て0なら直線
-      const hasHandles =
-        (seg.handleIn && !seg.handleIn.isZero()) ||
-        (seg.handleOut && !seg.handleOut.isZero());
-      if (!hasHandles) {
-        if (dx !== 0 && dy === 0) {
-          d += `h${dx}`;
-        } else if (dx === 0 && dy !== 0) {
-          d += `v${dy}`;
-        } else {
-          d += `L${pt.x},${pt.y}`;
-        }
+      inX = seg.getHandleIn().x + curX;
+      inY = seg.getHandleIn().y + curY;
+      if (inX === curX && inY === curY && outX === prevX && outY === prevY) {
+        // l = relative lineto
+        const dx = curX - prevX;
+        const dy = curY - prevY;
+        // paper.jsは必ずlコマンドで出力
+        d += 'l' + pair(dx, dy);
       } else {
-        // ハンドル対応は未実装（今後拡張）
-        d += `L${pt.x},${pt.y}`;
+        // c = relative curveto
+        d += 'c' + pair(outX - prevX, outY - prevY)
+          + ' ' + pair(inX - prevX, inY - prevY)
+          + ' ' + pair(curX - prevX, curY - prevY);
       }
     }
+    prevX = curX;
+    prevY = curY;
+    outX = seg.getHandleOut().x + curX;
+    outY = seg.getHandleOut().y + curY;
   }
-  if (path.closed) d += 'z';
+  // 閉じたパスの場合、最初のセグメントを再度描画
+  if (path.closed && length > 0) {
+    const seg = segments[0];
+    const pt = seg.getPoint();
+    inX = seg.getHandleIn().x + pt.x;
+    inY = seg.getHandleIn().y + pt.y;
+    if (inX === pt.x && inY === pt.y && outX === prevX && outY === prevY) {
+      const dx = pt.x - prevX;
+      const dy = pt.y - prevY;
+      // paper.jsは必ずlコマンドで出力
+      d += 'l' + pair(dx, dy);
+    } else {
+      d += 'c' + pair(outX - prevX, outY - prevY)
+        + ' ' + pair(inX - prevX, inY - prevY)
+        + ' ' + pair(pt.x - prevX, pt.y - prevY);
+    }
+    d += 'z';
+  }
   return d;
 }
 

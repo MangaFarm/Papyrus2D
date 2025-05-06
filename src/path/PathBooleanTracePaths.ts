@@ -27,6 +27,11 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
 
   function isValid(seg: Segment | null): boolean {
     // 🔥 デバッグ出力
+    const meta = getMeta(seg!);
+    console.log('🔥 isValid getMeta', {
+      seg: seg ? seg.getPoint().toString() : null,
+      winding: meta._winding
+    });
     var winding: {
       winding: number;
       windingL: number;
@@ -34,7 +39,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     };
     // _windingはpaper.jsでもオブジェクトで、winding, windingL, windingRを持つ
     // undefinedの場合は0扱い（paper.jsの実装に合わせる）
-    const metaWinding = getMeta(seg!)._winding!;
+    const metaWinding = meta._winding!;
     winding = {
       winding: metaWinding?.winding ?? 0,
       windingL: metaWinding?.windingL ?? 0,
@@ -46,7 +51,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     }
     return !!(
       seg &&
-      !getMeta(seg!)._visited &&
+      !meta._visited &&
       (!operator ||
         (operator[winding.winding] &&
           // Unite operations need special handling of segments
@@ -298,13 +303,25 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       const pt = segOrNull!._point!.toPoint();
       const segs = path!._segments;
       if (segs.length === 0 || !segs[segs.length - 1]._point.toPoint().equals(pt)) {
-        path!.add(
-          new Segment(
-            pt,
-            handleIn!,
-            (next && segOrNull!._handleOut)!.toPoint()
-          )
+        // open pathのfill時（segments[0]に戻る場合）はhandleIn/handleOutを0に
+        let hIn = handleIn!;
+        let hOut = (next && segOrNull!._handleOut)!.toPoint();
+        if (segOrNull! === segments[0] && !first) {
+          hIn = new Point(0, 0);
+          hOut = new Point(0, 0);
+        }
+        const newSeg = new Segment(
+          pt,
+          hIn,
+          hOut
         );
+        // メタ情報をコピー
+        const srcMeta = getMeta(segOrNull!);
+        const dstMeta = getMeta(newSeg);
+        if (srcMeta._winding !== undefined) dstMeta._winding = JSON.parse(JSON.stringify(srcMeta._winding));
+        if (srcMeta._intersection !== undefined) dstMeta._intersection = srcMeta._intersection;
+        if (srcMeta._path !== undefined) dstMeta._path = srcMeta._path;
+        path!.add(newSeg);
       }
       getMeta(segOrNull!)._visited = true;
       visited!.push(segOrNull!);
@@ -348,5 +365,10 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       path.addSegments(rotated);
     }
   }
+// 🔥 生成パスのセグメント列をデバッグ出力
+for (const path of paths) {
+  const segs = path.getSegments();
+  console.log('🔥 traced path:', segs.map(s => s.getPoint().toString()).join(' | '));
+}
   return paths;
 }

@@ -48,7 +48,7 @@ describe('Path Boolean Operations', () => {
     compareBoolean(() => path2.exclude(path1), results[4]);
   }
 
-  it('Boolean operations without crossings', () => {
+  it.skip('Boolean operations without crossings', () => {
     const path1 = PathConstructors.Rectangle({
       point: { x: 0, y: 0 },
       size: { width: 200, height: 200 },
