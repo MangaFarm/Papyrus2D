@@ -4,9 +4,11 @@
  */
 
 import { Point } from '../basic/Point';
+import { Matrix } from '../basic/Matrix';
 import { Segment } from './Segment';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
+import { CurveGeometry } from './CurveGeometry';
 
 export class CurveSubdivision {
   /**
@@ -139,8 +141,8 @@ export class CurveSubdivision {
    * Paper.jsと完全に同じシグネチャ
    */
   static getValues(
-    segment1: any, segment2: any,
-    matrix?: any | null, straight?: boolean | null
+    segment1: Segment, segment2: Segment,
+    matrix?: Matrix | null, straight?: boolean
   ): number[] {
     // Paper.jsと同じ処理: 最後のセグメントが閉じていない場合、ハンドルを無視
     if (straight) {
@@ -249,5 +251,3 @@ export class CurveSubdivision {
   }
 }
 
-// CurveGeometryクラスへの参照
-import { CurveGeometry } from './CurveGeometry';
