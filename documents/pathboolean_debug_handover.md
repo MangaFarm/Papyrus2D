@@ -1,36 +1,34 @@
-# PathBoolean系下位デバッグ・引継メモ
+# PathBoolean バグ調査・引き継ぎメモ
 
-## ここまでの検証・修正内容
+## 現状の問題
 
-- divideLocations, tracePaths, getIntersections, SegmentMeta などBoolean演算の下位APIを徹底的にデバッグ
-- Segmentのmeta.path/windingのセット漏れや、tracePathsのcurrentSeg=null時break等、paper.js設計に忠実に修正
-- 下位テスト用にtest/PathBooleanDebug.test.tsを作成し、最小交点ケースやwinding手動セットケースを多数検証
+- `test/PathBoolean.test.ts` の `PathItem#resolveCrossings()` などで、Papyrus2Dの出力パスが paper.js の期待値と一致しない。
+- 具体的には、交点分割後のパスのセグメント列で `{ x: 150, y: 200 }` が `{ x: 200, y: 200 }` になっているなど、交点のt値割り当て・分割点の選択に差異がある。
 
-## 下位テストで分かったこと・現状
+## ここまでの調査・根拠
 
-- divideLocationsで生成されるCurveLocationの_segmentや_pointは正しくセットされている
-- ただしwindingはpropagateWinding（またはrunBoolean等の上位API）でセットされる設計
-- tracePathsに交点分割セグメント＋元パス全セグメントを渡しても、winding未セットのセグメントが混じるとpaths.length=0になる
-- 下位API単体で「パスが生成される」ことを期待するのは設計上困難（paper.jsも同様）
+- paper.js本家の `tracePaths`, `divideLocations`, `getCrossingSegments`, `addCurveIntersections`, `addLocation` などのロジックとPapyrus2Dの実装を1行ずつ厳密に比較。
+- Papyrus2Dの `divideLocations` のデバッグ出力では `time: 0` の交点ばかりが生成されており、交点CurveLocationのt値が正しく計算・割り当てされていないことが根本原因。
+- `addCurveIntersections` の isolated 交点生成時の t, u も出力されていない。
+- 交点分割時のCurveLocation生成・t値割り当てロジックがpaper.jsと異なるため、本来分割すべき交点（例: {150,200}）でなく、{200,200}を選択している。
 
-## paper.jsとの設計比較
+## 重要なデバッグ出力
 
-- paper.jsも「交点分割＋winding伝播＋マーチング」は一連の流れで、下位API単体ではパス生成は保証されない
-- 必ずpropagateWinding（またはrunBoolean等の上位API）を経由してwindingをセットする必要がある
+- `src/path/PathBooleanIntersections.ts` の `divideLocations` で、各交点CurveLocation生成時の `i, time, segment1, segment2, segment` を🔥で出力。
+- `src/path/CurveIntersectionConvexHull.ts` の `addCurveIntersections` で、isolated交点生成時の `t, u, flip, pt1, pt2` を🔥で出力。
+- `src/path/PathBooleanTracePaths.ts` の `getCrossingSegments` で、collect時の `other, next, nextInter, crossings, starts` を🔥で出力。
 
-## 今後の推奨方針
+## 不要なconsole.logの削除指示
 
-- 下位API単体テストでpaths.length>0を期待するのは保留
-- Boolean演算の正しい検証はrunBooleanやPathBoolean.unite等の上位API経由でpropagateWindingを含めて行う
-- 下位テストは「winding未セット時の挙動」や「meta情報の伝播」などの観察・デバッグ用途に限定
+- 上記以外のconsole.logは削除してOK。
+- 必要なものは「divideLocationsの交点生成」「addCurveIntersectionsのisolated交点生成」「getCrossingSegmentsのcollect分岐」のみ。
 
-## 追加で必要な作業・注意点
+## 今後の方針
 
-- 下位APIの型・プロパティ名（_segment, _intersection, _next, _previous等）はpaper.jsと完全一致させること
-- Segment生成時のmeta.pathセット漏れに注意
-- windingのセット・伝播は必ずpropagateWinding経由で行うこと
-- 下位テストで不自然な挙動が出た場合は、まずwinding/visited/meta情報の伝播を疑う
+- CurveLocation生成時のt値割り当てロジック（特に交点計算時のt, uの計算・伝播）をpaper.jsと完全一致させることが最重要。
+- それにより、resolveCrossingsの出力パスがpaper.jsと完全一致する見込み。
 
----
+## 参考
 
-2025/5/6 PathBoolean下位デバッグ担当より
+- paper.js本家: `/paper.js/src/path/PathItem.Boolean.js`
+- Papyrus2D: `src/path/PathBooleanTracePaths.ts`, `src/path/PathBooleanIntersections.ts`, `src/path/CurveIntersectionConvexHull.ts`, `src/path/CurveLocation.ts`
