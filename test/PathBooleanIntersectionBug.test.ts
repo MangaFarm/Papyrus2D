@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { Path } from '../src/path/Path';
 import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
-import { getIntersections, dividePathAtIntersections } from '../src/path/PathBooleanIntersections';
+import { getIntersections, divideLocations } from '../src/path/PathBooleanIntersections';
 
 describe('PathBooleanIntersections バグ再現テスト', () => {
   it('dividePathAtIntersections後、交点に対応するSegment全てに_intersectionがセットされるべき', () => {
@@ -26,7 +26,7 @@ describe('PathBooleanIntersections バグ再現テスト', () => {
     expect(intersections.length).toBeGreaterThan(0);
 
     // rect1を交点で分割
-    const locations = dividePathAtIntersections(rect1, intersections);
+    const locations = divideLocations(intersections);
 
     // 交点CurveLocationの_segmentに必ず_intersectionがセットされているべき
     let foundIntersectionSegment = 0;
