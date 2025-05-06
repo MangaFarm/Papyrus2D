@@ -129,15 +129,6 @@ export function divideLocations(
   return results || locations;
 }
 
-/**
- * 交点でパスを分割
- * paper.jsのdivideLocations関数を使用した実装
- */
-export function dividePathAtIntersections(path: Path, locations: CurveLocation[]): Segment[] {
-  // paper.jsと同じく、divideLocationsで分割した後の全セグメントを返す
-  divideLocations(locations);
-  return path.getSegments();
-}
 
 /**
  * 交点情報をリンクリストとして連結する

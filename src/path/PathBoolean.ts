@@ -16,10 +16,7 @@ import { preparePath } from './PathBooleanPreparation';
 import { tracePaths } from './PathBooleanTracePaths';
 import { propagateWinding } from './PathBooleanWinding';
 import { getMeta } from './SegmentMeta';
-import {
-  getIntersections,
-  dividePathAtIntersections,
-} from './PathBooleanIntersections';
+import { getIntersections, divideLocations } from './PathBooleanIntersections';
 
 // SegmentInfoインターフェースとasSegmentInfo関数はPathBooleanWinding.tsに移動しました
 
@@ -39,17 +36,6 @@ export class PathBoolean {
     path2: Path,
     operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
   ): Path[] {
-    // デバッグ出力
-    // getInteriorPointメソッドが存在するか確認するヘルパー関数
-    const getInteriorPoint = (path: PathItem): Point => {
-      if ('getInteriorPoint' in path && typeof (path as any).getInteriorPoint === 'function') {
-        return (path as any).getInteriorPoint();
-      }
-      // フォールバック: バウンディングボックスの中心を使用
-      const bounds = path.getBounds();
-      return new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
-    };
-    
     // 演算子に応じたフィルタ関数を定義
     const operators: Record<string, Record<string, boolean>> = {
       'unite':     { '1': true, '2': true },
@@ -109,12 +95,7 @@ export class PathBoolean {
       return emptyPath;
     }
 
-    // デバッグ出力
-    if (paths.length > 0) {
-      for (let i = 0; i < paths.length; i++) {
-        if (!paths[i]) continue;
-      }
-    }
+    // pathsが空でない場合の冗長なループは削除
     
     // 結果のCompoundPathを作成
     const result = new CompoundPath();
@@ -122,8 +103,7 @@ export class PathBoolean {
 
     // パスを簡略化（reduce相当の処理）
     const simplified = result.reduce({ simplify });
-    if (simplified instanceof CompoundPath) {
-    }
+    // CompoundPath型の特別処理は不要
 
     // 挿入オプションが明示的にfalseでない場合、結果を挿入
     if (!(options && options.insert === false)) {
@@ -169,21 +149,7 @@ export class PathBoolean {
 
     // パスを準備
     const _path1 = preparePath(path1, true) as Path;
-// デバッグ: _path2.getSegments()の配列（座標値）を出力
-const _path2 = preparePath(path2, true) as Path;
-
-    // デバッグ: パスの向きとセグメント
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-    // eslint-disable-next-line no-console
-
-    // getIntersections直前: _path1, _path2のセグメント・点列・カーブ列を出力
-    // eslint-disable-next-line no-console
-    if (_path1 instanceof Path && _path2 instanceof Path) {
-      const curves1 = _path1.getCurves();
-      const curves2 = _path2.getCurves();
-    }
+    const _path2 = preparePath(path2, true) as Path;
 
     // 演算子に応じたフィルタ関数を定義
     const operators: Record<string, Record<string, boolean>> = {
@@ -206,26 +172,9 @@ const _path2 = preparePath(path2, true) as Path;
     }
 
     // 交点計算
-    function filterIntersection(inter: CurveLocation): boolean {
-      return inter.hasOverlap() || inter.isCrossing();
-    }
-
-    // 交点検出直前のデバッグ出力
-    // 交点検出直前のパス状態をデバッグ出力
-    // eslint-disable-next-line no-console
-    
-    // eslint-disable-next-line no-console
-    
-    // eslint-disable-next-line no-console
-    
-    // eslint-disable-next-line no-console
-    
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
 
-    // 交点数をデバッグ出力
-    // eslint-disable-next-line no-console
-    
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定
       return this.createResult(
@@ -235,15 +184,15 @@ const _path2 = preparePath(path2, true) as Path;
     }
 
     // 交点でパスを分割
-    const dividedPath1 = dividePathAtIntersections(_path1, intersections);
-    const dividedPath2 = _path2 ? dividePathAtIntersections(_path2, intersections) : null;
+    const dividedLocs1 = divideLocations(intersections);
+    const dividedLocs2 = _path2 ? divideLocations(intersections) : null;
     
     // 交点のwinding number計算
-    if (dividedPath2) {
+    if (dividedLocs2) {
       // 曲線の衝突マップを作成
       const segments: Segment[] = [];
-      segments.push(...dividedPath1);
-      segments.push(...dividedPath2);
+      segments.push(...dividedLocs1.map(loc => loc._segment));
+      segments.push(...dividedLocs2.map(loc => loc._segment));
       
       const curves: Curve[] = [];
       for (const segment of segments) {
@@ -282,9 +231,6 @@ const _path2 = preparePath(path2, true) as Path;
         };
       }
       
-      // デバッグ: curveCollisionsMapの全体構造をファイルに追記
-      try {
-      } catch (e) {}
       // 交点からwinding numberを伝播
       for (const intersection of intersections) {
         if (intersection.getSegment && intersection.getSegment()) {
@@ -303,9 +249,9 @@ const _path2 = preparePath(path2, true) as Path;
 
     // セグメントを収集
     const segments: Segment[] = [];
-    segments.push(...dividedPath1);
-    if (dividedPath2) {
-      segments.push(...dividedPath2);
+    segments.push(...dividedLocs1.map(loc => loc._segment));
+    if (dividedLocs2) {
+      segments.push(...dividedLocs2.map(loc => loc._segment));
     }
 
     // マーチングアルゴリズムで結果パスを構築
