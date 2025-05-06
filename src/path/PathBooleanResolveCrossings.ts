@@ -29,9 +29,9 @@ export function resolveCrossings(path: PathItem): PathItem {
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
     if (!seg) return false;
     const meta = getMeta(seg);
-    const inter = meta && meta.intersection;
+    const inter = meta._intersection;
     // overlap範囲の端点（overlapの最初または最後のセグメント）はfalseを返す
-    if (!(inter && inter._overlap && meta!.path === path)) return false;
+    if (!(inter && inter._overlap && meta!._path === path)) return false;
     // _overlapがCurveLocation型で、_segmentプロパティが存在する場合のみ端点判定
     if (
       typeof inter._overlap === 'object' &&
@@ -111,11 +111,11 @@ export function resolveCrossings(path: PathItem): PathItem {
       // paper.jsでは直接_intersectionを操作するが、Papyrus2DではgetMetaを使用
       if (seg1) {
         const meta1 = getMeta(seg1);
-        if (meta1) meta1.intersection = null;
+        meta1._intersection = null;
       }
       if (seg2) {
         const meta2 = getMeta(seg2);
-        if (meta2) meta2.intersection = null;
+        meta2._intersection = null;
       }
       return false;
     } : undefined, clearCurves);
@@ -268,7 +268,7 @@ function divideLocations(
     // 交差点のリンクリストを作成 - paper.jsでは直接segment._intersectionを使用するが、
     // Papyrus2DではgetMetaを使用
     const meta = getMeta(segment!);
-    const inter = meta && meta.intersection;
+    const inter = meta._intersection;
     const dest = loc._intersection as unknown as IntersectionInfo;
     
     if (inter) {
@@ -280,10 +280,10 @@ function divideLocations(
         if (other._intersection) {
           linkIntersections(other._intersection, inter);
         }
-        other = other.next!;
+        other = other._next!;
       }
     } else if (meta) {
-      meta.intersection = dest;
+      meta._intersection = dest;
     }
   }
   
@@ -308,19 +308,19 @@ function linkIntersections(from: IntersectionInfo, to: IntersectionInfo): void {
   }
   
   // 既存のチェーンの末尾を探す
-  while (from.next && from.next !== to) {
-    from = from.next;
+  while (from._next && from._next !== to) {
+      from = from._next;
   }
   
   // チェーンの末尾に到達したら、toを連結
-  if (!from.next) {
-    // toのチェーンの先頭に移動
-    let toStart = to;
-    while (toStart._previous) {
-      toStart = toStart._previous;
-    }
-    from.next = toStart;
-    toStart._previous = from;
+  if (!from._next) {
+      // toのチェーンの先頭に移動
+      let toStart = to;
+      while (toStart._previous) {
+          toStart = toStart._previous;
+      }
+      from._next = toStart;
+      toStart._previous = from;
   }
 }
 

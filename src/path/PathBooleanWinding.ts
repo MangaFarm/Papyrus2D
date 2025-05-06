@@ -132,9 +132,7 @@ export function propagateWinding(
   // paper.jsと同じ: chain内の全セグメントにwindingをセット
   for (let j = chain.length - 1; j >= 0; j--) {
     const meta = getMeta(chain[j].segment);
-    if (meta) {
-      meta.winding = windingResult;
-    }
+    meta._winding = windingResult;
   }
 }
 
@@ -436,11 +434,11 @@ export function getWindingContribution(
   operator: Record<string, boolean>
 ): number {
   const meta = getMeta(segment);
-  if (!meta || !meta.winding) {
+  if (!meta._winding) {
     return 0;
   }
   
-  const winding = meta.winding;
+  const winding = meta._winding;
   return operator.subtract && path2
     ? path1.isClockwise() !== path2.isClockwise()
       ? winding.winding

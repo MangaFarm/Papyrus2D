@@ -33,8 +33,8 @@ export function tracePaths(
             windingL: number;
             windingR: number;
         };
-        return !!(seg && !getMeta(seg)!._visited && (!operator
-                || operator[(winding = (getMeta(seg)!._winding || {}) as any).winding]
+        return !!(seg && !getMeta(seg)._visited && (!operator
+                || operator[(winding = (getMeta(seg)._winding || {}) as any).winding]
                     // Unite operations need special handling of segments
                     // with a winding contribution of two (part of both
                     // areas), which are only valid if they are part of the
@@ -57,7 +57,7 @@ export function tracePaths(
     function visitPath(path: Path): void {
         var segments = path._segments;
         for (var i = 0, l = segments.length; i < l; i++) {
-            getMeta(segments[i])!._visited = true;
+            getMeta(segments[i])._visited = true;
         }
     }
 
@@ -65,7 +65,7 @@ export function tracePaths(
     // either connecting back to start or are not visited yet, and will be
     // part of the boolean result:
     function getCrossingSegments(segment: Segment, collectStarts: boolean): Segment[] {
-        var inter = getMeta(segment)!._intersection!,
+        var inter = getMeta(segment)._intersection!,
             start = inter,
             crossings: Segment[] = [];
         if (collectStarts)
@@ -77,7 +77,7 @@ export function tracePaths(
                     path = other._path!;
                 if (path) {
                     var next = other.getNext() || path.getFirstSegment(),
-                        nextInter = getMeta(next!)!._intersection!;
+                        nextInter = getMeta(next!)._intersection!;
                     // See if this segment and the next are not visited yet,
                     // or are bringing us back to the start, and are both
                     // valid, meaning they're part of the boolean result.
@@ -112,8 +112,8 @@ export function tracePaths(
     // starting points when tracing: prefer segments with no intersections
     // over intersections, and process intersections with overlaps last:
     segments.sort(function(seg1: Segment, seg2: Segment): number {
-        var inter1 = getMeta(seg1)!._intersection!,
-            inter2 = getMeta(seg2)!._intersection!,
+        var inter1 = getMeta(seg1)._intersection!,
+            inter2 = getMeta(seg2)._intersection!,
             over1 = !!(inter1 && inter1._overlap),
             over2 = !!(inter2 && inter2._overlap),
             path1 = seg1._path!,
@@ -160,7 +160,7 @@ export function tracePaths(
         if (valid && getPathMeta(seg._path!)!._overlapsOnly) {
             // TODO: Don't we also need to check for multiple overlaps?
             var path1 = seg._path!,
-                path2 = getMeta(seg)!._intersection!._segment!._path!;
+                path2 = getMeta(seg)._intersection!._segment!._path!;
             if (path1.compare!(path2)) {
                 // Only add the path to the result if it has an area.
                 if (path1.getArea())
@@ -193,7 +193,7 @@ export function tracePaths(
                 // scenarios as described in #1036
                 if (seg.isFirst() || seg.isLast())
                     closed = seg._path._closed;
-                getMeta(seg)!._visited = true;
+                getMeta(seg)._visited = true;
                 break;
             }
             if (cross && branch) {
@@ -224,7 +224,7 @@ export function tracePaths(
                 // visited so they become available again as options.
                 path!.removeSegments(branch!.start);
                 for (var j = 0, k = visited!.length; j < k; j++) {
-                    getMeta(visited![j])!._visited = false;
+                    getMeta(visited![j])._visited = false;
                 }
                 visited!.length = 0;
                 // Go back to the branch's root segment where the crossing
@@ -255,7 +255,7 @@ export function tracePaths(
             var next = seg.getNext();
             path!.add(new Segment(seg._point!.toPoint(), handleIn!,
                     (next && seg._handleOut)!.toPoint()));
-            getMeta(seg)!._visited = true;
+            getMeta(seg)._visited = true;
             visited!.push(seg);
             // If this is the end of an open path, go back to its first
             // segment but ignore its handleIn (see above for handleOut).

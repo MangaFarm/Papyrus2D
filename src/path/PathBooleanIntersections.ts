@@ -106,19 +106,19 @@ export function divideLocations(
       _segment = curve._segment1;
       // meta.pathのセット漏れ防止
       const meta = getMeta(_segment);
-      if (meta && !meta.path) meta.path = curve._path;
+      if (!meta._path && curve._path) meta._path = curve._path;
     } else if (time > tMax) {
       _segment = curve._segment2;
       // meta.pathのセット漏れ防止
       const meta = getMeta(_segment);
-      if (meta && !meta.path) meta.path = curve._path;
+      if (!meta._path && curve._path) meta._path = curve._path;
     } else {
       var newCurve = curve.divideAtTime(time, true)!;
       if (clearHandles) clearCurves.push(curve, newCurve);
       _segment = newCurve._segment1;
       // 新しいセグメントのmetaにpathを必ずセット
       const meta = getMeta(_segment);
-      if (meta) meta.path = curve._path;
+      meta._path = curve._path!;
       for (var j = renormalizeLocs.length - 1; j >= 0; j--) {
         var l = renormalizeLocs[j];
         l._time = (l._time - time) / (1 - time);
@@ -148,7 +148,7 @@ export function divideLocations(
     const pt = seg._point.toPoint();
     const pathId = seg._path ? seg._path._id : "none";
     const meta = getMeta(seg);
-    const winding = meta && meta.winding ? meta.winding.winding : undefined;
+    const winding = meta._winding ? meta._winding.winding : undefined;
     console.log(`🔥 divideLocations: i=${i} seg=(${pt.x},${pt.y}) id=${seg._id} index=${seg._index} winding=${winding}`);
   }
   // 各CurveLocation._segment._intersectionで取得したCurveLocationインスタンスに置き換え

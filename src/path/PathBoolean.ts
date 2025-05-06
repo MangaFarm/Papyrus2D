@@ -250,7 +250,7 @@ export class PathBoolean {
         console.log("🔥 propagateWinding: seg", seg);
         propagateWinding(seg, _path1, _path2, curveCollisionsMap, operator);
         const meta = getMeta(seg);
-        const winding = meta && meta.winding ? meta.winding.winding : undefined;
+        const winding = meta._winding ? meta._winding.winding : undefined;
         console.log(`🔥 after propagate: seg=(${seg._point?.toPoint().x},${seg._point?.toPoint().y}) winding=${winding}`);
       }
       if (dividedLocs2) {
@@ -261,7 +261,7 @@ export class PathBoolean {
       // segments全体にもwinding未セットなら伝播（冗長だが安全）
       for (const segment of segments) {
         let meta = getMeta(segment);
-        if (!meta || !meta.winding) {
+        if (!meta._winding) {
           propagateWinding(segment, _path1, _path2, curveCollisionsMap, operator);
         }
       }
@@ -272,7 +272,7 @@ export class PathBoolean {
       const seg = dividedLocs1[i]._segment;
       const pt = seg._point.toPoint();
       const meta = getMeta(seg);
-      const winding = meta && meta.winding ? meta.winding.winding : undefined;
+      const winding = meta._winding ? meta._winding.winding : undefined;
       console.log(`🔥 after propagate: dividedLocs1[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
     }
     if (dividedLocs2) {
@@ -280,7 +280,7 @@ export class PathBoolean {
         const seg = dividedLocs2[i]._segment;
         const pt = seg._point.toPoint();
         const meta = getMeta(seg);
-        const winding = meta && meta.winding ? meta.winding.winding : undefined;
+        const winding = meta._winding ? meta._winding.winding : undefined;
         console.log(`🔥 after propagate: dividedLocs2[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
       }
     }
@@ -317,14 +317,14 @@ export class PathBoolean {
     // デバッグ: segmentsのwinding分布を出力
     for (let i = 0; i < segments.length; i++) {
       const meta = getMeta(segments[i]);
-      const winding = meta && meta.winding ? meta.winding.winding : undefined;
+      const winding = meta._winding ? meta._winding.winding : undefined;
       const pt = segments[i]._point?.toPoint();
       console.log(`🔥 runBoolean: segments[${i}] winding=${winding} pt=${pt ? `(${pt.x},${pt.y})` : 'undefined'}`);
     }
     // intersectionSegmentsのwinding=1座標列を出力
     const winding1Segs = intersectionSegments.filter(seg => {
       const meta = getMeta(seg);
-      return meta && meta.winding && meta.winding.winding === 1;
+      return meta._winding && meta._winding.winding === 1;
     });
     console.log("🔥 runBoolean: winding=1 segments coords =", winding1Segs.map(seg => {
       const pt = seg._point?.toPoint();
