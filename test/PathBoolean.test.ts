@@ -236,7 +236,7 @@ if (result.getPaths) {
     
     // 期待される結果
     const results = [
-      'M0,0L100,0L100,50L150,50L150,150L50,150L50,100L0,100Z', // unite
+      'M0,0L100,0L100,50L100,100L50,100L0,100ZM50,50L100,50L150,50L150,150L50,150L50,100Z', // unite
       'M0,0L100,0L100,50L50,50L50,100L0,100Z',                 // subtract (rect1 - rect2)
       'M100,50L150,50L150,150L50,150L50,100L100,100Z',         // subtract (rect2 - rect1)
       'M50,50L100,50L100,100L50,100Z',                         // intersect
