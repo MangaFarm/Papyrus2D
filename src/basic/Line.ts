@@ -186,7 +186,6 @@ export class Line {
     asVector: boolean, isInfinite?: boolean
   ): Point | null | undefined {
     // 🔥 デバッグ出力
-    console.log("🔥 Line.intersect args:", p1x, p1y, v1x, v1y, p2x, p2y, v2x, v2y, asVector, isInfinite);
     // ベクトルとして指定されていない場合は、終点から始点を引いてベクトルに変換
     if (!asVector) {
       v1x -= p1x;
@@ -198,14 +197,12 @@ export class Line {
     const cross = v1x * v2y - v1y * v2x;
     // 0に近い値の場合の誤差を避ける
 // 🔥 デバッグ出力
-    console.log("🔥 Line.intersect cross:", cross);
     if (!Numerical.isMachineZero(cross)) {
       const dx = p1x - p2x;
       const dy = p1y - p2y;
       const u1 = (v2x * dy - v2y * dx) / cross;
       const u2 = (v1x * dy - v1y * dx) / cross;
       // 🔥 デバッグ出力
-      console.log("🔥 Line.intersect u1,u2:", u1, u2, "isInfinite:", isInfinite);
       // 直線が有限の場合、u1とu2が[0,1]の範囲内にあるかチェック
       // ただし、数値誤差を考慮して少し範囲を広げる
       const epsilon = Numerical.EPSILON;

@@ -192,16 +192,7 @@ export class PathBoolean {
     // 交点計算
     // 交点を取得
 // 🔥 各パスのカーブ数と始点・終点
-    console.log("🔥 _path1 curves:", _path1.getCurves().map(c => [c._segment1.point.toString(), c._segment2.point.toString()]));
-    console.log("🔥 _path2 curves:", _path2.getCurves().map(c => [c._segment1.point.toString(), c._segment2.point.toString()]));
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
-// 🔥 各パスのセグメント数と座標
-    console.log("🔥 _path1 segments:", _path1.getSegments().map(s => s.point.toString()));
-    console.log("🔥 _path2 segments:", _path2.getSegments().map(s => s.point.toString()));
-// 🔥 デバッグ出力
-    console.log("🔥 runBoolean _path1:", _path1.getPathData());
-    console.log("🔥 runBoolean _path2:", _path2.getPathData());
-    console.log("🔥 runBoolean intersections.length:", intersections.length);
 
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定

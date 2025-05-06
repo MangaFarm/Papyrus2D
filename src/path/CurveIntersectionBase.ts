@@ -62,14 +62,12 @@ export function addLocation(
   ) {
     // 🔥DEBUG: addLocation呼び出し時の引数
     // eslint-disable-next-line no-console
-    console.log("🔥addLocation: c1=", c1, "t1=", t1, "c2=", c2, "t2=", t2);
 
     // CurveLocationを2つ生成し、相互参照
     const loc1 = new CurveLocation(c1, t1, null, null);
     const loc2 = new CurveLocation(c2, t2, null, null);
     // 🔥DEBUG: CurveLocation生成直後
     // eslint-disable-next-line no-console
-    console.log("🔥CurveLocation loc1=", loc1, "loc2=", loc2);
 
     loc1._intersection = loc2;
     loc2._intersection = loc1;
@@ -89,7 +87,6 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
 
   // 🔥DEBUG: insertLocation呼び出し時
   // eslint-disable-next-line no-console
-  console.log("🔥insertLocation: locations.length=", length, "location=", location, "includeOverlaps=", includeOverlaps);
 
   // Paper.jsと同様に連結リストを構築
   if (length > 0) {
@@ -148,7 +145,6 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
           }
           // 🔥DEBUG: tパラメータ重複判定でreturn i
           // eslint-disable-next-line no-console
-          console.log("🔥tパラメータ重複: i=", i, "loc=", loc, "location=", location);
           return i;
         }
       }
@@ -171,14 +167,12 @@ export function insertLocation(locations: CurveLocation[], location: CurveLocati
         if (includeOverlaps) {
           // 🔥DEBUG: 重複なしでpush
           // eslint-disable-next-line no-console
-          console.log("🔥重複なしpush: location=", location);
           locations.push(location);
           return length;
         }
 
         // 🔥DEBUG: 点の距離重複判定でreturn i
         // eslint-disable-next-line no-console
-        console.log("🔥点の距離重複: i=", i, "loc=", loc, "location=", location);
         return i;
       }
     }
