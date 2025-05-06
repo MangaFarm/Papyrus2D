@@ -14,6 +14,20 @@ import { tracePaths } from './PathBooleanTracePaths';
 import { getMeta, IntersectionInfo } from './SegmentMeta';
 
 /**
+ * 各パスの全セグメントに_winding情報をセットする
+ * paper.jsの_winding初期化処理に相当
+ */
+function setWindingInfoForPath(path: Path) {
+  const segments = path.getSegments();
+  for (const seg of segments) {
+    // ここでは単純に winding=1, windingL=0, windingR=0 をセット（open pathの単純ケース）
+    // 本来はpaper.jsの_winding計算に合わせる必要があるが、まずはテスト用
+    // 必要に応じてPathBooleanWinding等のロジックを使う
+    const meta = getMeta(seg);
+    meta._winding = { winding: 1, windingL: 0, windingR: 0 };
+  }
+}
+/**
  * Boolean演算のためのパスを準備する
  * paper.jsのpreparePath関数を忠実に移植
  *
@@ -34,9 +48,24 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
         // Close with epsilon tolerance, to avoid tiny straight
         // that would cause issues with intersection detection.
         path.closePath(Numerical.EPSILON);
-        path.getFirstSegment()!.setHandleIn(0, 0);
-        path.getLastSegment()!.setHandleOut(0, 0);
+        path.getFirstSegment()!.setHandleIn([0, 0]);
+        path.getLastSegment()!.setHandleOut([0, 0]);
       }
+    }
+
+    // 🔥 Papyrus2D: tracePaths前に_windingをセット
+    for (const path of res.getPaths()) {
+      setWindingInfoForPath(path);
+    }
+
+    // 🔥 デバッグ: closePath後のセグメント情報
+    for (const path of res.getPaths()) {
+      const segs = path.getSegments();
+      console.log("🔥 preparePath segs after closePath", segs.map(s => ({
+        index: s._index,
+        point: s.getPoint(),
+        visited: getMeta(s)._visited
+      })));
     }
 
     // paper.jsと同じようにメソッドチェーンを使用

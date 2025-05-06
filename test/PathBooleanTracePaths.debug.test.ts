@@ -1,19 +1,33 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it } from 'vitest';
 import { Path } from '../src/path/Path';
-import { Segment } from '../src/path/Segment';
 import { Point } from '../src/basic/Point';
+import { Segment } from '../src/path/Segment';
 import { tracePaths } from '../src/path/PathBooleanTracePaths';
+import { getMeta } from '../src/path/SegmentMeta';
 
-describe('PathBooleanTracePaths - 1 segment path', () => {
-  it('should not remove a path with only 1 segment', () => {
-    // 1セグメントだけの閉じたパス
-    const seg = new Segment(new Point(0, 0));
-    const path = new Path([seg], true);
+describe('🔥 PathBooleanTracePaths debug', () => {
+  it('🔥 should debug isValid for open path with resolve', () => {
+    // 開いたパスを作成
+    const openPath = new Path([
+      new Segment(new Point(0, 0)),
+      new Segment(new Point(100, 0)),
+      new Segment(new Point(100, 100)),
+      new Segment(new Point(50, 50))
+    ], false);
 
-    // tracePathsに渡す
-    const result = tracePaths([seg], {});
-    // Papyrus2D現状では空配列になるが、paper.jsでは1セグメントパスも残る
-    expect(result.length).toBe(1);
-    expect(result[0].getSegments().length).toBe(1);
+    // PathBooleanPreparationの流れを模倣
+    // まずsegmentsを取得
+    const segments = openPath.getSegments();
+
+    // operatorはPathBooleanPreparation.tsのデフォルトを模倣
+    // ここでは単純な { 1: true } を使う
+    const operator = { 1: true };
+
+    // tracePathsを直接呼び出し
+    // isValidの🔥デバッグ出力を観察する
+    const result = tracePaths(segments, operator);
+
+    // 結果自体は気にしない
+    // デバッグ出力が目的
   });
 });

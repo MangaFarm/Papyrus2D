@@ -859,7 +859,8 @@ export class Path extends PathItemBase {
       if (firstPoint && lastPoint && !firstPoint.equals(lastPoint)) {
         // 距離が許容誤差より大きい場合は線を追加
         if (firstPoint.getDistance(lastPoint) > tolerance) {
-          this.lineTo(firstPoint);
+          // paper.js互換: 最初のセグメントのcloneを末尾に追加
+          this.add(firstSegment.clone());
         }
       }
 

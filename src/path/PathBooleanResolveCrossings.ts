@@ -120,7 +120,8 @@ export function resolveCrossings(path: PathItem): PathItem {
     for (let i = 0, l = paths.length; i < l; i++) {
       allSegments = allSegments.concat(paths[i]._segments);
     }
-    paths = tracePaths(allSegments, {});
+    // paper.js互換: operator = { 1: true } を渡す
+    paths = tracePaths(allSegments, { 1: true });
     if (paths.length > 0) {
     }
   }
@@ -134,10 +135,8 @@ export function resolveCrossings(path: PathItem): PathItem {
     }
     result = path;
   } else if (length === 1 && !(path instanceof CompoundPath)) {
-    if (paths[0] !== path) {
-      (path as Path).setSegments(paths[0].removeSegments());
-    }
-    result = path;
+    // 🔥 新しいPathインスタンスをそのまま返す（_closedフラグを正しく伝播）
+    result = paths[0];
   } else {
     const compoundPath = new CompoundPath();
     compoundPath.addChildren(paths);
