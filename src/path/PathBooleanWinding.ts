@@ -44,7 +44,7 @@ export function propagateWinding(
       chain.push({ segment: seg, curve: null, length: 0 });
     }
     seg = seg ? seg.getNext() : null;
-  } while (seg && !((seg as any)._intersection) && seg !== segment);
+  } while (seg && !getMeta(seg)._intersection && seg !== segment);
 
   
   // Determine winding at three points in the chain. If a winding with
@@ -72,8 +72,8 @@ export function propagateWinding(
           break;
         }
         const path = curve._path;
-        const parent = path._parent;
-        const operand = parent instanceof CompoundPath ? parent : path;
+        const parent = path!.getParent();
+        const operand = parent instanceof CompoundPath ? parent : path!;
         // paper.jsの実装に合わせる
         // この文脈では、getTimeAtがnullを返すことはないと想定
         const t = Numerical.clamp(curve.getTimeAt(length - chainLength)!, tMin, tMax);
@@ -108,8 +108,8 @@ export function propagateWinding(
           }
         }
 
-        const ccmap = curveCollisionsMap[path._id!];
-        const curvesArg = (ccmap && ccmap[curve.getIndex()]) || path.getCurves();
+        const ccmap = curveCollisionsMap[path!._id!];
+        const curvesArg = (ccmap && ccmap[curve.getIndex()]) || path!.getCurves();
         wind = wind || getWinding(
           pt,
           curvesArg,
@@ -182,7 +182,9 @@ export function getWinding(
   let vClose: number[] | undefined;
   
   // windingを追加する関数
-  function addWinding(v: number[]): any {
+  function addWinding(
+    v: number[]
+  ): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } | undefined {
     const o0 = v[io + 0];
     const o3 = v[io + 6];
     
@@ -279,13 +281,16 @@ export function getWinding(
     vPrev = v;
     
     // 接線が方向に平行な場合、方向を反転して再計算
-    return !dontFlip && a > paL && a < paR
-            && Curve.getTangent(v, t)[dir ? 'x' : 'y'] === 0
-            && getWinding(point, curves, !dir, closed, true);
+    return (!dontFlip && a > paL && a < paR
+            && Curve.getTangent(v, t)[dir ? 'x' : 'y'] === 0)
+            ? getWinding(point, curves, !dir, closed, true)
+            : undefined;
   }
   
   // 曲線を処理する関数
-  function handleCurve(v: number[]): any {
+  function handleCurve(
+    v: number[]
+  ): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } | undefined {
     // Get the ordinates:
     const o0 = v[io + 0];
     const o1 = v[io + 2];
@@ -335,9 +340,9 @@ export function getWinding(
       //   filling open paths works.
       // - `true`: Connect with a curve that takes the segment handles
       //   into account, just like how closed paths behave.
-      if (!path._closed) {
+      if (!path!._closed) {
         vClose = CurveSubdivision.getValues(
-          path.getLastCurve()._segment2,
+          path!.getLastCurve()!._segment2,
           curve._segment1,
           null,
           !closed
@@ -355,14 +360,14 @@ export function getWinding(
         // find one that is not horizontal.
         // Fall-back to the first curve's values if none is found:
         vPrev = v;
-        let prev = path.getLastCurve();
+        let prev = path!.getLastCurve()!;
         while (prev && prev !== curve) {
           const v2 = prev.getValues();
           if (v2[io] !== v2[io + 6]) {
             vPrev = v2;
             break;
           }
-          prev = prev.getPrevious();
+          prev = prev.getPrevious()!;
         }
       }
     }
@@ -386,7 +391,7 @@ export function getWinding(
         // TypeScriptではビット演算子^の右側は数値型である必要があるため、
         // 条件式を書き換える
         // 元の実装に戻す
-        pathWindingL = pathWindingR = (path.isClockwise(closed) !== dir) ? 1 : -1;
+        pathWindingL = pathWindingR = (path!.isClockwise() !== dir) ? 1 : -1;
       }
       
       // パスのwindingを合計に追加

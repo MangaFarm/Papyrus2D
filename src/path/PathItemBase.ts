@@ -14,16 +14,30 @@ import { PathItem, Style, FillRule } from './PathItem';
 import type { Path } from './Path';
 
 export abstract class PathItemBase implements PathItem {
-  // PathItemインターフェースの実装
-  _matrix?: Matrix;
-  _matrixDirty: boolean = false;
-  _bounds?: Rectangle;
-  _version: number = 0;
-  static _idCount: number = 0;
-  _id: number;
-  constructor() {
-    this._id = ++PathItemBase._idCount;
-  }
+ // PathItemインターフェースの実装
+ _matrix?: Matrix;
+ _matrixDirty: boolean = false;
+ _bounds?: Rectangle;
+ _version: number = 0;
+ static _idCount: number = 0;
+ _id: number;
+
+ /** 親アイテム (paper.js互換) */
+ protected _parent: PathItemBase | null = null;
+
+ constructor() {
+   this._id = ++PathItemBase._idCount;
+ }
+
+ /** 親アイテムを取得 (paper.js: getParent) */
+ getParent(): PathItemBase | null {
+   return this._parent;
+ }
+
+ /** 挿入済みかどうか (paper.js: isInserted) */
+ isInserted(): boolean {
+   return this._parent ? this._parent.isInserted() : false;
+ }
   
   // スタイル設定
   style: Style = {
