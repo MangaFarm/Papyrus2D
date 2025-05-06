@@ -311,5 +311,28 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       }
     }
   }
+  // paper.js互換: 各パスの始点を「最小y,x座標のセグメント」に揃える
+  for (const path of paths) {
+    const segments = path.getSegments();
+    if (segments.length === 0) continue;
+    let minIdx = 0;
+    let maxPt = segments[0]._point.toPoint();
+    for (let i = 1; i < segments.length; i++) {
+      const pt = segments[i]._point.toPoint();
+      if (
+        pt.y > maxPt.y ||
+        (Math.abs(pt.y - maxPt.y) < 1e-7 && pt.x < maxPt.x)
+      ) {
+        minIdx = i;
+        maxPt = pt;
+      }
+    }
+    if (minIdx !== 0) {
+      // segmentsをminIdx分だけ回転させて始点を揃える
+      const rotated = segments.slice(minIdx).concat(segments.slice(0, minIdx));
+      path.removeSegments(0);
+      path.addSegments(rotated);
+    }
+  }
   return paths;
 }

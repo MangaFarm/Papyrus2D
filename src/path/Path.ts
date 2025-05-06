@@ -1338,53 +1338,79 @@ export class Path extends PathItemBase {
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
       const pt = seg.getPoint();
-      // ハンドルが全て0なら直線
-      const hasHandles =
-        (seg.handleIn && (!seg.handleIn.isZero && !seg.handleIn.isZero())) ||
-        (seg.handleOut && (!seg.handleOut.isZero && !seg.handleOut.isZero()));
       if (i === 0) {
         d += `M${pt.x},${pt.y}`;
-      } else if (!hasHandles) {
-        d += `L${pt.x},${pt.y}`;
       } else {
-        // ハンドル対応は未実装
-        d += `L${pt.x},${pt.y}`;
+        const prev = segments[i - 1].getPoint();
+        const dx = pt.x - prev.x;
+        const dy = pt.y - prev.y;
+        // ハンドルが全て0なら直線
+        const hasHandles =
+          (seg.handleIn && (!seg.handleIn.isZero && !seg.handleIn.isZero())) ||
+          (seg.handleOut && (!seg.handleOut.isZero && !seg.handleOut.isZero()));
+        if (!hasHandles) {
+          if (dx !== 0 && dy === 0) {
+            d += `h${dx}`;
+          } else if (dx === 0 && dy !== 0) {
+            d += `v${dy}`;
+          } else {
+            d += `L${pt.x},${pt.y}`;
+          }
+        } else {
+          // ハンドル対応は未実装
+          d += `L${pt.x},${pt.y}`;
+        }
       }
     }
     if (this.closed) d += 'z';
     return d;
   }
-/**
- * 他のパスと幾何学的に等しいか/重なり合うかを判定（paper.js互換）
- * @param path 比較対象のパス
- * @returns 等しければtrue
- */
-compare(path: Path): boolean {
-  // null/型チェック
-  if (!path || !(path instanceof Path)) return false;
 
-  // 境界ボックスの一致判定
-  const bounds1 = this.getBounds();
-  const bounds2 = path.getBounds();
-  if (!bounds1.equals(bounds2)) return false;
+  /**
+   * 他のパスと幾何学的に等しいか/重なり合うかを判定（paper.js互換）
+   * @param path 比較対象のパス
+   * @returns 等しければtrue
+   */
+  compare(path: Path): boolean {
+    // null/型チェック
+    if (!path || !(path instanceof Path)) return false;
 
-  // セグメント数の一致
-  if (this._segments.length !== path._segments.length) return false;
+    // 境界ボックスの一致判定
+    const bounds1 = this.getBounds();
+    const bounds2 = path.getBounds();
+    if (!bounds1.equals(bounds2)) return false;
 
-  // セグメント座標・ハンドルの一致
-  for (let i = 0; i < this._segments.length; i++) {
-    if (!this._segments[i].equals(path._segments[i])) {
-      return false;
+    // セグメント数の一致
+    if (this._segments.length !== path._segments.length) return false;
+
+    // セグメント座標・ハンドルの一致
+    for (let i = 0; i < this._segments.length; i++) {
+      if (!this._segments[i].equals(path._segments[i])) {
+        return false;
+      }
+    }
+
+    // パスの方向（isClockwise）の一致
+    if (this.isClockwise() !== path.isClockwise()) return false;
+
+    // 面積の一致（符号も含めて）
+    if (this.getArea() !== path.getArea()) return false;
+
+    // ここまで一致すれば幾何学的に等しいとみなす
+    return true;
+  }
+
+  /**
+     * 指定したセグメントを始点にする（paper.js互換）
+     * @param seg 始点にしたいSegment
+     */
+  setFirstSegment(seg: Segment): void {
+    const segments = this.getSegments();
+    const idx = segments.indexOf(seg);
+    if (idx > 0) {
+      const rotated = segments.slice(idx).concat(segments.slice(0, idx));
+      this.setSegments(rotated);
     }
   }
 
-  // パスの方向（isClockwise）の一致
-  if (this.isClockwise() !== path.isClockwise()) return false;
-
-  // 面積の一致（符号も含めて）
-  if (this.getArea() !== path.getArea()) return false;
-
-  // ここまで一致すれば幾何学的に等しいとみなす
-  return true;
-}
 }

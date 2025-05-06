@@ -52,10 +52,10 @@ describe('PathBoolean', () => {
     ], true);
 
     const rect2 = new Path([
+      new Segment(new Point(50, 50)),
       new Segment(new Point(150, 50)),
-      new Segment(new Point(250, 50)),
-      new Segment(new Point(250, 150)),
-      new Segment(new Point(150, 150))
+      new Segment(new Point(150, 150)),
+      new Segment(new Point(50, 150))
     ], true);
 
     // 期待される結果（paper.jsのパス表現をPapyrus2DのpathToString形式に変換）

@@ -198,10 +198,10 @@ export const PathConstructors = {
       // paper.jsと同じ順序でセグメントを作成（左下、左上、右上、右下）
       // 面積計算が正しくなるように実装
       segments = [
-        new Segment(bl),
-        new Segment(tl),
-        new Segment(tr),
-        new Segment(br)
+        new Segment(bl), // 左下
+        new Segment(br), // 右下
+        new Segment(tr), // 右上
+        new Segment(tl)  // 左上
       ];
     } else {
       // 角丸あり矩形
