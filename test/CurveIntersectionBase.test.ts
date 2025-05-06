@@ -93,27 +93,27 @@ describe('insertLocation', () => {
 
 describe('insertLocation - Papyrus2D PathBoolean失敗ケース再現', () => {
   it('should not drop intersection at rectangle endpoint (frame.intersect(rect) case)', () => {
-    // 矩形Aの左辺
-    const segA1 = new Segment(new Point(140, 310));
-    const segA2 = new Segment(new Point(140, 10));
+    // わかりやすい直線同士の交点
+    // A: (0,0)-(0,10) の縦線
+    const segA1 = new Segment(new Point(0, 0));
+    const segA2 = new Segment(new Point(0, 10));
     const pathA = new Path([segA1, segA2], false);
     segA1._path = pathA; segA1._index = 0;
     segA2._path = pathA; segA2._index = 1;
     const curveA = new Curve(pathA, segA1, segA2);
 
-    // 矩形Bの上辺
-    const segB1 = new Segment(new Point(50, 200));
-    const segB2 = new Segment(new Point(150, 200));
+    // B: (0,5)-(10,5) の横線
+    const segB1 = new Segment(new Point(0, 5));
+    const segB2 = new Segment(new Point(10, 5));
     const pathB = new Path([segB1, segB2], false);
     segB1._path = pathB; segB1._index = 0;
     segB2._path = pathB; segB2._index = 1;
     const curveB = new Curve(pathB, segB1, segB2);
 
-    // 交点 (140,200) - Aの左辺の途中 (tA), Bの上辺の途中 (tB)
-    // ここではtA, tBを仮に0.55, 0.9とする（実際の交点パラメータは本来getTimeOfで計算）
-    const pt = new Point(140, 200);
-    const tA = (310 - 200) / (310 - 10); // (y座標で線形補間)
-    const tB = (140 - 50) / (150 - 50);  // (x座標で線形補間)
+    // 交点 (0,5) - Aのt=0.5, Bのt=0.0
+    const pt = new Point(0, 5);
+    const tA = 0.5;
+    const tB = 0.0;
 
     // CurveLocationをaddLocation経由で生成（相互参照付き）
     const locations: CurveLocation[] = [];
@@ -121,7 +121,7 @@ describe('insertLocation - Papyrus2D PathBoolean失敗ケース再現', () => {
 
     // 交点が1つ追加されていること
     expect(locations.length).toBe(1);
-    expect(locations[0]._point.x).toBeCloseTo(140);
-    expect(locations[0]._point.y).toBeCloseTo(200);
+    expect(locations[0]._point.x).toBeCloseTo(0);
+    expect(locations[0]._point.y).toBeCloseTo(5);
   });
 });
