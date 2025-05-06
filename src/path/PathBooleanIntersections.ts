@@ -121,7 +121,7 @@ export function divideLocations(
     const dest = loc._intersection;
     if (inter && dest) {
       linkIntersections(inter, dest);
-      let other = inter;
+      let other: CurveLocation | null = inter;
       while (other && other._intersection) {
         linkIntersections(other._intersection, inter);
         other = other._next;
