@@ -108,24 +108,16 @@ export function resolveCrossings(path: PathItem): PathItem {
   // 交差処理
   if (hasCrossings) {
     const divideResult = divideLocations(intersections, hasOverlaps ? function(inter: CurveLocation) {
-      const curve1 = inter.getCurve && inter.getCurve();
-      const seg1 = inter.getSegment && inter.getSegment();
-      const other = inter._intersection as IntersectionInfo | null;
-      // IntersectionInfo型にはgetCurve/getSegmentはないので、paper.js同様に_curve/_segmentを参照
-      const curve2 = other && (other as any)._curve;
-      const seg2 = other && (other as any)._segment;
+      const curve1 = inter.getCurve();
+      const seg1 = inter.getSegment();
+      const other = inter._intersection;
+      const curve2 = other?._curve;
+      const seg2 = other?._segment;
       if (curve1 && curve2 && curve1._path && curve2._path) {
         return true;
       }
-      // paper.jsでは直接_intersectionを操作するが、Papyrus2DではgetMetaを使用
-      if (seg1) {
-        const meta1 = getMeta(seg1);
-        meta1._intersection = null;
-      }
-      if (seg2) {
-        const meta2 = getMeta(seg2);
-        meta2._intersection = null;
-      }
+      if (seg1) getMeta(seg1)._intersection = null;
+      if (seg2) getMeta(seg2)._intersection = null;
       return false;
     } : undefined, clearCurves);
 
