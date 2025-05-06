@@ -157,10 +157,9 @@ export function divideLocations(
  * paper.jsのdivideLocations関数を使用した実装
  */
 export function dividePathAtIntersections(path: Path, locations: CurveLocation[]): Segment[] {
-    // paper.js: divideLocationsを使って交点でパスを分割
-    // Papyrus2Dでは交点情報をCurveLocation[]として扱う前提で、divideLocationsを呼び出す
-    // 返り値は分割後のセグメント配列
-    return divideLocations(locations);
+    // paper.jsと同じく、divideLocationsで分割した後の全セグメントを返す
+    divideLocations(locations);
+    return path.getSegments();
 }
 
 /**
