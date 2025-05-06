@@ -189,20 +189,21 @@ export const PathConstructors = {
     const tl = new Point(rect.x, rect.y);
     const tr = new Point(rect.x + rect.width, rect.y);
     const br = new Point(rect.x + rect.width, rect.y + rect.height);
-    
+
     let segments: Segment[];
-    
-    if (!radius || (radius instanceof Size && radius.width === 0 && radius.height === 0) || 
+
+    if (!radius || (radius instanceof Size && radius.width === 0 && radius.height === 0) ||
         (typeof radius === 'number' && radius === 0)) {
       // 角丸なしの矩形
-      // paper.jsと同じ順序でセグメントを作成（左下、左上、右上、右下）
-      // 面積計算が正しくなるように実装
-      // paper.jsと同じ順序でセグメントを作成（左上→右上→右下→左下、時計回り）
+      // !!! 絶対に順序を変えるな !!!
+      // paper.js/src/path/Path.Constructors.js の Rectangle 実装と完全一致。
+      // segments = [bl, tl, tr, br]（左下→左上→右上→右下）でなければならない。
+      // ここを変更するとpaper.jsとの互換性が崩れるので絶対に修正禁止。
       segments = [
+        new Segment(bl), // 左下
         new Segment(tl), // 左上
         new Segment(tr), // 右上
-        new Segment(br), // 右下
-        new Segment(bl)  // 左下
+        new Segment(br)  // 右下
       ];
     } else {
       // 角丸あり矩形

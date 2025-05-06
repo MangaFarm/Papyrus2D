@@ -28,13 +28,13 @@ import { resolveCrossings } from './PathBooleanResolveCrossings';
 
 export class Path extends PathItemBase {
   // 静的メソッド
-  static Line = PathConstructors.Line;
-  static Circle = PathConstructors.Circle;
-  static Rectangle = PathConstructors.Rectangle;
-  static Ellipse = PathConstructors.Ellipse;
-  static Arc = PathConstructors.Arc;
-  static RegularPolygon = PathConstructors.RegularPolygon;
-  static Star = PathConstructors.Star;
+  static get Line() { return PathConstructors.Line; }
+  static get Circle() { return PathConstructors.Circle; }
+  static get Rectangle() { return PathConstructors.Rectangle; }
+  static get Ellipse() { return PathConstructors.Ellipse; }
+  static get Arc() { return PathConstructors.Arc; }
+  static get RegularPolygon() { return PathConstructors.RegularPolygon; }
+  static get Star() { return PathConstructors.Star; }
   // PathItemBaseから継承したプロパティ以外のプロパティ
   _segments: Segment[];
   _closed: boolean;
