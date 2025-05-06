@@ -24,23 +24,7 @@ export class CurveLocationUtils {
     const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
 
     // 直線の場合は線形補間でtを返す
-    if (Curve.isStraight(v)) {
-      // paper.jsのロジックを忠実に移植
-      const x0 = v[0], y0 = v[1], x1 = v[6], y1 = v[7];
-      const dx = x1 - x0, dy = y1 - y0;
-      const denom = dx * dx + dy * dy;
-      if (denom !== 0) {
-        const u = ((point.x - x0) * dx + (point.y - y0) * dy) / denom;
-        if (u >= 0 && u <= 1) {
-          const px = x0 + u * dx, py = y0 + u * dy;
-          if (Math.abs(point.x - px) < Numerical.GEOMETRIC_EPSILON &&
-              Math.abs(point.y - py) < Numerical.GEOMETRIC_EPSILON) {
-            return u;
-          }
-        }
-      }
-      return null;
-    }
+    // 直線分岐はpaper.jsには存在しないため削除
 
     // 端点が十分近い場合は早期リターン
     if (point.isClose(p0, epsilon)) {
