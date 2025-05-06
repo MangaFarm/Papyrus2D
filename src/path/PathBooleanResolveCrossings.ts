@@ -4,8 +4,6 @@
  */
 
 import { Path } from './Path';
-import { Point } from '../basic/Point';
-import { SegmentPoint } from './SegmentPoint';
 import { PathItem } from './PathItem';
 import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
@@ -27,22 +25,10 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   let paths: Path[] = path instanceof CompoundPath ? path._children : [path as Path];
 
-  function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
-    if (!seg) return false;
+  function hasOverlap(seg: Segment, path: Path): boolean {
     const meta = getMeta(seg);
     const inter = meta._intersection;
-    // overlap範囲の端点（overlapの最初または最後のセグメント）はfalseを返す
-    if (!(inter && inter._overlap && meta!._path === path)) return false;
-    // _overlapがCurveLocation型で、_segmentプロパティが存在する場合のみ端点判定
-    if (
-      typeof inter._overlap === 'object' &&
-      inter._overlap !== null &&
-      '_segment' in inter._overlap &&
-      (inter._overlap as CurveLocation)._segment === seg
-    ) {
-      return false;
-    }
-    return true;
+    return !!(inter && inter._overlap && meta!._path === path);
   }
 
   // 交差点・重なり点の検出とフラグ
