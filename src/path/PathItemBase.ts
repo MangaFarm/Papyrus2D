@@ -145,34 +145,25 @@ export abstract class PathItemBase implements PathItem {
    * 指定されたパスの属性をコピーする
    * paper.jsのItem.copyAttributes()に準拠
    */
-  copyAttributes(path: PathItem, excludeMatrix?: boolean): this {
+  copyAttributes(path: PathItemBase, excludeMatrix?: boolean): this {
     // 行列のコピー
-    if (!excludeMatrix && (path as any)._matrix) {
-      // @ts-ignore
-      this._matrix = (path as any)._matrix.clone();
+    if (!excludeMatrix && path._matrix) {
+      this._matrix = path._matrix.clone();
     }
     // styleのコピー（シャローコピー）
-    if ('style' in path) {
-      // @ts-ignore
-      this.style = { ...path.style };
-    }
+    this.style = { ...path.style };
     // その他の属性コピー
-    const keys = ['_locked', '_visible', '_blendMode', '_opacity', '_clipMask', '_guide'];
-    for (const key of keys) {
-      if (key in path) {
-        // @ts-ignore
-        this[key] = (path as any)[key];
-      }
-    }
+    // Papyrus2Dでは _locked, _visible, _blendMode, _opacity, _clipMask, _guide などをPathItemBaseで定義していない場合は無視
+    // 必要ならPathItemBaseに明示的に追加する
     // データと名前
-    if ('_data' in path) {
-      // @ts-ignore
-      this._data = (path as any)._data ? JSON.parse(JSON.stringify((path as any)._data)) : null;
-    }
-    if ('_name' in path) {
-      // @ts-ignore
-      this._name = (path as any)._name;
-    }
+    // Papyrus2DのPathItemBaseには_dataや_nameは定義されていないため、ここは一旦放置
+    // paper.jsではItem._data, Item._nameが存在するが、Papyrus2Dで必要ならPathItemBaseに追加すること
+    // if (path._data !== undefined) {
+    //   this._data = path._data ? JSON.parse(JSON.stringify(path._data)) : null;
+    // }
+    // if (path._name !== undefined) {
+    //   this._name = path._name!;
+    // }
     return this;
   }
 
