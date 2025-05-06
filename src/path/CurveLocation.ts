@@ -6,6 +6,8 @@ import { Curve } from './Curve';
 import { Point } from '../basic/Point';
 import { Numerical } from '../util/Numerical';
 import { CurveLocationUtils } from './CurveLocationUtils';
+import { Path } from './Path';
+import { Segment } from './Segment';
 
 export class CurveLocation {
   // Paper.jsと同様のプロパティ
@@ -19,12 +21,12 @@ export class CurveLocation {
   _offset?: number;          // パス上のオフセット（キャッシュ）
   _curveOffset?: number;     // 曲線上のオフセット（キャッシュ）
   _version?: number;         // パスのバージョン（キャッシュ検証用）
-  _path?: any;               // パス参照（キャッシュ用）
+  _path?: Path | null;       // パス参照（キャッシュ用）
   
   // セグメント参照用プロパティ
-  _segment?: any;            // 近接セグメント
-  _segment1?: any;           // 曲線の最初のセグメント
-  _segment2?: any;           // 曲線の2番目のセグメント
+  _segment?: Segment | null;            // 近接セグメント
+  _segment1?: Segment | null;           // 曲線の最初のセグメント
+  _segment2?: Segment | null;           // 曲線の2番目のセグメント
   
   // 交点の相互参照用
   _intersection: CurveLocation | null = null; // 対応する交点
@@ -96,7 +98,7 @@ export class CurveLocation {
     }
 
     // セグメントから曲線を取得して時間を計算する関数
-    function trySegment(segment: any) {
+    function trySegment(segment: Segment | null | undefined): Curve | null {
       const curve = segment && segment.getCurve();
       if (curve && (that._time = curve.getTimeOf(that._point)) != null) {
         // 曲線が見つかった場合は設定して返す
@@ -134,7 +136,7 @@ export class CurveLocation {
   /**
    * パスを設定する内部メソッド
    */
-  _setPath(path: any): void {
+  _setPath(path: Path | null): void {
     this._path = path;
     this._version = path ? path._version : 0;
   }
@@ -192,9 +194,9 @@ export class CurveLocation {
    * この位置が属するパスを取得
    * @returns パス
    */
-  getPath(): any {
+  getPath(): Path | null {
     const curve = this.getCurve();
-    return curve && curve._path;
+    return curve && curve._path ? curve._path : null;
   }
   
   /**
@@ -217,16 +219,16 @@ export class CurveLocation {
    * この位置に最も近いセグメントを取得
    * @returns セグメント
    */
-  getSegment(): any {
+  getSegment(): Segment | null {
     // まず曲線を取得して_segmentが最新かを確認
-    let segment = this._segment;
+    let segment = this._segment ?? null;
     if (!segment) {
       const curve = this.getCurve();
       const time = this.getTime();
       if (time === 0) {
-        segment = curve?._segment1;
+        segment = curve?._segment1 ?? null;
       } else if (time === 1) {
-        segment = curve?._segment2;
+        segment = curve?._segment2 ?? null;
       } else if (time != null && curve) {
         // 最も近いセグメントを曲線の長さを比較して決定
         segment = curve.getPartLength(0, time) < curve.getPartLength(time, 1)
@@ -241,19 +243,19 @@ export class CurveLocation {
   /**
    * セグメントを設定する内部メソッド
    */
-  _setSegment(segment: any): void {
+  _setSegment(segment: Segment | null): void {
     const curve = segment?.getCurve();
     if (curve) {
       this._setCurve(curve);
     } else {
-      this._setPath(segment?._path);
+      this._setPath(segment?._path ?? null);
       this._segment1 = segment;
       this._segment2 = null;
     }
     this._segment = segment;
     this._time = segment === this._segment1 ? 0 : 1;
     // 精度の問題を避けるため、セグメントの点をクローンして使用
-    this._point = segment?._point.clone() || this._point;
+    this._point = segment ? segment._point.toPoint() : this._point;
   }
 
   /**
@@ -340,7 +342,7 @@ export class CurveLocation {
     const path = curve?._path;
     const res = curve && curve.splitAtTime(this.getTime() || 0);
     if (res && path) {
-      this._setSegment(path.getLastSegment());
+      this._setSegment(path.getLastSegment() ?? null);
     }
     return res;
   }
