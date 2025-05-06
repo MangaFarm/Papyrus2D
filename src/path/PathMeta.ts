@@ -11,8 +11,6 @@ import { Path } from './Path';
 export interface PathMeta {
   /** 完全overlap判定用フラグ (paper.js: _overlapsOnly) */
   _overlapsOnly?: boolean;
-  /** 一意なID (paper.js: _id) */
-  _id?: number;
 }
 
 const pathMetaStore = new WeakMap<Path, PathMeta>();

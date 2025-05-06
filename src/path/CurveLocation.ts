@@ -320,16 +320,16 @@ export class CurveLocation {
    * 曲線を分割
    * @returns 分割結果
    */
-  divide(): any {
+  divide(): Curve | null {
     const curve = this.getCurve();
     const time = this.getTime() || 0;
     const res = curve && curve.divideAtTime(time);
-    
+
     // Change to the newly inserted segment, also adjusts _time.
     if (res) {
       this._setSegment(res._segment1);
     }
-    
+
     return res;
   }
 
@@ -337,7 +337,7 @@ export class CurveLocation {
    * パスを分割
    * @returns 分割結果
    */
-  split(): any {
+  split(): Curve | null {
     const curve = this.getCurve();
     const path = curve?._path;
     const res = curve && curve.splitAtTime(this.getTime() || 0);
@@ -448,7 +448,7 @@ export class CurveLocation {
       // パスIDが異なる場合はパスIDでソート
       // 同じパスの場合はインデックスと時間でソート
       const diff = path1 !== path2
-        ? (path1 as any)._id - (path2 as any)._id
+        ? ((path1 ? path1._id : 0) - (path2 ? path2._id : 0))
         : (loc.getIndex() + (loc.getTime() || 0)) - (loc2.getIndex() + (loc2.getTime() || 0));
       
       if (diff < 0) {
