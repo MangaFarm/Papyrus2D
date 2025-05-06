@@ -24,7 +24,6 @@ export class SegmentPoint {
   constructor(
     point?: [number, number],
     owner?: Segment,
-    key?: string
   ) {
     const x = point ? point[0] ?? 0 : 0;
     const y = point ? point[1] ?? 0 : 0;
@@ -32,10 +31,6 @@ export class SegmentPoint {
     this._x = x;
     this._y = y;
     this._owner = owner;
-
-    if (owner && key) {
-      (owner as any)[key] = this;
-    }
   }
 
   /**
