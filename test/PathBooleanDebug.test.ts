@@ -40,10 +40,14 @@ describe('PathBoolean 下位flow debug', () => {
 
     // propagateWinding
     for (const loc of dividedLocsA) {
-      propagateWinding(loc._segment, rectA, rectB, curveCollisionsMap, operator);
+      if (loc._segment) {
+        propagateWinding(loc._segment, rectA, rectB, curveCollisionsMap, operator);
+      }
     }
     for (const loc of dividedLocsB) {
-      propagateWinding(loc._segment, rectA, rectB, curveCollisionsMap, operator);
+      if (loc._segment) {
+        propagateWinding(loc._segment, rectA, rectB, curveCollisionsMap, operator);
+      }
     }
 
     // segments収集: divideLocationsで得られた全セグメントも含める
@@ -51,6 +55,7 @@ describe('PathBoolean 下位flow debug', () => {
     const segMap = new Map<string, Segment>();
     for (const loc of dividedLocsA.concat(dividedLocsB)) {
       const seg = loc._segment;
+      if (!seg) continue;
       const pt = seg._point.toPoint();
       const key = `${pt.x},${pt.y},${seg._index}`;
       if (!segMap.has(key)) segMap.set(key, seg);
@@ -59,10 +64,10 @@ describe('PathBoolean 下位flow debug', () => {
 // segments重複チェック
 const segSet = new Set();
 for (const seg of segments) {
+  if (!seg) continue;
   const pt = seg._point.toPoint();
   const key = `${pt.x},${pt.y},${seg._index}`;
   if (segSet.has(key)) {
-    console.log(`🔥 duplicate segment: (${pt.x},${pt.y}) index=${seg._index}`);
   }
   segSet.add(key);
 }
@@ -70,36 +75,36 @@ for (const seg of segments) {
     // propagateWinding直後のwinding値を全出力
     for (let i = 0; i < dividedLocsA.length; i++) {
       const seg = dividedLocsA[i]._segment;
+      if (!seg) continue;
       const pt = seg._point.toPoint();
       const meta = getMeta(seg);
-      const winding = meta && meta.winding ? meta.winding.winding : undefined;
-      console.log(`🔥 after propagate: dividedLocsA[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
+      const winding = meta && meta._winding ? meta._winding.winding : undefined;
     }
     for (let i = 0; i < dividedLocsB.length; i++) {
       const seg = dividedLocsB[i]._segment;
+      if (!seg) continue;
       const pt = seg._point.toPoint();
       const meta = getMeta(seg);
-      const winding = meta && meta.winding ? meta.winding.winding : undefined;
-      console.log(`🔥 after propagate: dividedLocsB[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
-// intersectionリンク構造を出力
-for (let i = 0; i < dividedLocsA.length; i++) {
-  const seg = dividedLocsA[i]._segment;
-  const meta = getMeta(seg);
-  const inter = seg._intersection;
-  let next = inter?._next;
-  let prev = inter?._previous;
-  const pt = seg._point.toPoint();
-  console.log(`🔥 intersection link: seg=(${pt.x},${pt.y}) next=${!!next} prev=${!!prev}`);
-}
-for (let i = 0; i < dividedLocsB.length; i++) {
-  const seg = dividedLocsB[i]._segment;
-  const meta = getMeta(seg);
-  const inter = seg._intersection;
-  let next = inter?._next;
-  let prev = inter?._previous;
-  const pt = seg._point.toPoint();
-  console.log(`🔥 intersection link: seg=(${pt.x},${pt.y}) next=${!!next} prev=${!!prev}`);
-}
+      const winding = meta && meta._winding ? meta._winding.winding : undefined;
+    }
+    // intersectionリンク構造を出力
+    for (let i = 0; i < dividedLocsA.length; i++) {
+      const seg = dividedLocsA[i]._segment;
+      if (!seg) continue;
+      const meta = getMeta(seg);
+      const inter = (seg as any)._intersection;
+      let next = inter?._next;
+      let prev = inter?._previous;
+      const pt = seg._point.toPoint();
+    }
+    for (let i = 0; i < dividedLocsB.length; i++) {
+      const seg = dividedLocsB[i]._segment;
+      if (!seg) continue;
+      const meta = getMeta(seg);
+      const inter = (seg as any)._intersection;
+      let next = inter?._next;
+      let prev = inter?._previous;
+      const pt = seg._point.toPoint();
     }
 
     // tracePaths
@@ -107,41 +112,41 @@ for (let i = 0; i < dividedLocsB.length; i++) {
 
     // tracePathsのパス構築ループ詳細デバッグ
     // 直接tracePathsのロジックをここに再現し、各ステップで出力
-    const tracePathsDebug = (segments, operator) => {
-      const paths = [];
-      let starts = [];
+    const tracePathsDebug = (segments: any[], operator: any) => {
+      const paths: any[] = [];
+      let starts: any[] = [];
       // ソートは省略（既にテスト用segmentsなので）
-      function isValid(seg) {
+      function isValid(seg: any) {
         const meta = getMeta(seg);
-        if (!seg || !meta || meta.visited) return false;
+        if (!seg || !meta || meta._visited) return false;
         if (!operator) return true;
-        const winding = meta.winding;
+        const winding = meta._winding;
         if (!winding) return false;
         const op = operator[winding.winding];
         return !!(op && !(operator.unite && winding.winding === 2 && winding.windingL && winding.windingR));
       }
-      function isStart(seg) {
+      function isStart(seg: any) {
         if (!seg) return false;
         for (let i = 0, l = starts.length; i < l; i++) {
           if (seg === starts[i]) return true;
         }
         return false;
       }
-      function getCrossingSegments(segment, collectStarts) {
+      function getCrossingSegments(segment: any, collectStarts: boolean) {
         const meta = getMeta(segment)!;
-        const inter = meta.intersection;
+        const inter = meta._intersection;
         const start = inter;
-        const crossings = [];
+        const crossings: any[] = [];
         if (collectStarts) starts = [segment];
-        function collect(inter, end) {
+        function collect(inter: any, end: any) {
           while (inter && inter !== end) {
             const other = inter._segment!;
             const otherMeta = getMeta(other)!;
-            const path = otherMeta.path;
+            const path = otherMeta._path;
             if (path) {
               const next = other.getNext() || path.getFirstSegment();
               const nextMeta = getMeta(next)!;
-              const nextInter = nextMeta.intersection;
+              const nextInter = nextMeta._intersection;
               if (
                 other !== segment &&
                 (isStart(other) ||
@@ -158,7 +163,7 @@ for (let i = 0; i < dividedLocsB.length; i++) {
           }
         }
         if (inter) {
-          collect(inter);
+          collect(inter, undefined);
           let interStart = inter;
           while (interStart && interStart._previous) {
             interStart = interStart._previous;
@@ -171,18 +176,16 @@ for (let i = 0; i < dividedLocsB.length; i++) {
         const segStart = segments[i];
         const meta = getMeta(segStart);
         let validStart = isValid(segStart);
-        const winding = meta && meta.winding ? meta.winding.winding : undefined;
-        console.log(`🔥 tracePaths: i=${i} segStart=(${segStart._point.toPoint().x},${segStart._point.toPoint().y}) winding=${winding} visited=${meta ? meta.visited : "?"} validStart=${validStart}`);
-        let path = null;
+        const winding = meta && meta._winding ? meta._winding.winding : undefined;
+        let path: any[] | null = null;
         let finished = false;
         let closed = true;
-        const branches = [];
-        let branch;
-        let visited = [];
+        const branches: any[] = [];
+        let branch: any;
+        let visited: any[] = [];
         let handleIn = null;
         if (validStart) {
           const pt = segStart._point.toPoint();
-          console.log(`🔥 tracePaths validStart: seg=(${pt.x},${pt.y}) winding=${winding}`);
         }
         let currentSeg = segStart;
         while (validStart && currentSeg) {
@@ -196,8 +199,7 @@ for (let i = 0; i < dividedLocsB.length; i++) {
             branch = null;
           }
           if (isFinished) {
-            console.log(`🔥 tracePaths: finished at seg=(${currentSeg._point.toPoint().x},${currentSeg._point.toPoint().y})`);
-            getMeta(currentSeg)!.visited = true;
+            getMeta(currentSeg) && (getMeta(currentSeg)!._visited = true);
             finished = true;
             break;
           }
@@ -208,7 +210,7 @@ for (let i = 0; i < dividedLocsB.length; i++) {
           if (!branch) {
             if (cross) crossings.push(currentSeg);
             branch = {
-              start: path.length,
+              start: path!.length,
               crossings: crossings,
               visited: visited = [],
               handleIn: handleIn
@@ -217,15 +219,14 @@ for (let i = 0; i < dividedLocsB.length; i++) {
           let nextSeg = currentSeg;
           if (cross) nextSeg = other!;
           if (!isValid(nextSeg)) {
-            console.log(`🔥 tracePaths: backtrack at seg=(${nextSeg?._point?.toPoint().x},${nextSeg?._point?.toPoint().y})`);
-            path.length = branch.start;
+            path!.length = branch.start;
             for (let j = 0, k = visited.length; j < k; j++) {
-              getMeta(visited[j])!.visited = false;
+              getMeta(visited[j]) && (getMeta(visited[j])!._visited = false);
             }
             visited.length = 0;
             do {
               nextSeg = branch && branch.crossings.shift();
-              if (!nextSeg || !getMeta(nextSeg)!.path) {
+              if (!nextSeg || !getMeta(nextSeg)!._path) {
                 nextSeg = null;
                 branch = branches.pop();
                 if (branch) {
@@ -237,25 +238,20 @@ for (let i = 0; i < dividedLocsB.length; i++) {
             if (!nextSeg) break;
           }
           // パスに追加
-          path.push(nextSeg);
-          getMeta(nextSeg)!.visited = true;
+          path!.push(nextSeg);
+          getMeta(nextSeg) && (getMeta(nextSeg)!._visited = true);
           visited.push(nextSeg);
           // 次へ
-          const nextPath = getMeta(nextSeg || currentSeg)!.path!;
+          const nextPath = getMeta(nextSeg || currentSeg)!._path!;
           const next = nextSeg.getNext();
           if (!next && !nextPath) break;
           currentSeg = (next || nextPath.getFirstSegment());
           handleIn = next ? next._handleIn.toPoint() : null;
         }
         if (finished && path && path.length > 0) {
-          console.log('🔥 tracePaths: finished path:', path.map(s => {
-            const pt = s._point.toPoint();
-            return `(${pt.x},${pt.y})`;
-          }).join(' -> '));
           paths.push(path);
         }
       }
-      console.log("🔥 PathBooleanDebug: output paths.length =", paths.length);
       return paths;
     };
 

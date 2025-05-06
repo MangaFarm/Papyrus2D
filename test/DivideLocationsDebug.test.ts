@@ -34,17 +34,18 @@ describe("divideLocations 下位API最小ケース", () => {
     // デバッグ出力
     for (let i = 0; i < divided.length; i++) {
       const seg = divided[i]._segment;
+      if (!seg) continue;
       const meta = getMeta(seg);
       const pt = seg._point.toPoint();
-      const pathId = meta && meta.path ? meta.path._id : "none";
-      console.log(`🔥 divided[${i}]: (${pt.x},${pt.y}) meta.path.id=${pathId}`);
+      const pathId = meta && meta._path ? meta._path._id : "none";
     }
 
     // すべての分割セグメントにmeta.pathがセットされていること
     for (let i = 0; i < divided.length; i++) {
       const seg = divided[i]._segment;
+      if (!seg) continue;
       const meta = getMeta(seg);
-      expect(meta && meta.path).toBeTruthy();
+      expect(meta && meta._path).toBeTruthy();
     }
   });
 });

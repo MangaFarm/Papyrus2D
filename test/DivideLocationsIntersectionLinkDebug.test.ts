@@ -4,6 +4,7 @@ import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
 import { divideLocations, getIntersections } from '../src/path/PathBooleanIntersections';
 
+import { getMeta } from '../src/path/SegmentMeta';
 describe('divideLocations intersection link debug', () => {
   it('should show _intersection link for divided segments', () => {
     const rect1 = new Path([
@@ -26,13 +27,12 @@ describe('divideLocations intersection link debug', () => {
     for (let i = 0; i < divided.length; i++) {
       const seg = divided[i]._segment;
       const pt = seg?._point?.toPoint();
-      const hasInter = !!(seg as any)._intersection;
-      const interObj = hasInter ? (seg as any)._intersection : undefined;
+      const hasInter = !!(seg && getMeta(seg)?._intersection);
+      const interObj = hasInter ? getMeta(seg)?._intersection : undefined;
       const interPt = interObj && interObj._point instanceof Object && 'x' in interObj._point && 'y' in interObj._point
         ? interObj._point
         : null;
       const isSame = interObj === divided[i];
-      console.log(`🔥 divided[${i}]: seg=(${pt?.x},${pt?.y}) _intersection=${hasInter} interPt=${interPt ? `(${interPt.x},${interPt.y})` : 'null'} isSame=${isSame}`);
     }
 
     expect(divided.length).toBeGreaterThan(0);

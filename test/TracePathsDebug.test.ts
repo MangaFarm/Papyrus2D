@@ -36,9 +36,11 @@ describe('tracePaths/isValid winding=0 debug', () => {
       if (!meta) continue;
       // @ts-ignore 型無視してquality/onPathもセット
       if (i < 4) {
-        meta.winding = { winding: 1, windingL: 0, windingR: 1, quality: 1, onPath: false };
+        // @ts-ignore
+        meta._winding = { winding: 1, windingL: 0, windingR: 1, quality: 1, onPath: false };
       } else {
-        meta.winding = { winding: 0, windingL: 0, windingR: 0, quality: 1, onPath: false };
+        // @ts-ignore
+        meta._winding = { winding: 0, windingL: 0, windingR: 0, quality: 1, onPath: false };
       }
     }
 
@@ -46,14 +48,8 @@ describe('tracePaths/isValid winding=0 debug', () => {
     const paths = tracePaths(segments, operator);
 
     // デバッグ出力
-    console.log('🔥 test/TracePathsDebug: output paths.length =', paths.length);
     for (let i = 0; i < paths.length; i++) {
       const segs = paths[i].getSegments();
-      console.log('🔥 test/TracePathsDebug: paths[' + i + '].segments.length =', segs.length);
-      console.log('🔥 test/TracePathsDebug: paths[' + i + '].coords =', segs.map(s => {
-        const pt = s._point.toPoint();
-        return `${pt.x},${pt.y}`;
-      }).join(' -> '));
     }
 
     // 期待されるのは、rectAのパスのみが出力されること

@@ -33,7 +33,6 @@ describe('divideLocations unique segment debug', () => {
       const idx = seg?._index;
       // パス上に存在するか
       const inPath = seg?._path?._segments?.includes(seg);
-      console.log(`🔥 uniqueSeg[${i}]: seg=(${pt?.x},${pt?.y}) pathId=${pathId} idx=${idx} inPath=${inPath}`);
     }
 
     expect(uniqueSegments.length).toBeGreaterThan(0);

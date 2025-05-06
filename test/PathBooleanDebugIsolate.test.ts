@@ -31,9 +31,6 @@ describe('PathBooleanDebugIsolate', () => {
 
     // 追加で明示的に出力
     if (result && typeof (result as any).getPathData === 'function') {
-      console.log('🔥 result.getPathData():', (result as any).getPathData());
-    } else {
-      console.log('🔥 result:', result);
     }
 
     // 期待値

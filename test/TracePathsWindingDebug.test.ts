@@ -44,20 +44,14 @@ describe("tracePaths winding未セット時の挙動", () => {
     const paths = tracePaths(segments, operator);
 
     // デバッグ出力
-    console.log("🔥 test: segments.length =", segments.length);
     segments.forEach((seg, i) => {
       const meta = getMeta(seg);
-      console.log(
-        `🔥 test: seg[${i}] visited=${meta?.visited} winding=${meta?.winding ? JSON.stringify(meta.winding) : "undefined"}`
-      );
     });
-    console.log("🔥 test: tracePaths returned", paths.length, "paths");
     paths.forEach((p, i) => {
       const coords = p.getSegments().map(s => {
         const pt = s._point.toPoint();
         return `${pt.x},${pt.y}`;
       }).join(" -> ");
-      console.log(`🔥 test: paths[${i}].coords = ${coords}`);
     });
 
     // 期待: winding未セットのセグメントはisValidでfalseになり、パス数が増えないこと

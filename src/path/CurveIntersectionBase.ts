@@ -59,7 +59,6 @@ export function addLocation(
 
   // 範囲チェック - paper.jsと同様の条件判定
   // t1, t2がnullや0〜1範囲外の場合はスキップ
-  console.log(`🔥 addLocation: t1=${t1} t2=${t2}`);
   if (
     t1 !== null && t2 !== null &&
     t1 >= 0 && t1 <= 1 &&
@@ -113,8 +112,6 @@ export function addLocation(
         (loc2._intersection as any).segment = loc1._segment;
       }
       // デバッグ: 生成したCurveLocationの内容
-      console.log(`🔥 addLocation: loc1 _point=(${loc1._point.x},${loc1._point.y}) _curve=${!!loc1._curve} _time=${loc1._time}`);
-      console.log(`🔥 addLocation: loc2 _point=(${loc2._point.x},${loc2._point.y}) _curve=${!!loc2._curve} _time=${loc2._time}`);
 
       // 相互参照を設定
       loc1._intersection = loc2;

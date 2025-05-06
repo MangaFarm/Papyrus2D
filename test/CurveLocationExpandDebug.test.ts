@@ -4,6 +4,7 @@ import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
 import { getIntersections } from '../src/path/PathBooleanIntersections';
 import { CurveLocation } from '../src/path/CurveLocation';
+import { getMeta } from '../src/path/SegmentMeta';
 
 describe('CurveLocation.expand debug', () => {
   it('should show CurveLocation internal structure for rectangle-rectangle', () => {
@@ -30,23 +31,18 @@ describe('CurveLocation.expand debug', () => {
       const pt = loc._point;
       const seg = loc._segment;
       const segpt = seg?._point?.toPoint();
-      const inter = seg?._intersection;
+      const inter = seg ? getMeta(seg)?._intersection : undefined;
       const next = inter?._next;
       const prev = inter?._previous;
-      console.log(`🔥 expand[${i}]: loc._point=(${pt.x},${pt.y}) seg=(${segpt?.x},${segpt?.y}) seg._index=${seg?._index}`);
       if (inter) {
         const ipt = inter._point;
-        console.log(`  🔥 _intersection: (${ipt.x},${ipt.y})`);
         if (next) {
           const npt = next._point;
-          console.log(`    🔥 _next: (${npt.x},${npt.y})`);
         }
         if (prev) {
           const ppt = prev._point;
-          console.log(`    🔥 _previous: (${ppt.x},${ppt.y})`);
         }
       } else {
-        console.log('  🔥 _intersection: null');
       }
     }
 

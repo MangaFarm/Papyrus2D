@@ -31,8 +31,7 @@ describe('divideLocations segment debug', () => {
       const pathId = seg?._path?._id;
       const idx = seg?._index;
       const meta = seg ? getMeta(seg) : null;
-      const winding = meta && meta.winding ? meta.winding.winding : undefined;
-      console.log(`🔥 divided[${i}]: seg=(${pt?.x},${pt?.y}) pathId=${pathId} idx=${idx} winding=${winding}`);
+      const winding = meta && meta._winding ? meta._winding.winding : undefined;
     }
 
     expect(divided.length).toBeGreaterThan(0);

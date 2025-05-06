@@ -4,6 +4,7 @@ import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
 import { getIntersections, divideLocations } from '../src/path/PathBooleanIntersections';
 
+import { getMeta } from '../src/path/SegmentMeta';
 describe('segments intersection debug', () => {
   it('should show which segments have _intersection', () => {
     const rect1 = new Path([
@@ -30,11 +31,9 @@ describe('segments intersection debug', () => {
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
       const pt = seg._point?.toPoint();
-      const hasInter = !!seg._intersection;
+      const hasInter = !!(seg && getMeta(seg)?._intersection);
       if (hasInter) count++;
-      console.log(`🔥 seg[${i}]: (${pt.x},${pt.y}) _intersection=${hasInter}`);
     }
-    console.log(`🔥 segments with _intersection: ${count} / ${segments.length}`);
 
     expect(segments.length).toBeGreaterThan(0);
   });

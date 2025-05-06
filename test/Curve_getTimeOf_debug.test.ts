@@ -48,9 +48,6 @@ describe('Curve_getTimeOf_debug', () => {
             // 🔥デバッグ出力
             // t, t2, point1, point2, 誤差
             // eslint-disable-next-line no-console
-            console.log(
-              `🔥 pos=${pos} curveIdx=${curves.indexOf(curve)} t=${t} t2=${t2} point1=(${point1.x},${point1.y}) point2=${point2 ? `(${point2.x},${point2.y})` : 'null'} dist=${dist}`
-            );
             break;
           }
         }

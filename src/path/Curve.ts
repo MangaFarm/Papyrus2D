@@ -168,7 +168,6 @@ export class Curve {
     if (t == null || isNaN(t) || t < 0 || t > 1) return new Point(0, 0);
     const values = this.getValues();
     const pt = Curve.getPoint(values, t);
-    console.log(`🔥 getPointAtTime: t=${t} values=${JSON.stringify(values)} pt=${pt ? `(${pt.x},${pt.y})` : 'null'}`);
     return pt;
   }
 

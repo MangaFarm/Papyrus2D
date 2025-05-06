@@ -4,6 +4,7 @@ import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
 import { divideLocations, getIntersections } from '../src/path/PathBooleanIntersections';
 
+import { getMeta } from '../src/path/SegmentMeta';
 describe('divideLocations link structure', () => {
   it('should set up correct intersection links for rectangle-rectangle', () => {
     // Papyrus2D / paper.js "Boolean operations without crossings"と同じ設定
@@ -29,28 +30,24 @@ describe('divideLocations link structure', () => {
     for (let i = 0; i < divided.length; i++) {
       const loc = divided[i];
       const seg = loc._segment;
+      if (!seg) continue;
       const pt = seg._point.toPoint();
-      const inter = seg._intersection;
+      const inter = getMeta(seg)?._intersection;
       const next = inter?._next;
       const prev = inter?._previous;
-      console.log(`🔥 divided[${i}]: seg=(${pt.x},${pt.y}) seg._index=${seg._index}`);
       if (inter) {
         const ipt = inter._point;
-        console.log(`  🔥 _intersection: (${ipt.x},${ipt.y})`);
         if (next) {
           const npt = next._point;
-          console.log(`    🔥 _next: (${npt.x},${npt.y})`);
         }
         if (prev) {
           const ppt = prev._point;
-          console.log(`    🔥 _previous: (${ppt.x},${ppt.y})`);
         }
       } else {
-        console.log('  🔥 _intersection: null');
       }
     }
 
     // _intersectionがnullでないものが存在することを確認
-    expect(divided.some(loc => loc._segment._intersection)).toBe(true);
+    expect(divided.some(loc => loc._segment && getMeta(loc._segment)?._intersection)).toBe(true);
   });
 });
