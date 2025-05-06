@@ -7,12 +7,13 @@
 
 import { Point } from '../basic/Point';
 import { Numerical } from '../util/Numerical';
+import { Segment } from './Segment';
 
 export class SegmentPoint {
   // 内部プロパティ
   _x: number;
   _y: number;
-  _owner: any; // Segment型を参照するとcircular dependencyになるため、any型を使用
+  _owner: Segment | undefined;
 
   /**
    * SegmentPointのコンストラクタ
@@ -20,56 +21,20 @@ export class SegmentPoint {
    * @param owner この点を所有するSegment
    * @param key 所有者内でのプロパティ名（'point', 'handleIn', 'handleOut'）
    */
-  constructor(point?: Point | number[] | any, owner?: any, key?: string) {
-    let x: number, y: number;
-
-    if (!point) {
-      x = y = 0;
-    } else if (Array.isArray(point)) {
-      x = point[0] || 0;
-      y = point[1] || 0;
-    } else if (typeof point === 'number') {
-      x = point;
-      y = arguments[1] as number;
-      owner = arguments[2];
-      key = arguments[3] as string;
-    } else {
-      // Point-likeオブジェクトまたはSizeオブジェクト
-      const pt = point;
-      if (pt.x !== undefined) {
-        // Pointオブジェクト
-        x = pt.x;
-        y = pt.y;
-      } else if (pt.width !== undefined) {
-        // Sizeオブジェクト
-        x = pt.width;
-        y = pt.height;
-      } else {
-        // その他のケースは通常のPoint作成（これは必要なくなるかもしれないが念のため）
-        const p = new Point(arguments[0] as number, arguments[1] as number);
-        x = p.x;
-        y = p.y;
-      }
-    }
-
-    if (typeof x !== 'number') {
-      console.trace();
-      console.log(typeof x);
-      throw new Error("bad argument");
-    }
-    if (typeof y !== 'number') {
-      console.trace();
-      console.log(typeof x);
-      throw new Error("bad argument");
-    }
+  constructor(
+    point?: [number, number],
+    owner?: Segment,
+    key?: string
+  ) {
+    const x = point ? point[0] ?? 0 : 0;
+    const y = point ? point[1] ?? 0 : 0;
 
     this._x = x;
     this._y = y;
     this._owner = owner;
-    
-    // ownerに自身を設定
+
     if (owner && key) {
-      owner[key] = this;
+      (owner as any)[key] = this;
     }
   }
 
@@ -166,7 +131,7 @@ export class SegmentPoint {
    * 複製
    */
   clone(): SegmentPoint {
-    return new SegmentPoint(new Point(this._x, this._y));
+    return new SegmentPoint([this._x, this._y]);
   }
 
   /**
