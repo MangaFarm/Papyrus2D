@@ -119,7 +119,7 @@ export function divideLocations(
         var inter = segment._intersection,
             dest = loc._intersection;
         if (inter) {
-            linkIntersections(inter, dest);
+            linkIntersections(inter, dest!);
             var other = inter;
             while (other) {
                 linkIntersections(other._intersection, inter);
@@ -148,28 +148,21 @@ export function dividePathAtIntersections(path: Path, locations: CurveLocation[]
  * 交点情報をリンクリストとして連結する
  * paper.jsのlinkIntersections関数と完全に同じ実装
  */
-export function linkIntersections(from: Intersection, to: Intersection): void {
-    // paper.js PathItem.Boolean.js: linkIntersections
-    // Only create the link if it's not already in the existing chain, to
-    // avoid endless recursions. First walk to the beginning of the chain,
-    // and abort if we find `to`.
-    let prev: any = from;
+export function linkIntersections(from: CurveLocation, to: CurveLocation): void {
+    // --- paper.js PathItem.Boolean.js linkIntersections そのまま移植 ---
+    var prev: CurveLocation | null = from;
     while (prev) {
         if (prev === to)
             return;
         prev = prev._previous;
     }
-    // Now walk to the end of the existing chain to find an empty spot, but
-    // stop if we find `to`, to avoid adding it again.
-    while ((from as any)._next && (from as any)._next !== to)
-        from = (from as any)._next;
-    // If we're reached the end of the list, we can add it.
-    if (!(from as any)._next) {
-        // Go back to beginning of the other chain, and link the two up.
-        while ((to as any)._previous)
-            to = (to as any)._previous;
-        (from as any)._next = to;
-        (to as any)._previous = from;
+    while (from._next && from._next !== to)
+        from = from._next;
+    if (!from._next) {
+        while (to._previous)
+            to = to._previous;
+        from._next = to;
+        to._previous = from;
     }
 }
 
