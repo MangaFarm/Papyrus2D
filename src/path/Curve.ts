@@ -16,17 +16,18 @@ import { CurveSubdivision } from './CurveSubdivision';
 import { CurveLocationUtils } from './CurveLocationUtils';
 import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
+import { Path } from './Path';
 
 export class Curve {
   _segment1: Segment;
   _segment2: Segment;
   
   // Path.tsとの互換性のためのプロパティ
-  _path: any;
+  _path: Path | null;
   
   // キャッシュ用プロパティ
   _length: number | undefined;
-  _bounds: any;
+  _bounds: { getBounds?: Rectangle } | undefined;
   
   // paper.jsとの互換性のためのプロパティ
   get point1(): Point { return this._segment1.getPoint(); }
@@ -44,7 +45,7 @@ export class Curve {
    * @param segment1 最初のセグメント
    * @param segment2 2番目のセグメント
    */
-  constructor(path: any, segment1: Segment | null, segment2: Segment | null) {
+  constructor(path: Path | null, segment1: Segment | null, segment2: Segment | null) {
     this._path = path;
     this._segment1 = segment1 || new Segment(new Point(0, 0));
     this._segment2 = segment2 || new Segment(new Point(0, 0));
@@ -53,13 +54,13 @@ export class Curve {
   getPrevious(): Curve | null {
     const curves = this._path && this._path._curves;
     return curves && (curves[this._segment1._index - 1]
-            || this._path._closed && curves[curves.length - 1]) || null;
+            || this._path!._closed && curves[curves.length - 1]) || null;
   }
 
   getNext(): Curve | null {
     const curves = this._path && this._path._curves;
     return curves && (curves[this._segment1._index + 1]
-            || this._path._closed && curves[0]) || null;
+            || this._path!._closed && curves[0]) || null;
   }
 
   /**
@@ -236,7 +237,8 @@ export class Curve {
    */
   splitAt(location: number | CurveLocation): Curve | null {
     const path = this._path;
-    return path ? path.splitAt(location) : null;
+    // paper.jsのCurve#splitAtはCurveを返す。Path#splitAtではない。
+    return path ? this.splitAtTime((location as CurveLocation).getTime()!) : null;
   }
 
   /**
@@ -303,7 +305,7 @@ export class Curve {
           );
           assert(segment, `[Papyrus2D AssertionError] failed to create new Segment at t=${t}`);
           // 新しいセグメントの_pathを設定（paper.jsと同じ）
-          segment._path = this._path;
+          segment._path = this._path!;
           
           // パスが設定されている場合
           if (this._path) {
@@ -477,7 +479,7 @@ export class Curve {
    * 静的なgetValues関数 - 制御点を配列として返す
    */
   static getValues(
-    segment1: any, segment2: any,
+    segment1: Segment, segment2: Segment,
     matrix?: Matrix | null, straight?: boolean | null
   ): number[] {
     return CurveSubdivision.getValues(segment1, segment2, matrix, straight);
