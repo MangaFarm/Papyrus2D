@@ -1319,4 +1319,32 @@ export class Path extends PathItemBase {
   }
 
   // setClockwiseメソッドは基底クラスから継承
+
+  /**
+   * SVGパスデータ（paper.jsのgetPathData相当）を返す
+   * 直線のみ対応（ハンドルがあればL→Cに拡張すること）
+   */
+  getPathData(): string {
+    const segments = this.getSegments();
+    if (!segments.length) return '';
+    let d = '';
+    for (let i = 0; i < segments.length; i++) {
+      const seg = segments[i];
+      const pt = seg.getPoint();
+      // ハンドルが全て0なら直線
+      const hasHandles =
+        (seg.handleIn && (!seg.handleIn.isZero && !seg.handleIn.isZero())) ||
+        (seg.handleOut && (!seg.handleOut.isZero && !seg.handleOut.isZero()));
+      if (i === 0) {
+        d += `M${pt.x},${pt.y}`;
+      } else if (!hasHandles) {
+        d += `L${pt.x},${pt.y}`;
+      } else {
+        // ハンドル対応は未実装
+        d += `L${pt.x},${pt.y}`;
+      }
+    }
+    if (this.closed) d += 'z';
+    return d;
+  }
 }

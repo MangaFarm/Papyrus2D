@@ -821,4 +821,15 @@ export class CompoundPath extends PathItemBase {
   resolveCrossings(): PathItem {
     return resolveCrossings(this);
   }
+
+  /**
+   * SVGパスデータ（paper.jsのgetPathData相当）を返す
+   * 各子パスのgetPathData()を連結
+   */
+  getPathData(): string {
+    return this._children
+      .map(child => (typeof (child as any).getPathData === 'function' ? (child as any).getPathData() : ''))
+      .filter(str => str && str.length > 0)
+      .join('');
+  }
 }

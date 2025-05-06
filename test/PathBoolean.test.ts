@@ -151,71 +151,15 @@ if (result.getPaths) {
   
   // パスを文字列表現に変換するヘルパー関数
   // paper.jsのgetPathDataメソッドを参考に実装
+  // SVGパスデータ（paper.jsのgetPathData相当）を返す
   function pathToString(path: PathItem): string {
-    // CompoundPathの場合は各子パスを個別に処理
-    if (path instanceof CompoundPath) {
-      const compoundPath = path as CompoundPath;
-      if (!compoundPath._children || compoundPath._children.length === 0) {
-        return '';
-      }
-      
-      // 各子パスのパスデータを連結
-      const parts: string[] = [];
-      for (const childPath of compoundPath._children) {
-        // 子パスが空の場合はスキップ
-        if (!childPath.getSegments().length) continue;
-        
-        // 各セグメントを処理
-        const segments = childPath.getSegments();
-        let part = '';
-        
-        for (let i = 0; i < segments.length; i++) {
-          const segment = segments[i];
-          const point = segment.getPoint();
-          
-          if (i === 0) {
-            part += `M${point.x.toFixed(0)},${point.y.toFixed(0)}`;
-          } else {
-            part += `L${point.x.toFixed(0)},${point.y.toFixed(0)}`;
-          }
-        }
-        
-        // 閉じたパスの場合は最後にZを追加
-        if (childPath.isClosed()) {
-          part += 'Z';
-        }
-        
-        parts.push(part);
-      }
-      
-      return parts.join('');
+    // getPathData()があればそれを使う（なければ空文字）
+    // Papyrus2DのPath/CompoundPathにgetPathData()実装がなければ、ここで暫定的に対応
+    if (typeof (path as any).getPathData === 'function') {
+      return (path as any).getPathData();
     }
-    
-    // 通常のPathの場合
-    if (!path || path.getSegments().length === 0) {
-      return '';
-    }
-    
-    const segments = path.getSegments();
-    const parts: string[] = [];
-    
-    for (let i = 0; i < segments.length; i++) {
-      const segment = segments[i];
-      const point = segment.getPoint();
-      
-      if (i === 0) {
-        parts.push(`M${point.x.toFixed(0)},${point.y.toFixed(0)}`);
-      } else {
-        parts.push(`L${point.x.toFixed(0)},${point.y.toFixed(0)}`);
-      }
-    }
-    
-    // 閉じたパスの場合は最後にZを追加
-    if (path.closed) {
-      parts.push('Z');
-    }
-    
-    return parts.join('');
+    // それ以外は空文字
+    return '';
   }
   
   describe('Boolean operations with rectangles', () => {
@@ -236,12 +180,13 @@ if (result.getPaths) {
     ], true);
 
     // 期待される結果（paper.jsのパス表現をPapyrus2DのpathToString形式に変換）
+    // paper.jsの "Boolean operations without crossings" のSVGパスデータに合わせる
     const results = [
-      'M0,0L200,0L200,200L0,200Z', // unite
-      'M0,0L200,0L200,200L0,200ZM150,150L150,50L200,50L200,150Z', // subtract (rect1 - rect2)
+      'M0,200v-200h200v200z', // unite
+      'M0,200v-200h200v200zM150,150v-100h-100v100z', // subtract (rect1 - rect2)
       '', // subtract (rect2 - rect1)
-      'M150,50L200,50L200,150L150,150Z', // intersect
-      'M0,0L200,0L200,200L0,200ZM50,150L100,150L100,100L50,100Z' // exclude（※この値はpaper.jsのexcludeのパス表現に合わせて要調整）
+      'M50,150v-100h100v100z', // intersect
+      'M0,200v-200h200v200zM150,150v-100h-100v100z' // exclude
     ];
 
     // デバッグ: セグメントとカーブの内容を出力
