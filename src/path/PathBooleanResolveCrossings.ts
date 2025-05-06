@@ -23,8 +23,8 @@ import { CompoundPath } from './CompoundPath';
 export function resolveCrossings(path: PathItem): PathItem {
   // paper.jsのresolveCrossingsアルゴリズムに完全一致させる
 
-  const children = (path as any)._children;
-  let paths = children || [path];
+  const children = (path as PathItem & { _children?: PathItem[] })._children;
+  let paths: PathItem[] = children || [path];
 
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
     if (!seg) return false;
@@ -37,7 +37,7 @@ export function resolveCrossings(path: PathItem): PathItem {
       typeof inter._overlap === 'object' &&
       inter._overlap !== null &&
       '_segment' in inter._overlap &&
-      (inter._overlap as any)._segment === seg
+      (inter._overlap as CurveLocation)._segment === seg
     ) {
       return false;
     }
@@ -47,7 +47,12 @@ export function resolveCrossings(path: PathItem): PathItem {
   // 交差点・重なり点の検出とフラグ
   let hasOverlaps = false;
   let hasCrossings = false;
-  let intersections = (path as any).getIntersections(null, function(inter: any) {
+  let intersections = (path as PathItem & {
+    getIntersections: (
+      arg: null,
+      callback: (inter: CurveLocation) => boolean
+    ) => CurveLocation[];
+  }).getIntersections(null, function(inter: CurveLocation) {
     const isOverlap = inter.hasOverlap();
     const isCrossing = inter.isCrossing();
     return isOverlap && (hasOverlaps = true) ||
@@ -67,20 +72,20 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   // 重なり処理
   if (hasOverlaps) {
-    const overlaps = divideLocations(intersections, function(inter: any) {
+    const overlaps = divideLocations(intersections, function(inter: CurveLocation) {
       return inter.hasOverlap();
     }, clearCurves);
 
     for (let i = overlaps.length - 1; i >= 0; i--) {
       const overlap = overlaps[i];
-      const path = overlap._path;
-      const seg = overlap._segment;
-      const prev = seg.getPrevious();
-      const next = seg.getNext();
+      const path = overlap._path!;
+      const seg = overlap._segment!;
+      const prev = seg.getPrevious()!;
+      const next = seg.getNext()!;
       if (hasOverlap(prev, path) && hasOverlap(next, path)) {
         seg.remove();
-        prev._handleOut.set(0, 0);
-        next._handleIn.set(0, 0);
+        prev._handleOut.set(new (prev._handleOut.constructor as any)(0, 0));
+        next._handleIn.set(new (next._handleIn.constructor as any)(0, 0));
         const prevCurve = prev.getCurve();
         if (prev !== seg) {
           if (!prevCurve) {
@@ -89,7 +94,7 @@ export function resolveCrossings(path: PathItem): PathItem {
           } else if (typeof prevCurve.hasLength !== 'function') {
             console.log('[resolveCrossings] prev.getCurve() is not Curve', prevCurve, typeof prevCurve, prevCurve && Object.keys(prevCurve));
           } else if (!prevCurve.hasLength()) {
-            next._handleIn.set(prev._handleIn);
+            next._handleIn.set(new (next._handleIn.constructor as any)(prev._handleIn));
             prev.remove();
           }
         }
@@ -99,12 +104,13 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   // 交差処理
   if (hasCrossings) {
-    const divideResult = divideLocations(intersections, hasOverlaps ? function(inter: any) {
+    const divideResult = divideLocations(intersections, hasOverlaps ? function(inter: CurveLocation) {
       const curve1 = inter.getCurve && inter.getCurve();
       const seg1 = inter.getSegment && inter.getSegment();
-      const other = inter._intersection;
-      const curve2 = other && other.getCurve && other.getCurve();
-      const seg2 = other && other.getSegment && other.getSegment();
+      const other = inter._intersection as IntersectionInfo | null;
+      // IntersectionInfo型にはgetCurve/getSegmentはないので、paper.js同様に_curve/_segmentを参照
+      const curve2 = other && (other as any)._curve;
+      const seg2 = other && (other as any)._segment;
       if (curve1 && curve2 && curve1._path && curve2._path) {
         return true;
       }
@@ -122,7 +128,7 @@ export function resolveCrossings(path: PathItem): PathItem {
 
     // デバッグ: divideLocations後のパス情報
     for (const p of paths) {
-      console.log('[resolveCrossings] after divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
+      console.log('[resolveCrossings] after divideLocations:', (p as any)._id, 'segments:', (p as any)._segments?.length, 'curves:', (p as any)._curves?.length);
     }
 
     if (clearCurves) {
@@ -132,7 +138,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     // tracePaths呼び出し - paper.jsと同様の方法で
     let allSegments: Segment[] = [];
     for (let i = 0, l = paths.length; i < l; i++) {
-      allSegments = allSegments.concat(paths[i]._segments);
+      allSegments = allSegments.concat((paths[i] as any)._segments);
     }
     paths = tracePaths(allSegments, {});
     if (paths.length > 0) {
@@ -144,17 +150,17 @@ export function resolveCrossings(path: PathItem): PathItem {
   const length = paths.length;
   if (children) {
     if (paths !== children) {
-      (path as any).setChildren(paths);
+      (path as PathItem & { setChildren: (children: PathItem[]) => void }).setChildren(paths);
     }
     result = path;
   } else if (length === 1 && !children) {
     if (paths[0] !== path) {
-      (path as any).setSegments(paths[0].removeSegments());
+      (path as PathItem & { setSegments: (segments: Segment[]) => void }).setSegments((paths[0] as any).removeSegments());
     }
     result = path;
   } else {
     const compoundPath = new CompoundPath();
-    compoundPath.addChildren(paths);
+    compoundPath.addChildren(paths as any as Path[]);
     const reduced = compoundPath.reduce();
     reduced.copyAttributes(path);
     result = reduced;
@@ -186,7 +192,7 @@ function divideLocations(
   
   // カーブIDを取得する関数
   function getId(curve: Curve): string {
-    return curve._path._id + '.' + curve._segment1._index;
+    return curve._path!._id + '.' + curve._segment1._index;
   }
   
   // clearLaterが指定されている場合、ルックアップテーブルを作成
@@ -269,6 +275,7 @@ function divideLocations(
     // Papyrus2DではgetMetaを使用
     const meta = getMeta(segment!);
     const inter = meta._intersection;
+    // IntersectionInfo型への変換はas unknown as IntersectionInfoでTypeScriptエラーを抑制
     const dest = loc._intersection as unknown as IntersectionInfo;
     
     if (inter) {
