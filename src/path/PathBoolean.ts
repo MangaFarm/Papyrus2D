@@ -5,11 +5,10 @@
 
 import { Path } from './Path';
 import { Segment } from './Segment';
-import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { CompoundPath } from './CompoundPath';
 import { PathItem } from './PathItem';
-import { CurveLocation } from './CurveLocation';
+import { PathItemBase } from './PathItemBase';
 import { reorientPaths } from './PathBooleanReorient';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { preparePath } from './PathBooleanPreparation';
@@ -74,14 +73,6 @@ export class PathBoolean {
     path2?: PathItem,
     options?: { insert?: boolean }
   ): PathItem {
-    // デバッグ: pathsの内容を出力
-    console.log("🔥 createResult: paths.length =", paths.length);
-    for (let i = 0; i < paths.length; i++) {
-      const p = paths[i];
-      console.log(
-        `🔥 createResult: paths[${i}] isEmpty=${p.isEmpty()} segments.length=${p.getSegments().length}`
-      );
-    }
     // パスの配列が空の場合のフォールバック処理
     if (paths.length === 0) {
       
@@ -89,13 +80,13 @@ export class PathBoolean {
       const emptyPath = new Path();
       
       // path1の属性をコピー
-      if (path1 && emptyPath.copyAttributes) {
-        emptyPath.copyAttributes(path1, true);
+      if (path1) {
+        emptyPath.copyAttributes(path1 as PathItemBase, true);
       }
       
       // 挿入オプションが明示的にfalseでない場合、結果を挿入
       if (!(options && options.insert === false)) {
-        if (path1 && emptyPath.insertAbove) {
+        if (path1) {
           emptyPath.insertAbove(path1);
         }
       }
@@ -118,21 +109,18 @@ export class PathBoolean {
       // path1とpath2が存在し、兄弟関係にある場合、
       // path1のインデックスがpath2より小さければpath2の上に、
       // そうでなければpath1の上に挿入
-      if (path2 && path1 && path1.isSibling && path2.isSibling &&
-          path1.isSibling(path2) &&
-          path1.getIndex && path2.getIndex &&
-          path1.getIndex() < path2.getIndex()) {
-        if (simplified.insertAbove) {
-          simplified.insertAbove(path2);
-        }
-      } else if (path1 && simplified.insertAbove) {
-        simplified.insertAbove(path1);
+      if (path2 && path1 &&
+          path1.isSibling!(path2) &&
+          path1.getIndex!() < path2.getIndex!()) {
+        simplified.insertAbove!(path2);
+      } else if (path1) {
+        simplified.insertAbove!(path1);
       }
     }
     
     // path1の属性をコピー
-    if (path1 && simplified.copyAttributes) {
-      simplified.copyAttributes(path1, true);
+    if (path1) {
+      simplified.copyAttributes(path1 as PathItemBase, true);
     }
     
     return simplified;
@@ -175,14 +163,13 @@ export class PathBoolean {
 
     // 減算と排他的論理和の場合、パスの向きを調整
     // paper.jsと同じreverse条件に修正
-    if (_path2 && Boolean((operator.subtract || operator.exclude) as any) !== Boolean(_path2.isClockwise() !== _path1.isClockwise())) {
+    if (_path2 && Boolean(operator.subtract || operator.exclude) !== Boolean(_path2.isClockwise() !== _path1.isClockwise())) {
       _path2.reverse();
     }
 
     // 交点計算
     // 交点を取得
     const intersections = _path2 ? getIntersections(_path1, _path2) : [];
-    console.log("🔥 runBoolean: intersections.length =", intersections.length);
 
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定
@@ -195,14 +182,13 @@ export class PathBoolean {
     // 交点でパスを分割
     const dividedLocs1 = divideLocations(intersections);
     const dividedLocs2 = _path2 ? divideLocations(intersections) : null;
-    console.log("🔥 runBoolean: dividedLocs1.length =", dividedLocs1.length, "dividedLocs2.length =", dividedLocs2 ? dividedLocs2.length : "null");
     
     // 交点のwinding number計算
     if (dividedLocs2) {
       // 曲線の衝突マップを作成
       const segments: Segment[] = [];
-      segments.push(...dividedLocs1.map(loc => loc._segment));
-      segments.push(...dividedLocs2.map(loc => loc._segment));
+      segments.push(...dividedLocs1.map(loc => loc._segment!));
+      segments.push(...dividedLocs2.map(loc => loc._segment!));
       
       const curves: Curve[] = [];
       for (const segment of segments) {
@@ -232,7 +218,7 @@ export class PathBoolean {
       const curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>> = {};
       for (let i = 0; i < curves.length; i++) {
         const curve = curves[i];
-        const id = curve._path._id;
+        const id = curve._path!._id;
         const map = curveCollisionsMap[id] = curveCollisionsMap[id] || {};
         const collision = curveCollisions[i];
         map[curve.getIndex()] = {
@@ -247,15 +233,13 @@ export class PathBoolean {
       const dividedSegments1 = Array.from(new Set(dividedLocs1.map(loc => loc._segment)))
         .filter(seg => seg && seg._path && seg._path._segments && seg._path._segments.includes(seg));
       for (const seg of dividedSegments1) {
-        console.log("🔥 propagateWinding: seg", seg);
-        propagateWinding(seg, _path1, _path2, curveCollisionsMap, operator);
-        const meta = getMeta(seg);
+        propagateWinding(seg!, _path1, _path2, curveCollisionsMap, operator);
+        const meta = getMeta(seg!);
         const winding = meta._winding ? meta._winding.winding : undefined;
-        console.log(`🔥 after propagate: seg=(${seg._point?.toPoint().x},${seg._point?.toPoint().y}) winding=${winding}`);
       }
       if (dividedLocs2) {
         for (const loc of dividedLocs2) {
-          propagateWinding(loc._segment, _path1, _path2, curveCollisionsMap, operator);
+          propagateWinding(loc._segment!, _path1, _path2, curveCollisionsMap, operator);
         }
       }
       // segments全体にもwinding未セットなら伝播（冗長だが安全）
@@ -270,18 +254,16 @@ export class PathBoolean {
     // デバッグ: dividedLocs1/2のwindingを出力
     for (let i = 0; i < dividedLocs1.length; i++) {
       const seg = dividedLocs1[i]._segment;
-      const pt = seg._point.toPoint();
-      const meta = getMeta(seg);
+      const pt = seg!._point!.toPoint();
+      const meta = getMeta(seg!);
       const winding = meta._winding ? meta._winding.winding : undefined;
-      console.log(`🔥 after propagate: dividedLocs1[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
     }
     if (dividedLocs2) {
       for (let i = 0; i < dividedLocs2.length; i++) {
         const seg = dividedLocs2[i]._segment;
-        const pt = seg._point.toPoint();
-        const meta = getMeta(seg);
+        const pt = seg!._point!.toPoint();
+        const meta = getMeta(seg!);
         const winding = meta._winding ? meta._winding.winding : undefined;
-        console.log(`🔥 after propagate: dividedLocs2[${i}] seg=(${pt.x},${pt.y}) winding=${winding}`);
       }
     }
 
@@ -295,11 +277,11 @@ export class PathBoolean {
     for (const p of paths1) segments.push(...p.getSegments());
     for (const p of paths2) segments.push(...p.getSegments());
     // 交点を持つセグメントだけに限定
-    // 型エラー回避: Segment型に明示的にanyでアクセス
-    const intersectionSegments = segments.filter(seg => !!(seg as any)._intersection);
+    const intersectionSegments = segments.filter(seg => !!getMeta(seg)._intersection);
     function collectSegments(path: Path) {
-      if ((path as any)._children) {
-        for (const child of (path as any)._children) {
+      // CompoundPath型ならgetChildren()で再帰
+      if (path instanceof CompoundPath) {
+        for (const child of path._children) {
           collectSegments(child);
         }
       } else {
@@ -312,31 +294,21 @@ export class PathBoolean {
     }
     // paper.jsと同じく、分割後パス（paths1, paths2）の全セグメントをsegments配列にする
     // 重複したsegments宣言を削除
-    console.log("🔥 runBoolean: segments.length =", intersectionSegments.length);
 
     // デバッグ: segmentsのwinding分布を出力
     for (let i = 0; i < segments.length; i++) {
       const meta = getMeta(segments[i]);
       const winding = meta._winding ? meta._winding.winding : undefined;
       const pt = segments[i]._point?.toPoint();
-      console.log(`🔥 runBoolean: segments[${i}] winding=${winding} pt=${pt ? `(${pt.x},${pt.y})` : 'undefined'}`);
     }
     // intersectionSegmentsのwinding=1座標列を出力
     const winding1Segs = intersectionSegments.filter(seg => {
       const meta = getMeta(seg);
       return meta._winding && meta._winding.winding === 1;
     });
-    console.log("🔥 runBoolean: winding=1 segments coords =", winding1Segs.map(seg => {
-      const pt = seg._point?.toPoint();
-      return pt ? `(${pt.x},${pt.y})` : 'undefined';
-    }).join(" -> "));
 
     // マーチングアルゴリズムで結果パスを構築
     const paths = tracePaths(intersectionSegments, operator);
-    console.log("🔥 runBoolean: tracePaths returned", paths.length, "paths");
-    for (let i = 0; i < paths.length; i++) {
-      console.log("🔥 runBoolean: paths[" + i + "].segments.length =", paths[i].getSegments().length);
-    }
 
     // 結果パスを結合
     return this.createResult(paths, true, path1, path2 as PathItem, options);

@@ -145,7 +145,7 @@ export abstract class PathItemBase implements PathItem {
    * 指定されたパスの属性をコピーする
    * paper.jsのItem.copyAttributes()に準拠
    */
-  copyAttributes(path: PathItemBase, excludeMatrix?: boolean): this {
+  copyAttributes(path: PathItem, excludeMatrix?: boolean): this {
     // 行列のコピー
     if (!excludeMatrix && path._matrix) {
       this._matrix = path._matrix.clone();
