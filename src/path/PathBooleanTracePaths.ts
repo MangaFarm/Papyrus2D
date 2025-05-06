@@ -110,6 +110,14 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
                 (isValid(next!) || (nextInter && isValid(nextInter._segment!)))))
           ) {
             crossings.push(other);
+// 🔥 デバッグ: collect時のother/next/nextInter/crossings/starts
+          console.log('🔥 collect:', {
+            other: other.getPoint().toString(),
+            next: next ? next.getPoint().toString() : null,
+            nextInter: nextInter ? (nextInter._segment ? nextInter._segment.getPoint().toString() : null) : null,
+            crossings: crossings.map(s => s.getPoint().toString()),
+            starts: starts.map(s => s.getPoint().toString())
+          });
           }
           // paper.js互換: collectStarts時はstarts.push(other)する
           if (collectStarts) starts.push(other);
@@ -312,7 +320,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         path!.setClosed(true); // 必ずtrueをセット
       }
       // Only add finished paths that cover an area to the result.
-      if (path!.getArea() !== 0) {
+      if (path!.getArea() !== 0 && path!._segments.length > 2) {
         paths.push(path!);
       }
     }
