@@ -12,6 +12,7 @@ import { Segment } from './Segment';
 import { CurveLocation } from './CurveLocation';
 import { PathItem, Style, FillRule } from './PathItem';
 import type { Path } from './Path';
+import { PathBoolean } from './PathBoolean';
 
 export abstract class PathItemBase implements PathItem {
  // PathItemインターフェースの実装
@@ -275,5 +276,13 @@ export abstract class PathItemBase implements PathItem {
       return true;
     }
     return false;
+  }
+
+  /**
+   * パスの交差（intersect）
+   * paper.js互換API
+   */
+  intersect(other: PathItem): PathItem {
+    return PathBoolean.intersect(this, other);
   }
 }

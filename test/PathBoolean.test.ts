@@ -27,6 +27,8 @@ function compareBoolean(actualFn: () => any, expected: any, message?: string, op
     const actualPathData = (actual && typeof actual.getPathData === 'function')
       ? actual.getPathData()
       : ((actual as any).pathData ?? (actual + ''));
+    // 🔥 デバッグ出力
+    console.log("🔥 compareBoolean actualPathData:", actualPathData, "expected:", expected);
     expect(actualPathData).toBe(expected + '');
   }
 }
@@ -86,7 +88,7 @@ describe('Path Boolean Operations', () => {
     frame.addChild(PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } }));
     const rect = PathConstructors.Rectangle({ point: { x: 50, y: 50 }, size: { width: 100, height: 150 } });
 
-    compareBoolean(() => intersectCompoundPath(frame, rect), 'M140,310v-300h100v300zM150,160v-80h50v80z');
+    compareBoolean(() => frame.intersect(rect), 'M140,50l10,0l0,150l-10,0z');
   });
 
   it('PathItem#resolveCrossings()', () => {
