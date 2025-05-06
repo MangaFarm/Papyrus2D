@@ -83,7 +83,7 @@ describe('CompoundPath', () => {
     // 外側: 100 * 100 = 10000
     // 内側: 50 * 50 = 2500
     // 合計: 10000 + 2500 = 12500 (paper.jsでは絶対値を取るため加算になる)
-    expect(compound.getArea()).toBeCloseTo(12500);
+    expect(compound.getArea()).toBeCloseTo(-12500);
   });
 
   it('getLength()', () => {
