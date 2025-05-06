@@ -57,14 +57,14 @@ export interface WindingInfo {
  * 元の SegmentInfo インターフェースを分割・整理
  */
 export interface SegmentMeta {
-  // セグメントが訪問済みかどうか
-  visited?: boolean;
-  // セグメントの交点情報
-  intersection?: IntersectionInfo | null;
-  // セグメントのwinding情報
-  winding?: WindingInfo;
-  // セグメントのパス
-  path?: Path & {
+  // セグメントが訪問済みかどうか (paper.js互換: _visited)
+  _visited?: boolean;
+  // セグメントの交点情報 (paper.js互換: _intersection)
+  _intersection?: IntersectionInfo | null;
+  // セグメントのwinding情報 (paper.js互換: _winding)
+  _winding?: WindingInfo;
+  // セグメントのパス (paper.js互換: _path)
+  _path?: Path & {
     _overlapsOnly?: boolean;
     _closed?: boolean;
     _id?: number;

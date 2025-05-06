@@ -1347,4 +1347,37 @@ export class Path extends PathItemBase {
     if (this.closed) d += 'z';
     return d;
   }
+/**
+ * 他のパスと幾何学的に等しいか/重なり合うかを判定（paper.js互換）
+ * @param path 比較対象のパス
+ * @returns 等しければtrue
+ */
+compare(path: Path): boolean {
+  // null/型チェック
+  if (!path || !(path instanceof Path)) return false;
+
+  // 境界ボックスの一致判定
+  const bounds1 = this.getBounds();
+  const bounds2 = path.getBounds();
+  if (!bounds1.equals(bounds2)) return false;
+
+  // セグメント数の一致
+  if (this._segments.length !== path._segments.length) return false;
+
+  // セグメント座標・ハンドルの一致
+  for (let i = 0; i < this._segments.length; i++) {
+    if (!this._segments[i].equals(path._segments[i])) {
+      return false;
+    }
+  }
+
+  // パスの方向（isClockwise）の一致
+  if (this.isClockwise() !== path.isClockwise()) return false;
+
+  // 面積の一致（符号も含めて）
+  if (this.getArea() !== path.getArea()) return false;
+
+  // ここまで一致すれば幾何学的に等しいとみなす
+  return true;
+}
 }
