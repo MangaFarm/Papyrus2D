@@ -8,8 +8,6 @@ describe('PathAreaDebug', () => {
     const segments = rect.getSegments();
     for (let i = 0; i < segments.length; i++) {
       const pt = segments[i].point;
-      console.log(`🔥 segment[${i}]: (${pt.x}, ${pt.y})`);
     }
-    console.log('🔥 getArea:', rect.getArea());
   });
 });

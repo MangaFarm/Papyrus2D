@@ -30,17 +30,11 @@ describe('🔥 PathBoolean.subtract debug (rect-rect)', () => {
       const pt = seg._point?.toPoint();
       const meta = getMeta(seg);
       const winding = meta._winding ? meta._winding.winding : undefined;
-      // eslint-disable-next-line no-console
-      console.log(`🔥 segment: (${pt?.x},${pt?.y}) winding=${winding}`);
     }
 
     // getPathData()があれば出力
     if (typeof (result as any).getPathData === 'function') {
-      // eslint-disable-next-line no-console
-      console.log('🔥 subtract result getPathData:', (result as any).getPathData());
     } else {
-      // eslint-disable-next-line no-console
-      console.log('🔥 subtract result (no getPathData)');
     }
   });
 });

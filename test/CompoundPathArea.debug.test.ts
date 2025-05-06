@@ -10,11 +10,8 @@ describe('CompoundPath getArea debug', () => {
     // 内側矩形
     const path2 = Path.Rectangle({ from: new Point(25, 25), to: new Point(75, 75) });
 
-    console.log('🔥 path1.getArea():', path1.getArea());
-    console.log('🔥 path2.getArea():', path2.getArea());
 
     const compound = new CompoundPath([path1, path2]);
-    console.log('🔥 compound.getArea():', compound.getArea());
 
     // テスト自体は失敗してもよい
     expect(true).toBe(true);
