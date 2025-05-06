@@ -197,7 +197,6 @@ export class PathBoolean {
       }
       
       const curvesValues = curves.map(curve => curve.getValues());
-      // paper.jsと同等の結果を得るためにfindCurveBoundsCollisionsWithBothAxisを使用
       const curveCollisions = CollisionDetection.findCurveBoundsCollisionsWithBothAxis(
         curvesValues, curvesValues, 0
       );
