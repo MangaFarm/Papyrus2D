@@ -50,45 +50,46 @@ export function divideLocations(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean,
   clearLater?: Curve[]
-): Segment[] {
-    // paper.js PathItem.Boolean.js: divideLocations
-    const results = include ? [] as Segment[] : undefined;
-    const tMin = Numerical.CURVETIME_EPSILON;
-    const tMax = 1 - tMin;
-    let clearHandles = false;
-    const clearCurves = clearLater || [];
-    const clearLookup = clearLater ? {} as Record<string, boolean> : undefined;
-    let renormalizeLocs: CurveLocation[] = [];
-    let prevCurve: Curve | undefined;
-    let prevTime: number | undefined;
+): CurveLocation[] {
+    // --- paper.js PathItem.Boolean.js divideLocations そのまま移植 ---
+    // eslint-disable-next-line
+    var results: CurveLocation[] | undefined = include && [],
+        tMin = /*#=*/Numerical.CURVETIME_EPSILON,
+        tMax = 1 - tMin,
+        clearHandles = false,
+        clearCurves = clearLater || [],
+        clearLookup = clearLater && {},
+        renormalizeLocs,
+        prevCurve,
+        prevTime;
 
-    function getId(curve: Curve) {
+    function getId(curve) {
         return curve._path._id + '.' + curve._segment1._index;
     }
 
-    if (clearLater && clearLookup) {
+    if (clearLater) {
         for (let i = clearLater.length - 1; i >= 0; i--) {
             const curve = clearLater[i];
             if (curve._path)
-                clearLookup[getId(curve)] = true;
+                clearLookup![getId(curve)] = true;
         }
     }
 
-    for (let i = locations.length - 1; i >= 0; i--) {
-        const loc = locations[i];
-        let time = (loc as any)._time;
-        const origTime = time;
-        const exclude = include && !include(loc);
-        const curve = (loc as any)._curve as Curve | undefined;
-        let segment: Segment | undefined;
-
+    for (var i = locations.length - 1; i >= 0; i--) {
+        var loc = locations[i],
+            time = loc._time!,
+            origTime = time,
+            exclude = include && !include(loc),
+            curve = loc._curve!,
+            segment;
         if (curve) {
             if (curve !== prevCurve) {
-                clearHandles = !curve.hasHandles() || !!(clearLookup && clearLookup[getId(curve)]);
+                clearHandles = !curve.hasHandles()
+                        || clearLookup && clearLookup[getId(curve)];
                 renormalizeLocs = [];
-                prevTime = undefined;
+                prevTime = null;
                 prevCurve = curve;
-            } else if (prevTime !== undefined && prevTime >= tMin) {
+            } else if (prevTime >= tMin) {
                 time /= prevTime;
             }
         }
@@ -96,60 +97,41 @@ export function divideLocations(
             if (renormalizeLocs)
                 renormalizeLocs.push(loc);
             continue;
-        } else if (include && results) {
-            if (results && segment) results.unshift(segment);
+        } else if (include) {
+            results!.unshift(loc);
         }
         prevTime = origTime;
         if (time < tMin) {
-            segment = (curve as any)._segment1;
+            segment = curve._segment1;
         } else if (time > tMax) {
-            segment = (curve as any)._segment2;
+            segment = curve._segment2;
         } else {
-            const newCurve = (curve as any).divideAtTime(time, true);
-            if (!newCurve) {
-                // paper.jsではnull判定せず!を使うので合わせる
-                segment = (newCurve! as any)._segment1;
-            } else {
-                if (clearHandles)
-                    clearCurves.push(curve!, newCurve!);
-                segment = newCurve._segment1;
-                for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
-                    const l = renormalizeLocs[j];
-                    (l as any)._time = ((l as any)._time - time) / (1 - time);
-                }
+            var newCurve = curve.divideAtTime(time, true)!;
+            if (clearHandles)
+                clearCurves.push(curve, newCurve);
+            segment = newCurve._segment1;
+            for (var j = renormalizeLocs.length - 1; j >= 0; j--) {
+                var l = renormalizeLocs[j];
+                l._time = (l._time - time) / (1 - time);
             }
         }
-        (loc as any)._setSegment(segment);
-        const inter = (segment as any)._intersection;
-        const dest = (loc as any)._intersection;
+        loc._setSegment(segment);
+        var inter = segment._intersection,
+            dest = loc._intersection;
         if (inter) {
             linkIntersections(inter, dest);
-            let other = inter;
+            var other = inter;
             while (other) {
-                linkIntersections((other as any)._intersection, inter);
-                other = (other as any)._next;
-            }
-            // segmentがSegment型でない場合は即例外
-            if (!(segment instanceof Segment)) {
-                throw new Error(`[Papyrus2D AssertionError] divideLocations: segment is not a valid Segment at i=${i}, segment=${segment}`);
+                linkIntersections(other._intersection, inter);
+                other = other._next;
             }
         } else {
-            (segment as any)._intersection = dest;
+            segment._intersection = dest;
         }
     }
     if (!clearLater)
         clearCurveHandles(clearCurves);
-    // Segment型のみ返す
-    let arr: any[];
-    if (results) {
-        arr = results;
-    } else {
-        // paper.js同様、locationsから_segmentを抽出
-        arr = locations.map(l => (l as any)._segment);
-    }
-    // Segment型インスタンスのみ返す
-    const filtered = arr.filter(seg => seg instanceof Segment);
-    return filtered;
+    return results || locations;
 }
 
 /**
