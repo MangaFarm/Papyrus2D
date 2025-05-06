@@ -58,9 +58,23 @@ export function tracePaths(
   // paper.jsのisValid関数と同等の機能
   function isValid(seg: Segment | null | undefined): boolean {
     const meta = getMeta(seg);
-    if (!seg || !meta || meta.visited) return false;
+    if (!seg) {
+      console.log('🔥 isValid: seg is null/undefined');
+      return false;
+    }
+    if (!meta) {
+      console.log('🔥 isValid: meta is undefined for seg', seg._index, seg._point?.toPoint());
+      return false;
+    }
+    if (meta.visited) {
+      console.log('🔥 isValid: meta.visited is true for seg', seg._index, seg._point?.toPoint());
+      return false;
+    }
 
-    if (!operator) return true;
+    if (!operator) {
+      console.log('🔥 isValid: operator is undefined, always true');
+      return true;
+    }
 
     const winding = meta.winding;
     if (!winding) {
@@ -74,8 +88,11 @@ export function tracePaths(
     }
 
     const op = operator[winding.winding];
-    console.log('🔥 isValid: winding', winding, 'op', op, 'operator', operator, 'seg', seg && seg._index);
-    return !!(
+    const pt = seg._point?.toPoint();
+    const reason = [];
+    if (!op) reason.push('op is falsy');
+    if (operator.unite && winding.winding === 2 && winding.windingL && winding.windingR) reason.push('unite special exclusion');
+    const result = !!(
       op &&
       !(
         operator.unite &&
@@ -84,13 +101,26 @@ export function tracePaths(
         winding.windingR
       )
     );
+    console.log(
+      '🔥 isValid: seg', seg._index,
+      'pt', pt,
+      'winding', JSON.stringify(winding),
+      'operator', JSON.stringify(operator),
+      'op', op,
+      'result', result,
+      reason.length ? 'reason: ' + reason.join(', ') : ''
+    );
+    return result;
   }
 
   // セグメントが開始点かどうかを判定する関数
   function isStart(seg: Segment | null | undefined): boolean {
     if (!seg) return false;
     for (let i = 0, l = starts.length; i < l; i++) {
-      if (seg === starts[i]) return true;
+      if (seg === starts[i]) {
+        console.log('🔥 isStart: seg', seg._index, 'pt', seg._point?.toPoint(), 'is in starts');
+        return true;
+      }
     }
     return false;
   }
@@ -114,7 +144,10 @@ export function tracePaths(
     const crossings: Segment[] = [];
     
     if (collectStarts) {
-      starts = [segment];
+      if (!starts.includes(segment)) {
+        starts.push(segment);
+        console.log('🔥 getCrossingSegments: collectStarts, starts push', segment._index, `(${segment._point?.toPoint().x},${segment._point?.toPoint().y})`, 'starts now', starts.map(s => `${s._index}(${s._point?.toPoint().x},${s._point?.toPoint().y})`).join(', '));
+      }
     }
 
     function collect(inter: Intersection | null | undefined, end?: Intersection): void {
@@ -134,8 +167,10 @@ export function tracePaths(
               isStart(next) ||
               (next &&
                 (isValid(other) &&
-                  (isValid(next) || (nextInter && isValid(nextInter._segment))))))
+                  (isValid(next) ||
+                    (nextInter && isValid(nextInter._segment))))))
           ) {
+            console.log('🔥 getCrossingSegments: push', other._index, 'pt', other._point?.toPoint(), 'winding', getMeta(other)?.winding, 'starts', starts.map(s => s._index));
             crossings.push(other);
           }
 
@@ -235,6 +270,7 @@ export function tracePaths(
       const other = crossings.shift();
       const isFinished = !first && (isStart(currentSeg) || isStart(other));
       const cross = !isFinished && other;
+      console.log(`🔥 tracePaths: i=${i} segStart=(${currentSeg._point.toPoint().x},${currentSeg._point.toPoint().y}) first=${first} crossings.length=${crossings.length} isFinished=${isFinished} cross=${!!cross}`);
 
       if (first) {
         path = new Path();
@@ -242,15 +278,21 @@ export function tracePaths(
       }
 
       if (isFinished) {
-        if (currentSeg.isFirst() || currentSeg.isLast()) {
-          const currentMeta = getMeta(currentSeg)!;
-          // paper.js同様、meta.pathがなければcurrentSeg._pathを使う
-          const pathObj = currentMeta.path || currentSeg._path;
-          closed = pathObj && pathObj._closed || false;
+        // パスが3点未満ならbreakせず継続（paper.jsと同じ）
+        if (path && path._segments.length < 3) {
+          console.log(`🔥 tracePaths: skip break at isFinished, path too short (${path._segments.length})`);
+        } else {
+          if (currentSeg.isFirst() || currentSeg.isLast()) {
+            const currentMeta = getMeta(currentSeg)!;
+            // paper.js同様、meta.pathがなければcurrentSeg._pathを使う
+            const pathObj = currentMeta.path || currentSeg._path;
+            closed = pathObj && pathObj._closed || false;
+          }
+          getMeta(currentSeg)!.visited = true;
+          finished = true;
+          console.log(`🔥 tracePaths: break at isFinished, path length=${path ? path._segments.length : 0}`);
+          break;
         }
-        getMeta(currentSeg)!.visited = true;
-        finished = true;
-        break;
       }
 
       if (cross && branch) {
@@ -310,6 +352,7 @@ export function tracePaths(
       if (meta) meta.path = path! as any;
       getMeta(nextSeg)!.visited = true;
       visited.push(nextSeg);
+      getMeta(nextSeg)!.visited = true;
 
       // 次のセグメントに移動
       const nextPath = getMeta(nextSeg || currentSeg)!.path!;

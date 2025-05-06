@@ -135,10 +135,9 @@ export function divideLocations(
         linkIntersections(other._intersection, inter);
         other = other._next;
       }
-    } else {
+    }
+    if (!_segment._intersection) {
       _segment._intersection = dest;
-      // paper.jsと同じく、interが定義されている場合のみリンク
-      if (inter && inter !== dest) linkIntersections(inter!, dest!);
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);
@@ -152,7 +151,18 @@ export function divideLocations(
     const winding = meta && meta.winding ? meta.winding.winding : undefined;
     console.log(`🔥 divideLocations: i=${i} seg=(${pt.x},${pt.y}) id=${seg._id} index=${seg._index} winding=${winding}`);
   }
-  return out;
+  // 各CurveLocation._segment._intersectionで取得したCurveLocationインスタンスに置き換え
+  const unique: CurveLocation[] = [];
+  const seen = new Set();
+  for (let i = 0; i < out.length; i++) {
+    const seg = out[i]._segment;
+    const loc = seg && (seg as any)._intersection;
+    if (loc && !seen.has(loc)) {
+      unique.push(loc);
+      seen.add(loc);
+    }
+  }
+  return unique;
 }
 
 

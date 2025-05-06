@@ -61,7 +61,8 @@ export class CurveLocation {
     this._time = time;
     
     // paper.jsと同様に、pointがnullの場合は自動的に計算
-    if (point) {
+    // _pointは必ずPoint型
+    if (point instanceof Point) {
       this._point = point;
     } else if (time !== null && curve) {
       this._point = curve.getPointAtTime(time);

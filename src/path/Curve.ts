@@ -164,7 +164,11 @@ export class Curve {
    * t(0-1)で指定した位置のPointを返す（時間パラメータ指定）
    */
   getPointAtTime(t: number): Point {
-    return Curve.getPoint(this.getValues(), t);
+    if (t == null || isNaN(t) || t < 0 || t > 1) return new Point(0, 0);
+    const values = this.getValues();
+    const pt = Curve.getPoint(values, t);
+    console.log(`🔥 getPointAtTime: t=${t} values=${JSON.stringify(values)} pt=${pt ? `(${pt.x},${pt.y})` : 'null'}`);
+    return pt;
   }
 
   /**

@@ -243,8 +243,15 @@ export class PathBoolean {
       
       // 交点からwinding numberを伝播
       // divideLocationsで得られた全セグメントに必ずwindingを伝播
-      for (const loc of dividedLocs1) {
-        propagateWinding(loc._segment, _path1, _path2, curveCollisionsMap, operator);
+      // divideLocationsで返される全セグメント（重複除外）にwindingを伝播
+      const dividedSegments1 = Array.from(new Set(dividedLocs1.map(loc => loc._segment)))
+        .filter(seg => seg && seg._path && seg._path._segments && seg._path._segments.includes(seg));
+      for (const seg of dividedSegments1) {
+        console.log("🔥 propagateWinding: seg", seg);
+        propagateWinding(seg, _path1, _path2, curveCollisionsMap, operator);
+        const meta = getMeta(seg);
+        const winding = meta && meta.winding ? meta.winding.winding : undefined;
+        console.log(`🔥 after propagate: seg=(${seg._point?.toPoint().x},${seg._point?.toPoint().y}) winding=${winding}`);
       }
       if (dividedLocs2) {
         for (const loc of dividedLocs2) {
@@ -281,7 +288,15 @@ export class PathBoolean {
     // セグメントを収集
     // paper.jsと同じく、分割後の全パスの全セグメントをsegmentsに集める
     // paper.jsと同じ: 分割後の全パスの全セグメントをsegmentsに集める
+    // paper.jsと同じく、分割後パス（paths1, paths2）の全セグメントをsegments配列にする
+    const paths1 = _path1.getPaths ? _path1.getPaths() : [_path1];
+    const paths2 = _path2 && _path2.getPaths ? _path2.getPaths() : (_path2 ? [_path2] : []);
     const segments: Segment[] = [];
+    for (const p of paths1) segments.push(...p.getSegments());
+    for (const p of paths2) segments.push(...p.getSegments());
+    // 交点を持つセグメントだけに限定
+    // 型エラー回避: Segment型に明示的にanyでアクセス
+    const intersectionSegments = segments.filter(seg => !!(seg as any)._intersection);
     function collectSegments(path: Path) {
       if ((path as any)._children) {
         for (const child of (path as any)._children) {
@@ -295,16 +310,29 @@ export class PathBoolean {
     if (_path2) {
       collectSegments(_path2);
     }
-    console.log("🔥 runBoolean: segments.length =", segments.length);
+    // paper.jsと同じく、分割後パス（paths1, paths2）の全セグメントをsegments配列にする
+    // 重複したsegments宣言を削除
+    console.log("🔥 runBoolean: segments.length =", intersectionSegments.length);
 
     // デバッグ: segmentsのwinding分布を出力
     for (let i = 0; i < segments.length; i++) {
       const meta = getMeta(segments[i]);
       const winding = meta && meta.winding ? meta.winding.winding : undefined;
-      console.log(`🔥 runBoolean: segments[${i}] winding=${winding}`);
+      const pt = segments[i]._point?.toPoint();
+      console.log(`🔥 runBoolean: segments[${i}] winding=${winding} pt=${pt ? `(${pt.x},${pt.y})` : 'undefined'}`);
     }
+    // intersectionSegmentsのwinding=1座標列を出力
+    const winding1Segs = intersectionSegments.filter(seg => {
+      const meta = getMeta(seg);
+      return meta && meta.winding && meta.winding.winding === 1;
+    });
+    console.log("🔥 runBoolean: winding=1 segments coords =", winding1Segs.map(seg => {
+      const pt = seg._point?.toPoint();
+      return pt ? `(${pt.x},${pt.y})` : 'undefined';
+    }).join(" -> "));
+
     // マーチングアルゴリズムで結果パスを構築
-    const paths = tracePaths(segments, operator);
+    const paths = tracePaths(intersectionSegments, operator);
     console.log("🔥 runBoolean: tracePaths returned", paths.length, "paths");
     for (let i = 0; i < paths.length; i++) {
       console.log("🔥 runBoolean: paths[" + i + "].segments.length =", paths[i].getSegments().length);
