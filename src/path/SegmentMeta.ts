@@ -6,6 +6,7 @@
 import { Segment } from './Segment';
 import { Path } from './Path';
 import { Point } from '../basic/Point';
+import { CurveLocation } from './CurveLocation';
 
 /**
  * 交点情報
@@ -60,7 +61,8 @@ export interface SegmentMeta {
   // セグメントが訪問済みかどうか (paper.js互換: _visited)
   _visited?: boolean;
   // セグメントの交点情報 (paper.js互換: _intersection)
-  _intersection?: IntersectionInfo | null;
+  // paper.js本家のdivideLocations等のロジックに合わせてCurveLocation型に変更
+  _intersection?: CurveLocation | null;
   // セグメントのwinding情報 (paper.js互換: _winding)
   _winding?: WindingInfo;
   // セグメントのパス (paper.js互換: _path)

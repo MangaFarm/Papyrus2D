@@ -46,19 +46,25 @@ export function getIntersections(path1: Path, path2: Path): CurveLocation[] {
  * 指定された位置でパスアイテムを分割する
  * paper.jsのdivideLocations関数と同等の機能を実装
  */
+/**
+ * 指定された位置でパスアイテムを分割する
+ * paper.jsのPathItem.Boolean.js divideLocationsに忠実な実装
+ * locations: 分割点（CurveLocation）の配列
+ * include: 分割点をフィルタする関数（省略可）
+ * 戻り値: 分割後のCurveLocation配列
+ */
 export function divideLocations(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean,
   clearLater?: Curve[]
 ): CurveLocation[] {
-  // --- paper.js PathItem.Boolean.js divideLocations そのまま移植 ---
-  const results: CurveLocation[] = include ? [] : locations;
-  const tMin = /*#=*/ Numerical.CURVETIME_EPSILON;
+  const results: CurveLocation[] | undefined = include ? [] : undefined;
+  const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
   let clearHandles = false;
   const clearCurves: Curve[] = clearLater || [];
   const clearLookup: Record<string, boolean> | undefined = clearLater ? {} : undefined;
-  let renormalizeLocs: CurveLocation[] | undefined;
+  let renormalizeLocs: CurveLocation[] = [];
   let prevCurve: Curve | undefined;
   let prevTime: number | null | undefined;
 
@@ -66,14 +72,10 @@ export function divideLocations(
     return curve._path!._id + '.' + curve._segment1._index;
   }
 
-  // Papyrus2D拡張: 同一座標・同一パスID・同一indexのSegment再利用マップ
-  // キー: `${x},${y},${curve._path._id},${_segment._index}`
-  const _segmentReuseMap = new Map<string, Segment>();
-
-  if (clearLater) {
+  if (clearLater && clearLookup) {
     for (let i = clearLater.length - 1; i >= 0; i--) {
       const curve = clearLater[i];
-      if (curve._path) clearLookup![getId(curve)] = true;
+      if (curve._path) clearLookup[getId(curve)] = true;
     }
   }
 
@@ -83,10 +85,10 @@ export function divideLocations(
     const origTime = time;
     const exclude = include && !include(loc);
     const curve = loc._curve!;
-    let _segment: Segment;
+    let segment: Segment | undefined;
     if (curve) {
       if (curve !== prevCurve) {
-        clearHandles = !curve.hasHandles() || ((clearLookup && clearLookup[getId(curve)]) ?? false);
+        clearHandles = !curve.hasHandles() || !!(clearLookup && clearLookup[getId(curve)]);
         renormalizeLocs = [];
         prevTime = null;
         prevCurve = curve;
@@ -97,73 +99,39 @@ export function divideLocations(
     if (exclude) {
       if (renormalizeLocs) renormalizeLocs.push(loc);
       continue;
-    } else if (include) {
+    } else if (include && results) {
       results.unshift(loc);
     }
     prevTime = origTime;
     if (time < tMin) {
-      _segment = curve._segment1;
-      // meta.pathのセット漏れ防止
-      const meta = getMeta(_segment);
-      if (!meta._path && curve._path) meta._path = curve._path;
+      segment = curve._segment1;
     } else if (time > tMax) {
-      _segment = curve._segment2;
-      // meta.pathのセット漏れ防止
-      const meta = getMeta(_segment);
-      if (!meta._path && curve._path) meta._path = curve._path;
+      segment = curve._segment2;
     } else {
       const newCurve = curve.divideAtTime(time, true)!;
       if (clearHandles) clearCurves.push(curve, newCurve);
-      _segment = newCurve._segment1;
-      // 新しいセグメントのmetaにpathを必ずセット
-      const meta = getMeta(_segment);
-      meta._path = curve._path!;
-      if (renormalizeLocs) {
-        for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
-          const l = renormalizeLocs[j];
-          l._time = (l._time! - time) / (1 - time);
-        }
+      segment = newCurve._segment1;
+      for (let j = renormalizeLocs.length - 1; j >= 0; j--) {
+        const l = renormalizeLocs[j];
+        l._time = (l._time! - time) / (1 - time);
       }
     }
-    // 元のpaper.jsと同様、Segmentはcurve.divideAtTime等で生成されたものをそのまま使う
-    loc._setSegment(_segment);
-    const inter = getMeta(_segment)._intersection;
+    loc._setSegment(segment!);
+    const inter = getMeta(segment)._intersection;
     const dest = loc._intersection;
-    if (inter) {
-      linkIntersections(inter, dest!);
+    if (inter && dest) {
+      linkIntersections(inter, dest);
       let other = inter;
-      while (other) {
+      while (other && other._intersection) {
         linkIntersections(other._intersection, inter);
         other = other._next;
       }
-    }
-    if (!getMeta(_segment)._intersection) {
-      getMeta(_segment)._intersection = dest;
+    } else if (dest) {
+      getMeta(segment)._intersection = dest;
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);
-  const out = results;
-  // 🔥 divideLocations: output _segments
-  for (let i = 0; i < out.length; i++) {
-    const seg = out[i]._segment;
-    const pt = seg!._point.toPoint();
-    const pathId = seg!._path ? seg!._path._id : "none";
-    const meta = getMeta(seg!);
-    const winding = meta._winding ? meta._winding.winding : undefined;
-    console.log(`🔥 divideLocations: i=${i} seg=(${pt.x},${pt.y}) id=${(seg! as any)._id} index=${(seg! as any)._index} winding=${winding}`);
-  }
-  // 各CurveLocation._segment._intersectionで取得したCurveLocationインスタンスに置き換え
-  const unique: CurveLocation[] = [];
-  const seen = new Set<CurveLocation>();
-  for (let i = 0; i < out.length; i++) {
-    const seg = out[i]._segment;
-    const loc = seg && getMeta(seg)._intersection;
-    if (loc && !seen.has(loc)) {
-      unique.push(loc);
-      seen.add(loc);
-    }
-  }
-  return unique;
+  return results || locations;
 }
 
 
