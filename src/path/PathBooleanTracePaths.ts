@@ -111,7 +111,8 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
           ) {
             crossings.push(other);
           }
-          // paper.js互換: collectStarts時はstarts.push(other)しない
+          // paper.js互換: collectStarts時はstarts.push(other)する
+          if (collectStarts) starts.push(other);
         }
         inter = inter._next!;
       }
@@ -285,13 +286,18 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       // an open path would: Connecting the last and first segment
       // with a straight line, ignoring the handles.
       var next = segOrNull!.getNext();
-      path!.add(
-        new Segment(
-          segOrNull!._point!.toPoint(),
-          handleIn!,
-          (next && segOrNull!._handleOut)!.toPoint()
-        )
-      );
+      // 直前のセグメントと同じ座標なら追加しない（重複防止）
+      const pt = segOrNull!._point!.toPoint();
+      const segs = path!._segments;
+      if (segs.length === 0 || !segs[segs.length - 1]._point.toPoint().equals(pt)) {
+        path!.add(
+          new Segment(
+            pt,
+            handleIn!,
+            (next && segOrNull!._handleOut)!.toPoint()
+          )
+        );
+      }
       getMeta(segOrNull!)._visited = true;
       visited!.push(segOrNull!);
       // If this is the end of an open path, go back to its first

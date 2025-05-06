@@ -59,6 +59,30 @@ export class PathBoolean {
       path2 ? [path1, path2] : [path1],
       (w: number) => !!operator[w]
     );
+    // 🔥 デバッグ: reorientPaths後の各パスの winding, area, pathData を出力
+    for (const p of path2 ? [path1, path2] : [path1]) {
+      if (!p) continue;
+      // @ts-ignore
+      const id = p._id;
+      // @ts-ignore
+      const area = p.getArea && p.getArea();
+      // @ts-ignore
+      const clockwise = p.isClockwise && p.isClockwise();
+      // @ts-ignore
+      const segs = p.getSegments && p.getSegments().length;
+      // @ts-ignore
+      const bounds = p.getBounds && p.getBounds();
+      // @ts-ignore
+      const pathData = p.getPathData ? p.getPathData() : '';
+      // @ts-ignore
+      console.log(`🔥handleNoIntersections id=${id} area=${area} cw=${clockwise} segs=${segs} bounds=${bounds} pathData=${pathData}`);
+    }
+    for (const p of result) {
+      if (!p) continue;
+      // @ts-ignore
+      const pathData = p.getPathData ? p.getPathData() : '';
+      console.log('🔥handleNoIntersections result pathData:', pathData);
+    }
     return result;
   }
   

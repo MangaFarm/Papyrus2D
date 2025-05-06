@@ -815,4 +815,10 @@ export class CompoundPath extends PathItemBase {
       .filter(str => str && str.length > 0)
       .join('');
   }
+/**
+   * toString() でSVGパスデータを返す（paper.js互換）
+   */
+  toString(): string {
+    return this.getPathData();
+  }
 }

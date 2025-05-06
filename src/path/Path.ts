@@ -1336,11 +1336,14 @@ export class Path extends PathItemBase {
     const segments = this.getSegments();
     if (!segments.length) return '';
     let d = '';
+    let lastCmd = '';
+    let lastH = 0, lastV = 0;
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
       const pt = seg.getPoint();
       if (i === 0) {
         d += `M${pt.x},${pt.y}`;
+        lastCmd = 'M';
       } else {
         const prev = segments[i - 1].getPoint();
         const dx = pt.x - prev.x;
@@ -1351,15 +1354,38 @@ export class Path extends PathItemBase {
           (seg.handleOut && (!seg.handleOut.isZero && !seg.handleOut.isZero()));
         if (!hasHandles) {
           if (dx !== 0 && dy === 0) {
-            d += `h${dx}`;
+            if (lastCmd === 'h') {
+              lastH += dx;
+              // 直前がhなら合成
+              d = d.replace(/h-?\d+$/, `h${lastH}`);
+            } else {
+              d += `h${dx}`;
+              lastCmd = 'h';
+              lastH = dx;
+              lastV = 0;
+            }
           } else if (dx === 0 && dy !== 0) {
-            d += `v${dy}`;
+            if (lastCmd === 'v') {
+              lastV += dy;
+              d = d.replace(/v-?\d+$/, `v${lastV}`);
+            } else {
+              d += `v${dy}`;
+              lastCmd = 'v';
+              lastV = dy;
+              lastH = 0;
+            }
           } else {
             d += `L${pt.x},${pt.y}`;
+            lastCmd = 'L';
+            lastH = 0;
+            lastV = 0;
           }
         } else {
           // ハンドル対応は未実装
           d += `L${pt.x},${pt.y}`;
+          lastCmd = 'L';
+          lastH = 0;
+          lastV = 0;
         }
       }
     }
@@ -1431,5 +1457,11 @@ export class Path extends PathItemBase {
 
   static fromSVG(val: string): Path {
     return fromSVG(val);
+  }
+/**
+   * toString() でSVGパスデータを返す（paper.js互換）
+   */
+  toString(): string {
+    return this.getPathData();
   }
 }
