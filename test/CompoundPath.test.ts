@@ -78,12 +78,13 @@ describe('CompoundPath', () => {
 
     // CompoundPathを作成
     const compound = new CompoundPath([path1, path2]);
+    compound.reorient();
 
     // 面積の計算: 外側の矩形の面積 - 内側の矩形の面積
     // 外側: 100 * 100 = 10000
     // 内側: 50 * 50 = 2500
     // 合計: 10000 + 2500 = 12500 (paper.jsでは絶対値を取るため加算になる)
-    expect(compound.getArea()).toBeCloseTo(-12500);
+    expect(compound.getArea()).toBeCloseTo(7500);
   });
 
   it('getLength()', () => {
@@ -129,8 +130,6 @@ describe('CompoundPath', () => {
     expect(bounds.height).toBe(150);
   });
 
-  // CompoundPathのcontainsメソッドのテストは、現在のPathクラスの実装の制限により
-  // 期待通りに動作しないため、一時的にスキップします
   it('contains()', () => {
     // 矩形パスを作成
     const path1 = Path.Rectangle({ from: new Point(0, 0), to: new Point(100, 100) });
