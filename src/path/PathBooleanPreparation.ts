@@ -61,11 +61,6 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
     // 🔥 デバッグ: closePath後のセグメント情報
     for (const path of res.getPaths()) {
       const segs = path.getSegments();
-      console.log("🔥 preparePath segs after closePath", segs.map(s => ({
-        index: s._index,
-        point: s.getPoint(),
-        visited: getMeta(s)._visited
-      })));
     }
 
     // paper.jsと同じようにメソッドチェーンを使用

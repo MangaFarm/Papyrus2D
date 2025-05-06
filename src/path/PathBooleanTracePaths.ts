@@ -21,18 +21,12 @@ import { getPathMeta } from './PathMeta';
  */
 export function tracePaths(segments: Segment[], operator: Record<string, boolean>): Path[] {
   // 🔥 デバッグ: segments配列の内容
-  console.log("🔥 tracePaths segments", segments.map(s => s && s.getPoint && s.getPoint()));
   // --- 以下、paper.jsのtracePaths本体を忠実に移植 ---
   var paths: Path[] = [],
     starts: Segment[];
 
   function isValid(seg: Segment | null): boolean {
     // 🔥 デバッグ出力
-    console.log("🔥 isValid called", {
-      seg,
-      meta: seg ? getMeta(seg) : null,
-      winding: seg && getMeta(seg)._winding
-    });
     var winding: {
       winding: number;
       windingL: number;
@@ -184,13 +178,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       handleIn: Point | null = null;
     // 🔥 デバッグ: isValid判定の詳細
     const metaWinding = getMeta(seg)._winding;
-    console.log("🔥 tracePaths isValid", {
-      i,
-      seg: seg && seg.getPoint && seg.getPoint(),
-      metaWinding,
-      valid,
-      operator
-    });
     // segの型をSegment | nullに統一
     let segOrNull: Segment | null = seg;
     // If all encountered segments in a path are overlaps, we may have
@@ -212,11 +199,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     // visited, or that are not going to be part of the result).
     while (valid) {
       // 🔥 デバッグ: ループ進行の詳細
-      console.log("🔥 tracePaths loop", {
-        segOrNull: segOrNull && segOrNull.getPoint && segOrNull.getPoint(),
-        segOrNull_index: segOrNull && segOrNull._index,
-        // startsデバッグ出力削除
-      });
       // For each segment we encounter, see if there are multiple
       // crossings, and if so, pick the best one:
       var first = !path,
@@ -227,18 +209,9 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         finished = !first && (isStart(segOrNull!) || isStart(other!));
         // paper.js互換: open pathの単純ケースで最初のセグメント（segments[0]）に戻ったら_visitedを無視してfinished
         if (!finished && segOrNull && segOrNull === segments[0] && !first) {
-          console.log("🔥 loop: reached first segment again", segOrNull);
           finished = true;
           closed = true; // 必ずパスを閉じる
         }
-      console.log("🔥 tracePaths while", {
-        segOrNull: segOrNull,
-        other: other,
-        // startsデバッグ出力削除
-        isStart_segOrNull: isStart(segOrNull!),
-        isStart_other: isStart(other!),
-        finished
-      });
       var cross = !finished && other;
       if (first) {
         path = new Path();
@@ -247,13 +220,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       }
       if (finished) {
         // 🔥 デバッグ: first/last判定とclosed伝播
-        console.log("🔥 finished", {
-          segIndex: segOrNull!._index,
-          isFirst: segOrNull!.isFirst(),
-          isLast: segOrNull!.isLast(),
-          segCount: segOrNull!._path._segments.length,
-          pathClosed: segOrNull!._path._closed
-        });
         // If we end up on the first or last segment of an operand,
         // copy over its closed state, to support mixed open/closed
         // scenarios as described in #1036
@@ -338,7 +304,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // Carry over the last handleIn to the first segment.
         path!.getFirstSegment()!.setHandleIn(handleIn!);
         path!.setClosed(true); // 必ずtrueをセット
-        console.log("🔥 path closed", path!.isClosed());
       }
       // Only add finished paths that cover an area to the result.
       if (path!.getArea() !== 0) {
