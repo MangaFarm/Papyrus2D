@@ -105,7 +105,7 @@ export class Curve {
    * ベジェ制御点配列 [x1, y1, h1x, h1y, h2x, h2y, x2, y2] を返す
    */
   getValues(matrix?: Matrix | null): number[] {
-    return Curve.getValues(this._segment1, this._segment2, matrix);
+    return Curve.getValues(this._segment1, this._segment2, matrix ?? null, false);
   }
 
   /**
@@ -480,7 +480,7 @@ export class Curve {
    */
   static getValues(
     segment1: Segment, segment2: Segment,
-    matrix?: Matrix | null, straight?: boolean | null
+    matrix: Matrix | null, straight: boolean
   ): number[] {
     return CurveSubdivision.getValues(segment1, segment2, matrix, straight);
   }
