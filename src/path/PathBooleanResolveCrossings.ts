@@ -25,8 +25,7 @@ import { CompoundPath } from './CompoundPath';
 export function resolveCrossings(path: PathItem): PathItem {
   // paper.jsのresolveCrossingsアルゴリズムに完全一致させる
 
-  const children = (path as PathItem & { _children?: PathItem[] })._children;
-  let paths: PathItem[] = children || [path];
+  let paths: Path[] = path instanceof CompoundPath ? path._children : [path as Path];
 
   function hasOverlap(seg: Segment | null | undefined, path: Path): boolean {
     if (!seg) return false;
@@ -132,7 +131,7 @@ export function resolveCrossings(path: PathItem): PathItem {
 
     // デバッグ: divideLocations後のパス情報
     for (const p of paths) {
-      console.log('[resolveCrossings] after divideLocations:', (p as any)._id, 'segments:', (p as any)._segments?.length, 'curves:', (p as any)._curves?.length);
+      console.log('[resolveCrossings] after divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
     }
 
     if (clearCurves) {
@@ -142,7 +141,7 @@ export function resolveCrossings(path: PathItem): PathItem {
     // tracePaths呼び出し - paper.jsと同様の方法で
     let allSegments: Segment[] = [];
     for (let i = 0, l = paths.length; i < l; i++) {
-      allSegments = allSegments.concat((paths[i] as Path)._segments);
+      allSegments = allSegments.concat(paths[i]._segments);
     }
     paths = tracePaths(allSegments, {});
     if (paths.length > 0) {
@@ -152,19 +151,19 @@ export function resolveCrossings(path: PathItem): PathItem {
   // 結果のパス構成
   let result: PathItem;
   const length = paths.length;
-  if (children) {
-    if (paths !== children) {
-      (path as PathItem & { setChildren: (children: PathItem[]) => void }).setChildren(paths);
+  if (path instanceof CompoundPath) {
+    if (paths !== path._children) {
+      path._children = paths;
     }
     result = path;
-  } else if (length === 1 && !children) {
+  } else if (length === 1 && !(path instanceof CompoundPath)) {
     if (paths[0] !== path) {
-      (path as PathItem & { setSegments: (segments: Segment[]) => void }).setSegments((paths[0] as any).removeSegments());
+      (path as Path).setSegments(paths[0].removeSegments());
     }
     result = path;
   } else {
     const compoundPath = new CompoundPath();
-    compoundPath.addChildren(paths as Path[]);
+    compoundPath.addChildren(paths);
     const reduced = compoundPath.reduce();
     reduced.copyAttributes(path);
     result = reduced;
