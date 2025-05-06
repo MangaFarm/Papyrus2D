@@ -70,7 +70,7 @@ if (result.getPaths) {
     });
     
     // subtract操作のテスト（path1からpath2を引く）
-    it.skip('should correctly subtract path2 from path1', () => {
+    it('should correctly subtract path2 from path1', () => {
       const result = PathBoolean.subtract(path1, path2);
       expect(result).toBeDefined();
       
@@ -91,7 +91,7 @@ if (result.getPaths) {
     });
     
     // subtract操作のテスト（path2からpath1を引く）
-    it.skip('should correctly subtract path1 from path2', () => {
+    it('should correctly subtract path1 from path2', () => {
       const result = PathBoolean.subtract(path2, path1);
       expect(result).toBeDefined();
       
@@ -112,7 +112,7 @@ if (result.getPaths) {
     });
     
     // intersect操作のテスト
-    it.skip('should correctly intersect paths', () => {
+    it('should correctly intersect paths', () => {
       const result = PathBoolean.intersect(path1, path2);
       expect(result).toBeDefined();
       
@@ -134,7 +134,7 @@ if (result.getPaths) {
     });
     
     // exclude操作のテスト
-    it.skip('should correctly exclude paths', () => {
+    it('should correctly exclude paths', () => {
       // exclude操作はunite - intersectと同等
       const unite = PathBoolean.unite(path1, path2);
       const intersect = PathBoolean.intersect(path1, path2);
@@ -247,7 +247,7 @@ if (result.getPaths) {
     testOperations(rect1, rect2, results);
   });
   
-  describe.skip('Boolean operations with non-intersecting rectangles', () => {
+  describe('Boolean operations with non-intersecting rectangles', () => {
     // 交差しない2つの長方形を作成
     const rect1 = new Path([
       new Segment(new Point(0, 0)),
@@ -299,7 +299,7 @@ if (result.getPaths) {
     testOperations(rect1, rect2, results);
   });
   
-  describe.skip('Boolean operations with nested rectangles', () => {
+  describe('Boolean operations with nested rectangles', () => {
     // 内包関係にある2つの長方形を作成
     const rect1 = new Path([
       new Segment(new Point(0, 0)),
@@ -327,7 +327,7 @@ if (result.getPaths) {
     testOperations(rect1, rect2, results);
   });
   
-  describe.skip('Boolean operations with circle and rectangle', () => {
+  describe('Boolean operations with circle and rectangle', () => {
     // 円を作成
     const circle = createCircle(new Point(100, 100), 50);
     
@@ -342,7 +342,7 @@ if (result.getPaths) {
     testOperations(circle, rect, []);
   });
   
-  describe.skip('Boolean operations with complex shapes', () => {
+  describe('Boolean operations with complex shapes', () => {
     // 複雑な形状（星形）
     const star = createStar(new Point(100, 100), 5, 50, 25);
     
@@ -357,7 +357,7 @@ if (result.getPaths) {
     testOperations(star, rect, []);
   });
   
-  describe.skip('Boolean operations with self-intersecting paths', () => {
+  describe('Boolean operations with self-intersecting paths', () => {
     // 自己交差するパス
     const path1 = new Path([
       new Segment(new Point(50, 50)),
@@ -376,7 +376,7 @@ if (result.getPaths) {
     testOperations(path1, rect, []);
   });
   
-  describe.skip('Boolean operations with horizontal overlapping rectangles', () => {
+  describe('Boolean operations with horizontal overlapping rectangles', () => {
     // 水平方向に重なる長方形
     const rect1 = new Path([
       new Segment(new Point(50, 50)),
@@ -404,7 +404,7 @@ if (result.getPaths) {
     testOperations(rect1, rect2, results);
   });
   
-  describe.skip('Boolean operations with vertical overlapping rectangles', () => {
+  describe('Boolean operations with vertical overlapping rectangles', () => {
     // 垂直方向に重なる長方形
     const rect1 = new Path([
       new Segment(new Point(50, 150)),
