@@ -127,7 +127,7 @@ export function divideLocations(
     }
     // 元のpaper.jsと同様、Segmentはcurve.divideAtTime等で生成されたものをそのまま使う
     loc._setSegment(_segment);
-    const inter = (_segment as any)._intersection;
+    const inter = getMeta(_segment)._intersection;
     const dest = loc._intersection;
     if (inter) {
       linkIntersections(inter, dest!);
@@ -137,8 +137,8 @@ export function divideLocations(
         other = other._next;
       }
     }
-    if (!(_segment as any)._intersection) {
-      (_segment as any)._intersection = dest;
+    if (!getMeta(_segment)._intersection) {
+      getMeta(_segment)._intersection = dest;
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);
@@ -157,7 +157,7 @@ export function divideLocations(
   const seen = new Set<CurveLocation>();
   for (let i = 0; i < out.length; i++) {
     const seg = out[i]._segment;
-    const loc = seg && (seg as any)._intersection;
+    const loc = seg && getMeta(seg)._intersection;
     if (loc && !seen.has(loc)) {
       unique.push(loc);
       seen.add(loc);

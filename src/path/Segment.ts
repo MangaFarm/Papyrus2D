@@ -41,23 +41,20 @@ export class Segment {
    * @param handleOut 出力ハンドル
    */
   constructor(
-    point: Point | null = new Point(0, 0),
-    handleIn: Point | null = new Point(0, 0),
-    handleOut: Point | null = new Point(0, 0)
+    point: Point | [number, number] | null = new Point(0, 0),
+    handleIn: Point | [number, number] | null = new Point(0, 0),
+    handleOut: Point | [number, number] | null = new Point(0, 0)
   ) {
-    if (point !== null && !(point instanceof Point)) {
-      throw new TypeError('Segment: pointはPointまたはnullのみ許可されます');
-    }
-    if (handleIn !== null && !(handleIn instanceof Point)) {
-      throw new TypeError('Segment: handleInはPointまたはnullのみ許可されます');
-    }
-    if (handleOut !== null && !(handleOut instanceof Point)) {
-      throw new TypeError('Segment: handleOutはPointまたはnullのみ許可されます');
-    }
+    // Point型やnullを[number, number]に変換
+    const toArr = (pt: Point | [number, number] | null): [number, number] => {
+      if (pt instanceof Point) return [pt.x, pt.y];
+      if (Array.isArray(pt)) return [pt[0] ?? 0, pt[1] ?? 0];
+      return [0, 0];
+    };
 
-    this._point = new SegmentPoint(point, this, '_point');
-    this._handleIn = new SegmentPoint(handleIn, this, '_handleIn');
-    this._handleOut = new SegmentPoint(handleOut, this, '_handleOut');
+    this._point = new SegmentPoint(toArr(point), this);
+    this._handleIn = new SegmentPoint(toArr(handleIn), this);
+    this._handleOut = new SegmentPoint(toArr(handleOut), this);
   }
 
   /**
@@ -146,8 +143,8 @@ export class Segment {
     const handleIn = this._handleIn;
     const handleOut = this._handleOut;
     const tmp = handleIn.clone();
-    handleIn.set(handleOut);
-    handleOut.set(tmp);
+    handleIn._set(handleOut._x, handleOut._y);
+    handleOut._set(tmp._x, tmp._y);
   }
 
   /**

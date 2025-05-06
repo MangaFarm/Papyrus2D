@@ -122,11 +122,11 @@ export function smoothPath(
       const hy = py[i] - pt.y;
 
       if (loop || i < max) {
-        segment.setHandleOut(hx, hy);
+        segment.setHandleOut([hx, hy]);
       }
 
       if (loop || i > paddingLeft) {
-        segment.setHandleIn(-hx, -hy);
+        segment.setHandleIn([-hx, -hy]);
       }
     }
   } else {
