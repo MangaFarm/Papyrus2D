@@ -33,8 +33,16 @@ export function tracePaths(
             windingL: number;
             windingR: number;
         };
-        return !!(seg && !getMeta(seg)._visited && (!operator
-                || operator[(winding = (getMeta(seg)._winding || {}) as any).winding]
+        // _windingはpaper.jsでもオブジェクトで、winding, windingL, windingRを持つ
+        // undefinedの場合は0扱い（paper.jsの実装に合わせる）
+        const metaWinding = getMeta(seg!)._winding!;
+        winding = {
+            winding: metaWinding.winding ?? 0,
+            windingL: metaWinding.windingL ?? 0,
+            windingR: metaWinding.windingR ?? 0
+        };
+        return !!(seg && !getMeta(seg!)._visited && (!operator
+                || operator[winding.winding]
                     // Unite operations need special handling of segments
                     // with a winding contribution of two (part of both
                     // areas), which are only valid if they are part of the
@@ -155,6 +163,8 @@ export function tracePaths(
             } | null = null,
             visited: Segment[] | null = null,
             handleIn: Point | null = null;
+        // segの型をSegment | nullに統一
+        let segOrNull: Segment | null = seg;
         // If all encountered segments in a path are overlaps, we may have
         // two fully overlapping paths that need special handling.
         if (valid && getPathMeta(seg._path!)!._overlapsOnly) {
@@ -177,10 +187,10 @@ export function tracePaths(
             // For each segment we encounter, see if there are multiple
             // crossings, and if so, pick the best one:
             var first = !path,
-                crossings = getCrossingSegments(seg, first),
+                crossings = getCrossingSegments(segOrNull!, first),
                 // Get the other segment of the first found crossing.
                 other = crossings.shift(),
-                finished = !first && (isStart(seg) || isStart(other!)),
+                finished = !first && (isStart(segOrNull!) || isStart(other!)),
                 cross = !finished && other;
             if (first) {
                 path = new Path();
@@ -191,9 +201,9 @@ export function tracePaths(
                 // If we end up on the first or last segment of an operand,
                 // copy over its closed state, to support mixed open/closed
                 // scenarios as described in #1036
-                if (seg.isFirst() || seg.isLast())
-                    closed = seg._path._closed;
-                getMeta(seg)._visited = true;
+                if (segOrNull!.isFirst() || segOrNull!.isLast())
+                    closed = segOrNull!._path._closed;
+                getMeta(segOrNull!)._visited = true;
                 break;
             }
             if (cross && branch) {
@@ -206,7 +216,7 @@ export function tracePaths(
                 // Add the branch's root segment as the last segment to try,
                 // to see if we get to a solution without crossing.
                 if (cross)
-                    crossings.push(seg!);
+                    crossings.push(segOrNull!);
                 branch = {
                     start: path!._segments.length,
                     crossings: crossings,
@@ -215,11 +225,11 @@ export function tracePaths(
                 };
             }
             if (cross)
-                seg = other!;
+                segOrNull = other!;
             // If an invalid segment is encountered, go back to the last
             // crossing and try other possible crossings, as well as not
             // crossing at the branch's root.
-            if (!isValid(seg)) {
+            if (!isValid(segOrNull!)) {
                 // Remove the already added segments, and mark them as not
                 // visited so they become available again as options.
                 path!.removeSegments(branch!.start);
@@ -232,9 +242,9 @@ export function tracePaths(
                 // tests the root segment without crossing as it is added to
                 // the list of crossings when the branch is created above.
                 do {
-                    seg = branch && branch.crossings.shift()!;
-                    if (!seg || !seg._path) {
-                        seg = null as any;
+                    segOrNull = branch && branch.crossings.shift() || null;
+                    if (!segOrNull || !segOrNull._path) {
+                        segOrNull = null;
                         // If there are no segments left, try previous
                         // branches until we find one that works.
                         branch = branches.pop()!;
@@ -243,8 +253,8 @@ export function tracePaths(
                             handleIn = branch.handleIn;
                         }
                     }
-                } while (branch && !isValid(seg!));
-                if (!seg)
+                } while (branch && segOrNull && !isValid(segOrNull));
+                if (!segOrNull)
                     break;
             }
             // Add the segment to the path, and mark it as visited.
@@ -252,15 +262,15 @@ export function tracePaths(
             // an open path, we need to treat it the same way as the fill of
             // an open path would: Connecting the last and first segment
             // with a straight line, ignoring the handles.
-            var next = seg.getNext();
-            path!.add(new Segment(seg._point!.toPoint(), handleIn!,
-                    (next && seg._handleOut)!.toPoint()));
-            getMeta(seg)._visited = true;
-            visited!.push(seg);
+            var next = segOrNull!.getNext();
+            path!.add(new Segment(segOrNull!._point!.toPoint(), handleIn!,
+                    (next && segOrNull!._handleOut)!.toPoint()));
+            getMeta(segOrNull!)._visited = true;
+            visited!.push(segOrNull!);
             // If this is the end of an open path, go back to its first
             // segment but ignore its handleIn (see above for handleOut).
-            seg = next! || seg._path!.getFirstSegment()!;
-            handleIn = next && (next._handleIn! as any);
+            segOrNull = next! || segOrNull!._path!.getFirstSegment()!;
+            handleIn = next ? next._handleIn!.toPoint() : null;
         }
         if (finished) {
             if (closed) {
