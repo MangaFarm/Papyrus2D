@@ -880,8 +880,14 @@ export class Path extends PathItemBase {
    *
    * @returns 円弧が追加されたパス（this）
    */
-  arcTo(...args: any[]): Path {
-    return PathArc.arcTo(this, ...args);
+  /**
+   * 円弧を描画する
+   * @param to 終点
+   * @param clockwise 時計回りかどうか（省略可）
+   * @returns 円弧が追加されたパス（this）
+   */
+  arcTo(to: Point, clockwise?: boolean): Path {
+    return PathArc.arcTo(this, to, clockwise);
   }
 
   /**
@@ -1012,8 +1018,8 @@ export class Path extends PathItemBase {
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     const matrix2 = self
       ? matrix1
-      : _matrix || (path && (path as any)._matrix)
-        ? (_matrix || (path && (path as any)._matrix))._orNullIfIdentity()
+      : _matrix || (path && path instanceof Path && path._matrix)
+        ? (_matrix || (path && path instanceof Path && path._matrix ? path._matrix : null))?._orNullIfIdentity()
         : null;
 
     // 最初に2つのパスの境界をチェック。交差しない場合は、
