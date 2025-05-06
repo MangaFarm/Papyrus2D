@@ -82,19 +82,6 @@ export function divideLocations(
         const curve = (loc as any)._curve as Curve | undefined;
         let segment: Segment | undefined;
 
-        if (!curve) {
-            // デバッグ出力: curveがundefinedのときlocの内容を出力（循環参照を避ける）
-            // eslint-disable-next-line no-console
-            console.error(
-                '[Papyrus2D Debug] divideLocations: curve is undefined at i=',
-                i,
-                'loc.constructor=', loc && loc.constructor && loc.constructor.name,
-                'loc._time=', (loc as any)._time,
-                'loc._segment=', (loc as any)._segment ? ((loc as any)._segment.constructor && (loc as any)._segment.constructor.name) : undefined,
-                'loc._intersection=', (loc as any)._intersection ? true : false
-            );
-        }
-
         if (curve) {
             if (curve !== prevCurve) {
                 clearHandles = !curve.hasHandles() || !!(clearLookup && clearLookup[getId(curve)]);
@@ -133,9 +120,6 @@ export function divideLocations(
             }
         }
         (loc as any)._setSegment(segment);
-        // デバッグ出力: segment生成状況
-        // eslint-disable-next-line no-console
-        console.log('[Papyrus2D Debug] divideLocations: i=', i, 'segment=', segment, 'isSegment=', segment instanceof Segment, 'curve=', curve, 'time=', time, 'exclude=', exclude, 'locations.length=', locations.length);
         const inter = (segment as any)._intersection;
         const dest = (loc as any)._intersection;
         if (inter) {
@@ -165,9 +149,6 @@ export function divideLocations(
     }
     // Segment型インスタンスのみ返す
     const filtered = arr.filter(seg => seg instanceof Segment);
-    // デバッグ出力
-    // eslint-disable-next-line no-console
-    console.log('[Papyrus2D Debug] divideLocations: filtered segments count =', filtered.length, filtered.map(s => s && s._index));
     return filtered;
 }
 

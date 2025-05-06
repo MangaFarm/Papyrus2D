@@ -64,14 +64,6 @@ export function tracePaths(
     if (!winding) return true;
 
     const op = operator[winding.winding];
-// デバッグ: isValid判定の詳細
-    console.log('[tracePaths][debug] isValid', {
-      seg: seg ? seg._index : null,
-      visited: meta.visited,
-      winding: meta.winding,
-      operator,
-      op: op
-    });
     return !!(
       op &&
       !(
@@ -316,8 +308,6 @@ export function tracePaths(
       // paper.jsでは面積0のパスは含めない
       if (path!.getArea() !== 0) {
         paths.push(path!);
-// デバッグ: pushされるパスのセグメント座標列
-      console.log('[tracePaths][debug] push path:', path!.getSegments().map(s => s.getPoint().toString()));
       }
     }
   }

@@ -181,12 +181,8 @@ const _path2 = preparePath(path2, true) as Path;
     // getIntersections直前: _path1, _path2のセグメント・点列・カーブ列を出力
     // eslint-disable-next-line no-console
     if (_path1 instanceof Path && _path2 instanceof Path) {
-      console.log('[runBoolean] _path1 segments:', _path1._segments.map(s => s && s.point && s.point.toString()));
-      console.log('[runBoolean] _path2 segments:', _path2._segments.map(s => s && s.point && s.point.toString()));
       const curves1 = _path1.getCurves();
       const curves2 = _path2.getCurves();
-      console.log('[runBoolean] _path1 curves:', curves1.map(c => [c._segment1.point.toString(), c._segment2.point.toString()]));
-      console.log('[runBoolean] _path2 curves:', curves2.map(c => [c._segment1.point.toString(), c._segment2.point.toString()]));
     }
 
     // 演算子に応じたフィルタ関数を定義
@@ -313,8 +309,6 @@ const _path2 = preparePath(path2, true) as Path;
     }
 
     // マーチングアルゴリズムで結果パスを構築
-// tracePathsに渡すsegmentsの内容をデバッグ出力
-    console.log('[runBoolean][debug] tracePaths segments:', segments.map(s => ({ index: s._index, point: s._point && s._point.toString() })));
     const paths = tracePaths(segments, operator);
 
     // 結果パスを結合

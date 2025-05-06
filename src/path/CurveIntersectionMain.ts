@@ -337,14 +337,6 @@ export function getIntersections(
     }
   }
 
-  // eslint-disable-next-line no-console
-  console.log(' return locations', locations.map(loc => ({
-    point: loc.getPoint().toString(),
-    overlap: loc.hasOverlap(),
-    crossing: loc.isCrossing(),
-    t: loc.getTime(),
-    curveIndex: loc.getCurve() ? (curves1 as Curve[]).indexOf(loc.getCurve()!) : null
-  })));
   return locations;
 }
 

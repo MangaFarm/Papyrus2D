@@ -79,8 +79,6 @@ export function resolveCrossings(path: PathItem): PathItem {
       const next = seg.getNext();
       if (hasOverlap(prev, path) && hasOverlap(next, path)) {
         seg.remove();
-// セグメント削除直後のパスのセグメント数をデバッグ出力
-            console.log('[resolveCrossings][debug] after seg.remove path', seg._path?._id, 'segments:', seg._path?._segments?.length, 'closed:', seg._path?._closed);
         prev._handleOut.set(0, 0);
         next._handleIn.set(0, 0);
         const prevCurve = prev.getCurve();
@@ -101,15 +99,6 @@ export function resolveCrossings(path: PathItem): PathItem {
 
   // 交差処理
   if (hasCrossings) {
-// divideLocations前の全パスのセグメント数をデバッグ出力
-      for (const p of paths) {
-        console.log('[resolveCrossings][debug] before divideLocations path', p._id, 'segments:', p._segments?.length, 'closed:', p._closed);
-      }
-    // デバッグ: divideLocations前のパス情報
-    for (const p of paths) {
-      console.log('[resolveCrossings] before divideLocations:', p._id, 'segments:', p._segments?.length, 'curves:', p._curves?.length);
-    }
-
     const divideResult = divideLocations(intersections, hasOverlaps ? function(inter: any) {
       const curve1 = inter.getCurve && inter.getCurve();
       const seg1 = inter.getSegment && inter.getSegment();
@@ -127,10 +116,6 @@ export function resolveCrossings(path: PathItem): PathItem {
       if (seg2) {
         const meta2 = getMeta(seg2);
         if (meta2) meta2.intersection = null;
-// divideLocations後の全パスのセグメント数をデバッグ出力
-      for (const p of paths) {
-        console.log('[resolveCrossings][debug] after divideLocations path', p._id, 'segments:', p._segments?.length, 'closed:', p._closed);
-      }
       }
       return false;
     } : undefined, clearCurves);
