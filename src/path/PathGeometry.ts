@@ -213,23 +213,12 @@ export function isOnPath(
  */
 export function getIntersections(
   curves1: Curve[],
-  curves2?: Curve[] | null,
-  include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
-  matrix1?: Matrix | null,
-  matrix2?: Matrix | null,
-  _returnFirst?: boolean
+  curves2: Curve[] | null,
+  include: (loc: CurveLocation) => boolean,
+  matrix1: Matrix | null,
+  matrix2: Matrix | null,
+  _returnFirst: boolean
 ): CurveLocation[] {
-  // includeパラメータの処理
-  let includeFn: ((loc: CurveLocation) => boolean) | undefined;
-  
-  if (include) {
-    if (typeof include === 'function') {
-      includeFn = include;
-    } else if (typeof include === 'object' && 'include' in include && typeof include.include === 'function') {
-      includeFn = include.include;
-    }
-  }
-  
   // 自己交差判定
   const self = curves1 === curves2 || !curves2;
   
@@ -251,37 +240,10 @@ export function getIntersections(
   return Curve.getIntersections(
           curves1,
           !self && curves2 || null,
-          includeFn,
+          include,
           matrix1Null,
           matrix2Null,
           _returnFirst);
-}
-
-/**
- * カーブ配列から境界ボックスを計算
- * @param curves カーブ配列
- * @param matrix 変換行列
- * @returns 境界ボックス
- */
-function getBoundsFromCurves(curves: Curve[], matrix: Matrix | null): Rectangle {
-  if (curves.length === 0) {
-    return new Rectangle(0, 0, 0, 0);
-  }
-  
-  // Paper.jsと同じアプローチを使用
-  let bounds: Rectangle | null = null;
-  
-  for (let i = 0, l = curves.length; i < l; i++) {
-    const curve = curves[i];
-    const curveBounds = curve.getBounds(matrix);
-    if (bounds) {
-      bounds = bounds.unite(curveBounds);
-    } else {
-      bounds = curveBounds;
-    }
-  }
-  
-  return bounds!;
 }
 
 /**

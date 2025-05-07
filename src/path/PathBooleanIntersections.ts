@@ -35,7 +35,7 @@ export function getIntersections(path1: Path, path2: Path): CurveLocation[] {
   const path1data = path1.getPathData ? path1.getPathData() : '';
   // @ts-ignore
   const path2data = path2.getPathData ? path2.getPathData() : '';
-  const raw = path1.getIntersections(path2, filterIntersection);
+  const raw = path1.getIntersections(path2, filterIntersection, null, false);
   const expanded = CurveLocation.expand(raw);
   // @ts-ignore
   return expanded;

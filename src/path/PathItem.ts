@@ -111,7 +111,11 @@ export interface PathItem {
    * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
    * @returns 交点情報の配列
    */
-  getIntersections(path?: PathItem | null, include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean }, _matrix?: Matrix, _returnFirst?: boolean): CurveLocation[];
+  getIntersections(
+    targetPath: PathItem, 
+    include: (loc: CurveLocation) => boolean,
+    _targetMatrix: Matrix | null, 
+    _returnFirst: boolean): CurveLocation[];
 
   /**
    * パスを簡略化する

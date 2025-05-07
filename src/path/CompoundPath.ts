@@ -414,59 +414,55 @@ export class CompoundPath extends PathItemBase {
    * @returns 交点情報の配列
    */
   getIntersections(
-    path?: PathItem | null,
-    include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
-    _matrix?: Matrix,
-    _returnFirst?: boolean
+    targetPath: PathItem,
+    include: (loc: CurveLocation) => boolean,
+    _targetMatrix: Matrix | null,
+    _returnFirst: boolean
   ): CurveLocation[] {
-    // 自己交差の場合
-    if (!path) {
-      let intersections: CurveLocation[] = [];
-      const children = this._children;
-      
-      // 各子パス同士の交点を計算
+    const children = this._children;
+    let intersections: CurveLocation[] = [];
+
+    // 自己交差の場合（this === targetPath）
+    if (this === targetPath) {
+      // 各子パスの自己交差＋子パス同士の交点
       for (let i = 0, l = children.length; i < l; i++) {
-        // 自己交差
-        const selfIntersections = children[i].getIntersections(null, include, undefined, _returnFirst);
+        // 子パスの自己交差
+        const selfIntersections = children[i].getIntersections(
+          children[i], include, null, _returnFirst
+        );
         intersections = intersections.concat(selfIntersections);
-        
+
         // 他の子パスとの交点
         for (let j = i + 1; j < l; j++) {
           const pathIntersections = children[i].getIntersections(
-            children[j], include, undefined, _returnFirst);
+            children[j], include, null, _returnFirst
+          );
           intersections = intersections.concat(pathIntersections);
         }
-        
+
         // 最初の交点だけを返す場合は早期リターン
         if (_returnFirst && intersections.length > 0) {
           return intersections;
         }
       }
-      
       return intersections;
     } else {
       // 他のパスとの交点
-      const children = this._children;
-      let intersections: CurveLocation[] = [];
-      
       for (let i = 0, l = children.length; i < l; i++) {
-        const childIntersections = children[i].getIntersections(path, include, _matrix, _returnFirst);
+        const childIntersections = children[i].getIntersections(
+          targetPath, include, _targetMatrix, _returnFirst
+        );
         intersections = intersections.concat(childIntersections);
-        
+
         // 最初の交点だけを返す場合は早期リターン
         if (_returnFirst && intersections.length > 0) {
           break;
         }
       }
-      
       return intersections;
     }
   }
 
-  /**
-   * パスの方向を再設定
-   * 最も外側のパスは時計回り、内側のパスは反時計回りに設定
-   */
   /**
    * パスの方向を再設定
    * 最も外側のパスは時計回り、内側のパスは反時計回りに設定

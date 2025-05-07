@@ -150,7 +150,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
           // Sort by path id to group segments on the same path.
           path1 !== path2
           ? path1._id - path2._id
-          : seg1._index - seg2._index;
+          : seg1._index! - seg2._index!;
   });
 
   for (var i = 0, l = segments.length; i < l; i++) {
@@ -220,7 +220,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // If we end up on the first or last segment of an operand,
         // copy over its closed state, to support mixed open/closed
         // scenarios as described in #1036
-        if (segOrNull!.isFirst() || segOrNull!.isLast()) closed = segOrNull!._path._closed;
+        if (segOrNull!.isFirst() || segOrNull!.isLast()) closed = segOrNull!._path!._closed;
         getMeta(segOrNull!)._visited = true;
         break;
       }
@@ -314,7 +314,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       path!.getFirstSegment()!.setHandleIn(handleIn!);
       // paper.js互換: segOrNull!.isFirst() || segOrNull!.isLast() のときは元パスの_closedを伝播
       if (segOrNull && (segOrNull.isFirst() || segOrNull.isLast())) {
-        closed = segOrNull._path._closed;
+        closed = segOrNull._path!._closed;
       }
       if (closed) {
         path!.setClosed(true);

@@ -35,12 +35,16 @@ export function resolveCrossings(path: PathItem): PathItem {
   // 交差点・重なり点の検出とフラグ
   let hasOverlaps = false;
   let hasCrossings = false;
-  let intersections = path.getIntersections(null, function(inter: CurveLocation) {
-    const isOverlap = inter.hasOverlap();
-    const isCrossing = inter.isCrossing();
-    return isOverlap && (hasOverlaps = true) ||
-           isCrossing && (hasCrossings = true);
-  });
+  let intersections = path.getIntersections(
+    path, 
+    function(inter: CurveLocation) {
+      const isOverlap = inter.hasOverlap();
+      const isCrossing = inter.isCrossing();
+      return isOverlap && (hasOverlaps = true) ||
+            isCrossing && (hasCrossings = true);
+    },
+    null,
+    false);
   
   // paper.jsと同様にCurveLocation.expandを使用
   intersections = CurveLocation.expand(intersections);
@@ -135,8 +139,8 @@ export function resolveCrossings(path: PathItem): PathItem {
       const id = curve._path._id;
       if (!curveCollisionsMap[id]) curveCollisionsMap[id] = {};
       curveCollisionsMap[id][curve.getIndex()] = {
-        hor: curveCollisions[i]!.hor.map((idx: number) => allCurves[idx]),
-        ver: curveCollisions[i]!.ver.map((idx: number) => allCurves[idx]),
+        hor: curveCollisions[i]!.hor!.map((idx: number) => allCurves[idx]),
+        ver: curveCollisions[i]!.ver!.map((idx: number) => allCurves[idx]),
       };
     }
     // 4. 全セグメントにwindingを伝播
@@ -148,7 +152,7 @@ export function resolveCrossings(path: PathItem): PathItem {
       if (seg) {
         const meta = getMeta(seg);
         if (!meta._winding) {
-          propagateWinding(seg, seg._path, null, curveCollisionsMap, operator);
+          propagateWinding(seg, seg._path!, null, curveCollisionsMap, operator);
         }
       }
     }
@@ -162,7 +166,7 @@ export function resolveCrossings(path: PathItem): PathItem {
       const seg = allSegments[i];
       const meta = getMeta(seg);
       if (!meta._winding) {
-        propagateWinding(seg, seg._path, null, curveCollisionsMap, operator);
+        propagateWinding(seg, seg._path!, null, curveCollisionsMap, operator);
       }
     }
     // paper.js互換: operator = { 1: true } を渡す

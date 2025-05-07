@@ -933,36 +933,40 @@ export class Path extends PathItemBase {
    * @returns 交点情報の配列
    */
   getIntersections(
-    path?: PathItem | null,
-    include?: ((loc: CurveLocation) => boolean) | { include: (loc: CurveLocation) => boolean },
-    _matrix?: Matrix,
-    _returnFirst?: boolean
+    targetPath: PathItem,
+    include: (loc: CurveLocation) => boolean,
+    _targetMatrix: Matrix | null,
+    _returnFirst: boolean
   ): CurveLocation[] {
-    // NOTE: 自己交差の場合、pathはnullまたは未定義。
-    // つまり、path.getIntersections()のように引数なしで呼び出すと自己交差を取得できる。
-    // NOTE: 隠し引数_matrixは、渡されたパスの変換行列を内部的にオーバーライドするために使用される。
-    const self = this === path || !path;
+    const self = this === targetPath; // 自己交差
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     const matrix2 = self
       ? matrix1
-      : _matrix || (path && path instanceof Path && path._matrix)
-        ? (
-            _matrix || (path && path instanceof Path && path._matrix ? path._matrix : null)
-          )?._orNullIfIdentity()
-        : null;
+      : _targetMatrix
+        ? _targetMatrix._orNullIfIdentity()
+        : (targetPath instanceof Path && targetPath._matrix)
+          ? targetPath._matrix._orNullIfIdentity()
+          : null;
 
-    // 最初に2つのパスの境界をチェック。交差しない場合は、
-    // 曲線を反復処理する必要はない。
-    return self || this.getBounds(matrix1).intersects(path!.getBounds(matrix2), Numerical.EPSILON)
-      ? getIntersections(
-          this.getCurves(),
-          !self && path ? path.getCurves() : null,
-          include,
-          matrix1,
-          matrix2,
-          _returnFirst
-        )
-      : [];
+    // まずバウンディングボックスで交差判定
+    if (
+      self ||
+      this.getBounds(matrix1).intersects(
+        (targetPath as Path).getBounds(matrix2),
+        Numerical.EPSILON
+      )
+    ) {
+      return getIntersections(
+        this.getCurves(),
+        !self && targetPath ? (targetPath as Path).getCurves() : null,
+        include,
+        matrix1,
+        matrix2,
+        _returnFirst
+      );
+    } else {
+      return [];
+    }
   }
 
   /**

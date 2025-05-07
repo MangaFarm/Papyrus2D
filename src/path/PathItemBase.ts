@@ -105,7 +105,11 @@ export abstract class PathItemBase implements PathItem {
   /**
    * 他のパスとの交点を取得
    */
-  abstract getIntersections(path: PathItem): CurveLocation[];
+  abstract getIntersections(
+    targetPath: PathItem, 
+    include: (loc: CurveLocation) => boolean,
+    _targetMatrix: Matrix | null, 
+    _returnFirst: boolean): CurveLocation[];
 
   /**
    * パスが空かどうかを判定
