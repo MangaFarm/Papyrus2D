@@ -888,8 +888,8 @@ export class Path extends PathItemBase {
    * @param clockwise 時計回りかどうか（省略可）
    * @returns 円弧が追加されたパス（this）
    */
-  arcTo(to: Point, clockwise?: boolean): Path {
-    return PathArc.arcTo(this, to, clockwise);
+  arcTo(through: Point, to: Point): Path {
+    return PathArc.arcTo(this, through, to);
   }
 
   /**

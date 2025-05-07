@@ -4,12 +4,10 @@
  */
 
 import { Point } from '../basic/Point';
-import { Matrix } from '../basic/Matrix';
 import { Segment } from './Segment';
 import { Path } from './Path';
 import { Numerical } from '../util/Numerical';
 import { Line } from '../basic/Line';
-import { Size } from '../basic/Size';
 
 /**
  * 円弧を描画するためのユーティリティ関数
@@ -27,211 +25,91 @@ export class PathArc {
    * @param args 引数（複数の形式をサポート）
    * @returns 円弧が追加されたパス
    */
-  static arcTo(path: Path, ...args: any[]): Path {
-    // 現在のセグメントを取得
-    const segments = path.getSegments();
-    if (segments.length === 0) {
-      throw new Error('Use a moveTo() command first');
+  static arcTo(path: Path, through: Point, to: Point): void {
+    function getCurrentSegment(that: Path): Segment {
+      var segments = that._segments;
+      if (!segments.length)
+          throw new Error('Use a moveTo() command first');
+      return segments[segments.length - 1];
     }
-    
-    const current = segments[segments.length - 1];
-    const from = current.getPoint();
-    let to: Point;
-    let through: Point | null = null;
-    let clockwise = true;
-    let center: Point | null = null;
-    let extent = 0;
-    let vector: Point | null = null;
-    let matrix: Matrix | null = null;
-    
-    // 引数の解析
-    if (typeof args[1] === 'boolean' || args[1] === undefined) {
-      // 形式1: arcTo(to, clockwise)
-      to = args[0] instanceof Point ? args[0].clone() : new Point(args[0].x, args[0].y);
-      clockwise = args[1] !== undefined ? !!args[1] : true; // デフォルトはtrue
-      
-      // 中間点を計算
-      const middle = from.add(to).divide(2);
-      through = middle.add(middle.subtract(from).rotate(
-        clockwise ? -90 : 90
-      ));
-    } else if (args[1] && (args[1] as any).x !== undefined) {
-      // 形式2: arcTo(through, to)
-      through = args[0] instanceof Point ? args[0].clone() : new Point(args[0].x, args[0].y);
-      to = args[1] instanceof Point ? args[1].clone() : new Point(args[1].x, args[1].y);
-    } else {
-      // 形式3: arcTo(to, radius, rotation, clockwise, large)
-      to = args[0] instanceof Point ? args[0].clone() : new Point(args[0].x, args[0].y);
-      
-      // fromとtoが等しい場合は何もしない
-      if (from.equals(to)) {
-        return path;
-      }
-      
-      const radius = args[1] instanceof Size ? args[1] : new Size(args[1].width, args[1].height);
-      
-      // radiusが0の場合は直線を描画
-      if (Numerical.isZero(radius.width) || Numerical.isZero(radius.height)) {
-        path.lineTo(to);
-        return path;
-      }
-      
-      const rotation = args[2];
-      clockwise = args[3] !== undefined ? !!args[3] : true;
-      const large = !!args[4];
-      
-      // SVGスタイルの円弧計算
-      const middle = from.add(to).divide(2);
-      const pt = from.subtract(middle).rotate(-rotation);
-      const x = pt.x;
-      const y = pt.y;
-      let rx = Math.abs(radius.width);
-      let ry = Math.abs(radius.height);
-      let rxSq = rx * rx;
-      let rySq = ry * ry;
-      const xSq = x * x;
-      const ySq = y * y;
-      
-      // 半径が十分大きいことを確認
-      let factor = Math.sqrt(xSq / rxSq + ySq / rySq);
-      if (factor > 1) {
-        rx *= factor;
-        ry *= factor;
-        rxSq = rx * rx;
-        rySq = ry * ry;
-      }
-      
-      factor = (rxSq * rySq - rxSq * ySq - rySq * xSq) / (rxSq * ySq + rySq * xSq);
-      
-      if (Math.abs(factor) < Numerical.EPSILON) {
-        factor = 0;
-      }
-      if (factor < 0) {
-        throw new Error('Cannot create an arc with the given arguments');
-      }
-      
-      center = new Point(rx * y / ry, -ry * x / rx)
-        .multiply((large === clockwise ? -1 : 1) * Math.sqrt(factor))
-        .rotate(rotation).add(middle);
-      
-      // 行列を作成して単位円から楕円への変換を容易にする
-      matrix = Matrix.identity();
-      matrix = matrix.translate(center.x, center.y).rotate(rotation).scale(rx, ry);
-      
-      // fromとtoを単位円座標空間に変換し、そこから開始ベクトルと範囲を計算
-      vector = matrix.inverseTransform(from);
-      if (vector) {
-        const transformedTo = matrix.inverseTransform(to);
-        if (transformedTo) {
-          extent = vector.getDirectedAngle(transformedTo);
 
-          // 円弧の方向を調整
-          if (!clockwise && extent > 0) {
-            extent -= 360;
-          } else if (clockwise && extent < 0) {
-            extent += 360;
-          }
-        }
-      }
-    }
-    
-    if (through && !center) {
-      // through点がある場合の処理
-      // 2つの垂直二等分線を構築し、それらの交点を中心とする
-      const fromThroughMidpoint = from.add(through).divide(2);
-      const throughDirection = through.subtract(from);
-      const throughNormal = throughDirection.rotate(90);
-      
-      const throughToMidpoint = through.add(to).divide(2);
-      const toDirection = to.subtract(through);
-      const toNormal = toDirection.rotate(90);
-      
-      // paper.jsと同様に、第3引数にtrueを渡して、第2引数をベクトルとして扱うようにする
-      const l1 = new Line(fromThroughMidpoint, throughNormal, true);
-      const l2 = new Line(throughToMidpoint, toNormal, true);
-      
-      const line = new Line(from, to);
-      const throughSide = line.getSide(through);
-      
-      // paper.jsと同様に、第2引数にtrueを渡して、直線を無限に延長するようにする
-      const intersection = l1.intersect(l2, true);
-      if (intersection) {
-        center = intersection;
-      }
-      
-      // 2つの線が同一直線上にある場合、円弧は無限大の円の一部となり、
-      // 中心点がないため、直線を使用するか、エラーを投げる
-      if (!center) {
+    const current = getCurrentSegment(path);
+    const from: Point = current._point.toPoint();
+
+    // Calculate center, vector and extend for non SVG versions:
+    // Construct the two perpendicular middle lines to
+    // (from, through) and (through, to), and intersect them to get
+    // the center.
+    var l1 = new Line(from.add(through).divide(2),
+                through.subtract(from).rotate(90), true),
+        l2 = new Line(through.add(to).divide(2),
+                to.subtract(through).rotate(90), true),
+        line = new Line(from, to),
+        throughSide = line.getSide(through);
+    let center = l1.intersect(l2, true);
+    // If the two lines are collinear, there cannot be an arc as the
+    // circle is infinitely big and has no center point. If side is
+    // 0, the connecting arc line of this huge circle is a line
+    // between the two points, so we can use #lineTo instead.
+    // Otherwise we bail out:
+    if (!center) {
         if (!throughSide) {
-          path.lineTo(to);
-          return path;
+            path.lineTo(to);
+            return;
         }
-        throw new Error('Cannot create an arc with the given arguments');
-      }
-      
-      vector = from.subtract(center);
-      extent = vector.getDirectedAngle(to.subtract(center));
-
-      const centerSide = line.getSide(center);
-      if (centerSide === 0) {
-        // 中心が線上にある場合、through点の側に基づいて範囲の符号を決定
+        throw new Error(
+                'Cannot create an arc with the given arguments');
+    }
+    let vector = from.subtract(center);
+    let extent = vector.getDirectedAngle(to.subtract(center));
+    var centerSide = line.getSide(center, true);
+    if (centerSide === 0) {
+        // If the center is lying on the line, we might have gotten
+        // the wrong sign for extent above. Use the sign of the side
+        // of the through point.
         extent = throughSide * Math.abs(extent);
-      } else if (throughSide === centerSide) {
-        // 中心がthrough点と同じ側にある場合、180度未満の範囲を拡張
+    } else if (throughSide === centerSide) {
+        // If the center is on the same side of the line (from, to)
+        // as the through point, we're extending bellow 180 degrees
+        // and need to adapt extent.
         extent += extent < 0 ? 360 : -360;
-      }
     }
-    
-    if (extent && vector && center) {
-      // 円弧を描画
-      const epsilon = Numerical.ANGULAR_EPSILON;
-      const ext = Math.abs(extent);
-      // 90度ごとにセグメントを分割（最大4セグメント）
-      const count = ext >= 360 ? 4 : Math.ceil((ext - epsilon) / 90);
-      const inc = extent / count;
-      const half = inc * Math.PI / 360;
-      const z = 4 / 3 * Math.sin(half) / (1 + Math.cos(half));
-      
-      const newSegments: Segment[] = [];
-      let currentVector = vector.clone();
-      
-      for (let i = 0; i <= count; i++) {
-        let pt: Point;
-        let outHandle: Point | null = null;
-        let inHandle: Point | null = null;
-        
-        if (i < count) {
-          outHandle = currentVector.rotate(90).multiply(z);
-          if (matrix) {
-            pt = matrix.transform(currentVector);
-            outHandle = matrix.transform(currentVector.add(outHandle)).subtract(pt);
+
+    if (extent) {
+      var epsilon = /*#=*/Numerical.ANGULAR_EPSILON,
+          ext = Math.abs(extent),
+          // Calculate amount of segments required to approximate over
+          // `extend` degrees (extend / 90), but prevent ceil() from
+          // rounding up small imprecisions by subtracting epsilon.
+          count = ext >= 360
+              ? 4
+              : Math.ceil((ext - epsilon) / 90),
+          inc = extent / count,
+          half = inc * Math.PI / 360,
+          z = 4 / 3 * Math.sin(half) / (1 + Math.cos(half)),
+          segments: Segment[] = [];
+      for (var i = 0; i <= count; i++) {
+          // Explicitly use to point for last segment, since depending
+          // on values the calculation adds imprecision:
+          var pt = to,
+              out: Point | null = null;
+          if (i < count) {
+              out = vector.rotate(90).multiply(z);
+              pt = center.add(vector);
+          }
+          if (!i) {
+              // Modify startSegment
+              current.setHandleOut(out!);
           } else {
-            pt = center.add(currentVector);
+              // Add new Segment
+              var _in = vector.rotate(-90).multiply(z);
+              segments.push(new Segment(pt, _in, out));
           }
-        } else {
-          // 最後のセグメントでは、正確な終点を使用
-          pt = to.clone();
-        }
-        
-        if (!i) {
-          // 最初のセグメントのハンドルを設定
-          current.setHandleOut(outHandle ? outHandle : new Point(0, 0));
-        } else {
-          // 新しいセグメントを追加
-          inHandle = currentVector.rotate(-90).multiply(z);
-          if (matrix) {
-            inHandle = matrix.transform(currentVector.add(inHandle)).subtract(pt);
-          }
-          newSegments.push(new Segment(pt, inHandle, outHandle));
-        }
-        
-        currentVector = currentVector.rotate(inc);
+          vector = vector.rotate(inc);
       }
-      
-      // すべてのセグメントを一度に追加
-      path.addSegments(newSegments);
-    }
-    
-    return path;
+      // Add all segments at once at the end for higher performance
+      path._add(segments);
   }
+}
+
 }
