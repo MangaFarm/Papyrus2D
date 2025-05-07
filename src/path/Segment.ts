@@ -467,10 +467,6 @@ export class Segment {
    */
   remove(): boolean {
     if (!this._path) return false;
-    // パスのセグメントが1つだけの場合は削除しない（paper.jsと同じ挙動）
-    if (this._path._segments && this._path._segments.length === 1) {
-      return false;
-    }
     // 🔥DEBUG: Segment#remove
     console.log("🔥[Segment#remove] index:", this._index, "point:", this.getPoint().toString(), "path.closed:", this._path._closed, "segments:", this._path._segments.map(s => s.getPoint().toString()));
     return !!this._path.removeSegment(this._index);

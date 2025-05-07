@@ -14,35 +14,23 @@ import { Numerical } from '../util/Numerical';
  * @returns reduce後のPath（破壊的操作）
  */
 export function reducePath(path: Path, options?: { simplify?: boolean }): Path {
-    // 🔥DEBUG: reduction start
-    if (path.closed) {
-        console.log("🔥[reducePath] before reduction (closed):", path.getSegments().map(s => s.getPoint().toString()));
-    } else {
-        console.log("🔥[reducePath] before reduction (open):", path.getSegments().map(s => s.getPoint().toString()));
-    }
-
-    const curves = path.getCurves();
-    const simplify = options && options.simplify;
-    const tolerance = simplify ? Numerical.GEOMETRIC_EPSILON : 0;
-    for (let i = curves.length - 1; i >= 0; i--) {
-        const curve = curves[i];
-        if (
-            !curve.hasHandles() &&
-            (!curve.hasLength(tolerance) ||
-                (simplify && (() => {
-                    const next = curve.getNext();
-                    return next ? curve.isCollinear(next) : false;
-                })()))
-        ) {
-            console.log("🔥[reducePath] removing curve at", i, "seg1:", curve._segment1.getPoint().toString(), "seg2:", curve._segment2.getPoint().toString());
-            curve.remove();
-        }
-    }
-
-    if (path.closed) {
-        console.log("🔥[reducePath] after reduction (closed):", path.getSegments().map(s => s.getPoint().toString()));
-    } else {
-        console.log("🔥[reducePath] after reduction (open):", path.getSegments().map(s => s.getPoint().toString()));
-    }
-    return path;
+  var curves = path.getCurves(),
+    // TODO: Find a better name, to not confuse with PathItem#simplify()
+    simplify = options && options.simplify,
+    // When not simplifying, only remove curves if their lengths are
+    // absolutely 0.
+    tolerance = simplify ? /*#=*/ Numerical.GEOMETRIC_EPSILON : 0;
+  for (var i = curves.length - 1; i >= 0; i--) {
+    var curve = curves[i];
+    // When simplifying, compare curves with isCollinear() will remove
+    // any collinear neighboring curves regardless of their orientation.
+    // This serves as a reliable way to remove linear overlaps but only
+    // as long as the lines are truly overlapping.
+    if (
+      !curve.hasHandles() &&
+      (!curve.hasLength(tolerance) || (simplify && curve.isCollinear(curve.getNext()!)))
+    )
+      curve.remove();
+  }
+  return this;
 }
