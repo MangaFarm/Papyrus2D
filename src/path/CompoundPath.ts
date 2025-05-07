@@ -5,13 +5,13 @@
  * 名前付き子要素のようなシーン管理機能は削除されている
  */
 
+import type { PathItem } from './PathItem';
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { Path } from './Path';
 import { Segment } from './Segment';
-import { PathItem } from './PathItem';
 import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
 import { ChangeFlag } from './ChangeFlag';

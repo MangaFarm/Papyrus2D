@@ -539,7 +539,7 @@ export class Curve {
   static getIntersections(
     curves1: Curve[] | number[],
     curves2: Curve[] | number[] | null = null,
-    include?: (loc: CurveLocation) => boolean,
+    include: (loc: CurveLocation) => boolean,
     matrix1?: Matrix | null | undefined,
     matrix2?: Matrix | null | undefined,
     _returnFirst?: boolean
@@ -573,8 +573,8 @@ export class Curve {
   getIntersections(curve: Curve | null): CurveLocation[] {
     const v1 = this.getValues();
     const v2 = curve && curve !== this && curve.getValues();
-    return v2 ? Curve.getIntersections([this], [curve], undefined, null, null, false)
-              : Curve.getIntersections([this], null, undefined, null, null, false);
+    return v2 ? Curve.getIntersections([this], [curve], c => true, null, null, false)
+              : Curve.getIntersections([this], null, c => true, null, null, false);
   }
 
   /**

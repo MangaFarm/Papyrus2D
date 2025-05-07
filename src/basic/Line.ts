@@ -100,7 +100,7 @@ export class Line {
    * @param isInfinite 両方の直線を無限に延長するかどうか
    * @return 交点、または直線が平行の場合はundefined、交点がない場合はnull
    */
-  intersect(line: Line, isInfinite?: boolean): Point | null | undefined {
+  intersect(line: Line, isInfinite: boolean): Point | null | undefined {
     return Line.intersect(
       this._px, this._py, this._vx, this._vy,
       line._px, line._py, line._vx, line._vy,
@@ -183,7 +183,7 @@ export class Line {
   static intersect(
     p1x: number, p1y: number, v1x: number, v1y: number,
     p2x: number, p2y: number, v2x: number, v2y: number,
-    asVector: boolean, isInfinite?: boolean
+    asVector: boolean, isInfinite: boolean
   ): Point | null | undefined {
     // 🔥 デバッグ出力
     // ベクトルとして指定されていない場合は、終点から始点を引いてベクトルに変換
@@ -289,16 +289,15 @@ export class Line {
     if (!asVector) {
       vx -= px;
       vy -= py;
-    }
-
-    // #799のエラー分析に基づく実装
-    return vx === 0 ? (vy > 0 ? x - px : px - x)
-      : vy === 0 ? (vx < 0 ? y - py : py - y)
-      : ((x - px) * vy - (y - py) * vx) / (
-        vy > vx
-          ? vy * Math.sqrt(1 + (vx * vx) / (vy * vy))
-          : vx * Math.sqrt(1 + (vy * vy) / (vx * vx))
-      );
+  }
+  // Based on the error analysis by @iconexperience outlined in #799
+    return  vx === 0 ? (vy > 0 ? x - px : px - x)
+          : vy === 0 ? (vx < 0 ? y - py : py - y)
+          : ((x - px) * vy - (y - py) * vx) / (
+              vy > vx
+                  ? vy * Math.sqrt(1 + (vx * vx) / (vy * vy))
+                  : vx * Math.sqrt(1 + (vy * vy) / (vx * vx))
+          );
   }
 
   /**

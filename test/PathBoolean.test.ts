@@ -3,15 +3,16 @@ import { describe, it, expect } from 'vitest';
 import { Path } from '../src/path/Path';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { PathConstructors } from '../src/path/PathConstructors';
+import { unite, subtract, intersect, exclude, divide } from '../src/path/PathBoolean';
 
 // CompoundPathの全子パスに対して intersect を適用し、結果をまとめる
 function intersectCompoundPath(comp: CompoundPath, other: Path): CompoundPath {
   const result = new CompoundPath();
   // Papyrus2D CompoundPathは getPaths() で子パス配列取得
   for (const child of comp.getPaths()) {
-    const inter = child.intersect(other);
-    if (inter && !inter.isEmpty()) {
-      result.addChild(inter);
+    const inter = intersect(child, other);
+    if (inter && typeof inter.isEmpty === 'function' && !inter.isEmpty()) {
+      result.addChild(inter as Path);
     }
   }
   return result;
@@ -38,14 +39,14 @@ function equals(actualFn: () => any, expected: any, message?: string) {
 
 describe('Path Boolean Operations', () => {
   function testOperations(path1: any, path2: any, results: string[]) {
-    compareBoolean(() => path1.unite(path2), results[0]);
-    compareBoolean(() => path2.unite(path1), results[0]);
-    compareBoolean(() => path1.subtract(path2), results[1]);
-    compareBoolean(() => path2.subtract(path1), results[2]);
-    compareBoolean(() => path1.intersect(path2), results[3]);
-    compareBoolean(() => path2.intersect(path1), results[3]);
-    compareBoolean(() => path1.exclude(path2), results[4]);
-    compareBoolean(() => path2.exclude(path1), results[4]);
+    compareBoolean(() => unite(path1, path2), results[0]);
+    compareBoolean(() => unite(path2, path1), results[0]);
+    compareBoolean(() => subtract(path1, path2), results[1]);
+    compareBoolean(() => subtract(path2, path1), results[2]);
+    compareBoolean(() => intersect(path1, path2), results[3]);
+    compareBoolean(() => intersect(path2, path1), results[3]);
+    compareBoolean(() => exclude(path1, path2), results[4]);
+    compareBoolean(() => exclude(path2, path1), results[4]);
   }
 
   it.skip('Boolean operations without crossings', () => {
@@ -86,7 +87,7 @@ describe('Path Boolean Operations', () => {
     frame.addChild(PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } }));
     const rect = PathConstructors.Rectangle({ point: { x: 50, y: 50 }, size: { width: 100, height: 150 } });
 
-    compareBoolean(() => frame.intersect(rect), 'M140,50l10,0l0,150l-10,0z');
+    compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');
   });
 
   it('PathItem#resolveCrossings()', () => {

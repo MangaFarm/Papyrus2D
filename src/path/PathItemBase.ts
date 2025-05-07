@@ -4,15 +4,13 @@
  * Path と CompoundPath の共通機能を提供する。
  */
 
-import { Point } from '../basic/Point';
-import { Rectangle } from '../basic/Rectangle';
+import type { PathItem, Style, FillRule } from './PathItem';
+import type { Point } from '../basic/Point';
+import type { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
-import { Curve } from './Curve';
-import { Segment } from './Segment';
-import { CurveLocation } from './CurveLocation';
-import { PathItem, Style, FillRule } from './PathItem';
-import type { Path } from './Path';
-import { PathBoolean } from './PathBoolean';
+import type { Curve } from './Curve';
+import type { Segment } from './Segment';
+import type { CurveLocation } from './CurveLocation';
 
 export abstract class PathItemBase implements PathItem {
  // PathItemインターフェースの実装
@@ -54,7 +52,7 @@ export abstract class PathItemBase implements PathItem {
   abstract getCurves(): Curve[];
   abstract getArea(): number;
   abstract reverse(): PathItemBase;
-  abstract getPaths(): Path[];
+  abstract getPaths(): any[];
   abstract clone(deep?: boolean): PathItem;
 
   /**
@@ -282,38 +280,4 @@ export abstract class PathItemBase implements PathItem {
    * パスの交差（intersect）
    * paper.js互換API
    */
-  intersect(other: PathItem): PathItem {
-    return PathBoolean.intersect(this, other);
-  }
-/**
-   * パスの合成（unite）
-   * paper.js互換API
-   */
-  unite(other: PathItem): PathItem {
-    return PathBoolean.unite(this, other);
-  }
-
-  /**
-   * パスの差分（subtract）
-   * paper.js互換API
-   */
-  subtract(other: PathItem): PathItem {
-    return PathBoolean.subtract(this, other);
-  }
-
-  /**
-    * パスの排他論理和（exclude）
-    * paper.js互換API
-    */
-  exclude(other: PathItem): PathItem {
-    return PathBoolean.exclude(this, other);
-  }
-
-  /**
-    * パスの分割（divide）
-    * paper.js互換API
-    */
-  divide(other: PathItem): PathItem {
-    return PathBoolean.divide(this, other);
-  }
 }

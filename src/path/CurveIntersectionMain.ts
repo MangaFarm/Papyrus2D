@@ -10,7 +10,6 @@ import { Line } from '../basic/Line';
 import { Matrix } from '../basic/Matrix';
 import { CollisionDetection } from '../util/CollisionDetection';
 import { CurveSubdivision } from './CurveSubdivision';
-import { CurveLocationUtils } from './CurveLocationUtils';
 import { addLocation, getSelfIntersection } from './CurveIntersectionBase';
 import { addLineIntersection, addCurveLineIntersections } from './CurveIntersectionSpecial';
 import { addCurveIntersections } from './CurveIntersectionConvexHull';
@@ -25,26 +24,24 @@ export function getCurveIntersections(
   c1: Curve,
   c2: Curve,
   locations: CurveLocation[],
-  include?: (loc: CurveLocation) => boolean
+  include: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
-  // 🔥 デバッグ: 入力値・直線判定・overlaps・AABB判定
-  // @ts-ignore
-  const straight1 = Curve.isStraight(v1);
-  const straight2 = Curve.isStraight(v2);
-  // @ts-ignore
-  const overlaps = getOverlaps(v1, v2);
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
   const min = Math.min;
   const max = Math.max;
 
   // Paper.jsと同様の境界ボックスチェック - 正確に同じ条件判定を使用
-  if (
+  // 🔥AABB判定デバッグ
+  const aabbCheck =
     max(v1[0], v1[2], v1[4], v1[6]) + epsilon > min(v2[0], v2[2], v2[4], v2[6]) &&
     min(v1[0], v1[2], v1[4], v1[6]) - epsilon < max(v2[0], v2[2], v2[4], v2[6]) &&
     max(v1[1], v1[3], v1[5], v1[7]) + epsilon > min(v2[1], v2[3], v2[5], v2[7]) &&
-    min(v1[1], v1[3], v1[5], v1[7]) - epsilon < max(v2[1], v2[3], v2[5], v2[7])
-  ) {
+    min(v1[1], v1[3], v1[5], v1[7]) - epsilon < max(v2[1], v2[3], v2[5], v2[7]);
+  if (!aabbCheck) {
+    console.log("🔥AABB判定でスキップ", { v1, v2, epsilon });
+  }
+  if (aabbCheck) {
     // オーバーラップの検出と処理
     const overlaps = getOverlaps(v1, v2);
     if (overlaps) {
@@ -61,14 +58,20 @@ export function getCurveIntersections(
 
       // 直線か曲線かに基づいて適切な交点計算メソッドを決定
       if (straight) {
+        // 🔥addLineIntersection呼び出しデバッグ
+        console.log("🔥addLineIntersection call", {
+          v1: flip ? v2 : v1,
+          v2: flip ? v1 : v2,
+          c1: flip ? c2 : c1,
+          c2: flip ? c1 : c2
+        });
         addLineIntersection(
           flip ? v2 : v1,
           flip ? v1 : v2,
           flip ? c2 : c1,
           flip ? c1 : c2,
           locations,
-          include,
-          flip
+          include
         );
       } else if (straight1 || straight2) {
         addCurveLineIntersections(
@@ -235,7 +238,7 @@ export function getOverlaps(v1: number[], v2: number[]): [number, number][] | nu
 export function getIntersections(
   curves1: Curve[] | number[],
   curves2: Curve[] | number[] | null,
-  include?: (loc: CurveLocation) => boolean,
+  include: (loc: CurveLocation) => boolean,
   matrix1?: Matrix | null | undefined,
   matrix2?: Matrix | null | undefined,
   _returnFirst?: boolean

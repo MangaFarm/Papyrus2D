@@ -10,8 +10,8 @@ import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { Segment } from './Segment';
-import type { Path } from './Path';
 import type { CurveLocation } from './CurveLocation';
+import type { Path } from './Path';
 
 /**
  * Style型

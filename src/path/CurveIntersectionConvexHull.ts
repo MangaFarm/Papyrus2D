@@ -15,7 +15,7 @@ export function addCurveIntersections(
   v1: number[], v2: number[],
   c1: Curve, c2: Curve,
   locations: CurveLocation[],
-  include?: (loc: CurveLocation) => boolean,
+  include: (loc: CurveLocation) => boolean,
   flip?: boolean,
   recursion: number = 0,
   calls: number = 0,

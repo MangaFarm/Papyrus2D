@@ -4,6 +4,7 @@
  * segments 配列と closed フラグを持ち、PathItemBase クラスを継承する。
  */
 
+import type { PathItem } from './PathItem';
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
@@ -11,7 +12,6 @@ import { Curve } from './Curve';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { Numerical } from '../util/Numerical';
-import { PathItem } from './PathItem';
 import { PathItemBase } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';

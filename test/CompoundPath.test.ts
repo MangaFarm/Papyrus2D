@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { Path } from '../src/path/Path';
 import { Point } from '../src/basic/Point';
-import { Segment } from '../src/path/Segment';
 
 describe('CompoundPath', () => {
   it('moveTo() / lineTo()', () => {
