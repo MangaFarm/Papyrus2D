@@ -28,20 +28,12 @@ export function addLineIntersection(
   // @ts-ignore
   const before = locations.length;
   // @ts-ignore
-  console.log("🔥 addLineIntersection: v1=", v1, "v2=", v2, "before=", before);
   // オーバーラップ（重なり）を検出
   const overlaps = getOverlaps(v1, v2);
   if (overlaps) {
     // overlap範囲の代表CurveLocationを生成
-    let overlapLoc: CurveLocation | null = null;
     for (const [t1, t2] of overlaps) {
-      const loc = addLocation(locations, include, c1, t1, c2, t2, true);
-      if (!overlapLoc) overlapLoc = loc;
-      if (loc) loc._overlap = overlapLoc;
-    }
-    // 既存のlocationsにもoverlapLocをセット
-    for (const loc of locations) {
-      if (loc && overlapLoc && loc._overlap == null) loc._overlap = overlapLoc;
+      addLocation(locations, include, c1, t1, c2, t2, true);
     }
     return locations;
   }
@@ -52,12 +44,10 @@ export function addLineIntersection(
     true // asVector
   );
   // @ts-ignore
-  console.log("🔥 addLineIntersection: Line.intersect pt=", pt);
   if (pt) {
     const t1 = flip ? Curve.getTimeOf(v2, pt) : Curve.getTimeOf(v1, pt);
     const t2 = flip ? Curve.getTimeOf(v1, pt) : Curve.getTimeOf(v2, pt);
     // @ts-ignore
-    console.log("🔥 addLineIntersection: t1=", t1, "t2=", t2);
     addLocation(locations, include,
       flip ? c2 : c1, t1,
       flip ? c1 : c2, t2,
@@ -84,8 +74,8 @@ export function addLineIntersection(
         // 端点overlapなセグメントにもwindingをセット
         const seg1 = t1 === 0 ? c1._segment1 : c1._segment2;
         const seg2 = t2 === 0 ? c2._segment1 : c2._segment2;
-        propagateWinding(seg1, c1._path, c2._path, {}, {});
-        propagateWinding(seg2, c2._path, c1._path, {}, {});
+        if (c1._path && c2._path) propagateWinding(seg1, c1._path, c2._path, {}, {});
+        if (c2._path && c1._path) propagateWinding(seg2, c2._path, c1._path, {}, {});
         // デバッグ: winding number
         const meta1 = getMeta(seg1);
         const meta2 = getMeta(seg2);
@@ -94,7 +84,6 @@ export function addLineIntersection(
   }
   
   // @ts-ignore
-  console.log("🔥 addLineIntersection: after=", locations.length, "added=", locations.length - before);
   return locations;
 }
 

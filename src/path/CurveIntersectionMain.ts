@@ -29,14 +29,10 @@ export function getCurveIntersections(
 ): CurveLocation[] {
   // 🔥 デバッグ: 入力値・直線判定・overlaps・AABB判定
   // @ts-ignore
-  console.log("🔥 getCurveIntersections: v1=", v1, "v2=", v2);
   const straight1 = Curve.isStraight(v1);
   const straight2 = Curve.isStraight(v2);
   // @ts-ignore
-  console.log("🔥 getCurveIntersections: straight1=", straight1, "straight2=", straight2);
   const overlaps = getOverlaps(v1, v2);
-  // @ts-ignore
-  console.log("🔥 getCurveIntersections: overlaps=", overlaps);
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
   const min = Math.min;
@@ -302,11 +298,8 @@ export function getIntersections(
     epsilon
   );
   // 🔥 デバッグ: boundsCollisions, 各カーブペアの交点数
-  // @ts-ignore
-  console.log("🔥 CurveIntersectionMain.getIntersections: boundsCollisions=", boundsCollisions);
-
-  // 各曲線の交点を計算
-  for (let index1 = 0; index1 < length1; index1++) {
+    // 各曲線の交点を計算
+    for (let index1 = 0; index1 < length1; index1++) {
     const curve1 = curveArray1[index1];
     const v1 = values1[index1];
 
@@ -334,8 +327,6 @@ export function getIntersections(
           const before = locations.length;
           getCurveIntersections(v1, v2, curve1, curve2, locations, include);
           const after = locations.length;
-          // @ts-ignore
-          console.log("🔥 CurveIntersectionMain.getIntersections: index1=", index1, "index2=", index2, "curve1=", v1, "curve2=", v2, "found=", after - before);
         }
       }
     }

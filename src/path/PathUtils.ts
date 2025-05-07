@@ -145,8 +145,7 @@ export function smoothPath(
  */
 export function splitPathAt(path: Path, location: CurveLocation): Path | null {
 // 🔥 DEBUG: location type = ${typeof location}, value = ${location}
-console.log("🔥 splitPathAt location type:", typeof location, "value:", location);
-  // NOTE: getLocationAt() handles both offset and location:
+ // NOTE: getLocationAt() handles both offset and location:
   var loc = location,
     index = loc && loc.getIndex(),
     time = loc && loc.getTime()!,
