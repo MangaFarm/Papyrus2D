@@ -29,14 +29,17 @@ export function smoothPath(
       // paper.jsの実装に合わせて、_path, _indexはSegment型にprivateで持っている前提で型アサーション
       const segPath = (segment as unknown as { _path: Path })._path;
       if (segPath && segPath !== that) {
-        throw new Error(`Segment ${(segment as unknown as { _index: number })._index} of another path cannot be used as a parameter`);
+        throw new Error(
+          `Segment ${(segment as unknown as { _index: number })._index} of another path cannot be used as a parameter`
+        );
       }
       return (segment as unknown as { _index: number })._index;
     } else {
       const index = typeof value === 'number' ? value : _default;
-      return Math.min(index < 0 && closed
-        ? index % length
-        : index < 0 ? index + length : index, length - 1);
+      return Math.min(
+        index < 0 && closed ? index % length : index < 0 ? index + length : index,
+        length - 1
+      );
     }
   }
 
@@ -130,8 +133,7 @@ export function smoothPath(
     }
   } else {
     for (let i = from; i <= to; i++) {
-      segments[i < 0 ? i + length : i].smooth(opts,
-        !loop && i === from, !loop && i === to);
+      segments[i < 0 ? i + length : i].smooth(opts, !loop && i === from, !loop && i === to);
     }
   }
 
@@ -141,68 +143,50 @@ export function smoothPath(
 /**
  * Pathの分割ロジック（Path.splitAtのロジックを移植）
  */
-export function splitPathAt(path: Path, location: number | CurveLocation): Path | null {
-  let loc: CurveLocation | null;
-  if (typeof location === 'number') {
-    loc = path.getLocationAt(location);
-  } else {
-    loc = location;
+export function splitPathAt(path: Path, location: CurveLocation): Path | null {
+  // NOTE: getLocationAt() handles both offset and location:
+  var loc = location,
+    index = loc && loc.getIndex(),
+    time = loc && loc.getTime()!,
+    tMin = /*#=*/ Numerical.CURVETIME_EPSILON,
+    tMax = 1 - tMin;
+  if (time > tMax) {
+    // time == 1 is the same location as time == 0 and index++
+    index++;
+    time = 0;
   }
-
-  if (!loc) {
-    return null;
-  }
-
-  if (!loc.getCurve()) {
-    return null;
-  }
-
-  if (loc.getPath() !== path) {
-    return null;
-  }
-
-  const index = loc.getIndex();
-  const time = loc.getTime() ?? 0;
-  const tMin = Numerical.CURVETIME_EPSILON;
-  const tMax = 1 - tMin;
-
-  let curveIndex = index;
-  let curveTime = time;
-  if (curveTime > tMax) {
-    curveIndex++;
-    curveTime = 0;
-  }
-
-  const curves = path.getCurves();
-  if (curveIndex >= 0 && curveIndex < curves.length) {
-    if (curveTime >= tMin) {
-      curves[curveIndex].divideAtTime(curveTime);
-      curveIndex++;
+  var curves = path.getCurves();
+  if (index >= 0 && index < curves.length) {
+    // Only divide curves if we're not on an existing segment already.
+    if (time >= tMin) {
+      // Divide the curve with the index at the given curve-time.
+      // Increase because dividing adds more segments to the path.
+      curves[index++].divideAtTime(time);
     }
-
-    const segs = path.removeSegments(curveIndex, (path as unknown as { _segments: Segment[] })._segments.length);
-
-    let path2;
-    if ((path as unknown as { _closed: boolean })._closed) {
+    // Create the new path with the segments to the right of given
+    // curve-time, which are removed from the current path. Pass true
+    // for includeCurves, since we want to preserve and move them to
+    // the new path through _add(), allowing us to have CurveLocation
+    // keep the connection to the new path through moved curves.
+    var segs = path.removeSegments(index, path._segments.length, true),
+      path2;
+    if (path._closed) {
+      // If the path is closed, open it and move the segments round,
+      // otherwise create two paths.
       path.setClosed(false);
+      // Just have path point to path. The moving around of segments
+      // will happen below.
       path2 = path;
     } else {
       path2 = new Path();
-      // path2.copyAttributes(path); // Papyrus2Dには未実装かも
-      path.add(segs[0]);
+      path2.insertAbove(path);
+      path2.copyAttributes(path);
     }
-
-    for (let i = 0; i < segs.length; i++) {
-      path2.add(segs[i]);
-    }
-
-    (path as unknown as { _length: undefined })._length = undefined;
-    (path2 as unknown as { _length: undefined })._length = undefined;
-    path.getCurves();
-    path2.getCurves();
-
-    return path2;
+    path._add(segs, 0);
+    // Add dividing segment again. In case of a closed path, that's the
+    // beginning segment again at the end, since we opened it.
+    path.addSegment(segs[0]);
+    return path;
   }
-
   return null;
 }
