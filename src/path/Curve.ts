@@ -752,7 +752,6 @@ export class Curve {
         if (this._path) {
             let segment2 = this._segment2;
             // 🔥DEBUG: remove() called
-            console.log("🔥[Curve#remove] called: path.closed=", this._path._closed, "segment1._index=", this._segment1._index, "segment2._index=", segment2._index, "segment2.point=", segment2.getPoint().toString());
             // paper.jsと同じく、常にcurve._segment2をremoveする
             const handleOut = segment2._handleOut;
             removed = segment2.remove();

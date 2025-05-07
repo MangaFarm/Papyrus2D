@@ -55,7 +55,6 @@ describe('Path.reduce', () => {
     ], true);
     path.reduce({ simplify: true });
     const segs = path.getSegments();
-    console.log("💉", segs);
     expect(segs.length).toBe(0);
     expect(path.closed).toBe(true);
   });
