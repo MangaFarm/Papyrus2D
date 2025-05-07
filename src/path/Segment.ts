@@ -19,8 +19,8 @@ export class Segment {
   _handleOut: SegmentPoint;
   
   // パスとの関連付け
-  _path: Path;
-  _index: number;
+  _path: Path | null;
+  _index: number | null;
 
   // paper.jsとの互換性のためのゲッター
   get point(): Point {
@@ -68,7 +68,7 @@ export class Segment {
 
     // 関連するカーブに変更を通知
     const curves = path._curves;
-    const index = this._index;
+    const index = this._index!;
     let curve;
 
     if (curves) {
@@ -211,7 +211,7 @@ export class Segment {
    */
   getCurve(): Curve | null {
     const path = this._path;
-    const index = this._index;
+    const index = this._index!;
     if (path) {
       // オープンパスの最後のセグメントは最後のカーブに属します。
       if (index > 0 && !path._closed
@@ -407,14 +407,14 @@ export class Segment {
 
   getPrevious(): Segment | null {
     const segments = this._path && this._path._segments;
-    return segments && (segments[this._index - 1]
-            || this._path._closed && segments[segments.length - 1]) || null;
+    return segments && (segments[this._index! - 1]
+            || this._path!._closed && segments[segments.length - 1]) || null;
   }
 
   getNext(): Segment | null {
     const segments = this._path && this._path._segments;
-    return segments && (segments[this._index + 1]
-            || this._path._closed && segments[0]) || null;
+    return segments && (segments[this._index! + 1]
+            || this._path!._closed && segments[0]) || null;
   }
 
   isFirst(): boolean {
@@ -468,6 +468,6 @@ export class Segment {
   remove(): boolean {
     if (!this._path) return false;
     // 🔥DEBUG: Segment#remove
-    return !!this._path.removeSegment(this._index);
+    return !!this._path.removeSegment(this._index!);
   }
 }

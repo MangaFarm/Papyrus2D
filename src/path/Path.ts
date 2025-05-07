@@ -712,6 +712,15 @@ export class Path extends PathItemBase {
       removed: SegmentsWithCurves = segments.splice(start, end! - start),
       amount = removed.length;
     if (!amount) return removed;
+    // Update selection state accordingly
+    for (var i = 0; i < amount; i++) {
+      var segment = removed[i];
+      // Clear the indices and path references of the removed segments
+      segment._index = segment._path = null;
+    }
+    // Adjust the indices of the segments above.
+    for (var i = start, l = segments.length; i < l; i++)
+        segments[i]._index = i;
     // Keep curves in sync
     if (curves) {
       // If we're removing the last segment, remove the last curve (the
