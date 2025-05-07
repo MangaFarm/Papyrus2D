@@ -624,6 +624,9 @@ export class Path extends PathItemBase {
         const curve = new Curve(this, segments[i], segments[next]);
         curves.push(curve);
       }
+      // paper.js互換: 閉じたパスの最後のセグメント（segments[0]）の_indexをcountにする
+      // これにより、閉じたパスの末尾カーブのsegment2._indexがcountになる
+      segments[0]._index = count;
     } else {
       for (let i = 0; i < count - 1; i++) {
         const curve = new Curve(this, segments[i], segments[i + 1]);
@@ -702,6 +705,9 @@ export class Path extends PathItemBase {
     const curves = this._curves;
     const removed = segments.splice(from, to - from);
 
+    // 🔥DEBUG: Path#removeSegments
+    console.log("🔥[Path#removeSegments] from:", from, "to:", to, "removed:", removed.map(s => s.getPoint().toString()), "segments(after):", segments.map(s => s.getPoint().toString()), "curves?", !!curves, "closed:", this._closed);
+
     if (removed.length === 0) {
       return removed;
     }
@@ -713,7 +719,14 @@ export class Path extends PathItemBase {
 
     // カーブの更新
     if (curves) {
-      const index = from > 0 && to === segments.length + removed.length ? from - 1 : from;
+      // paper.jsと同じロジックに修正
+      // 閉じたパスで末尾カーブを消す場合はindex=segments.lengthでsplice
+      const count = segments.length + removed.length;
+      const isClosed = this._closed;
+      const index = from > 0 && to === count + (isClosed ? 1 : 0)
+        ? from - 1
+        : from;
+      // console.log("🔥[Path#removeSegments] curves splice index:", index, "removed.length:", removed.length);
       this._curves!.splice(index, removed.length);
       this._adjustCurves(index, index);
     }

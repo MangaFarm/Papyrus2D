@@ -3,6 +3,8 @@ import { Segment } from '../src/path/Segment';
 import { Path } from '../src/path/Path';
 import { Point } from '../src/basic/Point';
 
+// o3検証済み
+
 describe('Path.reduce', () => {
   it('collinear segments are merged', () => {
     // 3点が一直線上
