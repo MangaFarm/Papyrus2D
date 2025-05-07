@@ -624,9 +624,7 @@ export class Path extends PathItemBase {
         const curve = new Curve(this, segments[i], segments[next]);
         curves.push(curve);
       }
-      // paper.js互換: 閉じたパスの最後のセグメント（segments[0]）の_indexをcountにする
-      // これにより、閉じたパスの末尾カーブのsegment2._indexがcountになる
-      segments[0]._index = count;
+      // ★ index操作は不要。paper.jsはここでindexをいじらない
     } else {
       for (let i = 0; i < count - 1; i++) {
         const curve = new Curve(this, segments[i], segments[i + 1]);

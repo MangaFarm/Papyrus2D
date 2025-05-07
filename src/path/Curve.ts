@@ -750,9 +750,12 @@ export class Curve {
     remove(): boolean {
         let removed = false;
         if (this._path) {
-            const segment2 = this._segment2;
+            let segment2 = this._segment2;
+            // 閉じたパスの末尾カーブの場合は、末尾セグメントを消す
+            if (this._path._closed && segment2._index === 0) {
+                segment2 = this._path._segments[this._path._segments.length - 1];
+            }
             const handleOut = segment2._handleOut;
-            // Segment#remove()はPapyrus2Dでも実装されている前提
             removed = segment2.remove();
             if (removed) {
                 this._segment1._handleOut._set(handleOut._x, handleOut._y);
