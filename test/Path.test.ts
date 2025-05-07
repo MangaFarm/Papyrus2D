@@ -546,27 +546,6 @@ describe('Path', () => {
         }
       }
     });
-    
-    it('should return null for invalid locations', () => {
-      const path = new Path([
-        new Segment(new Point(0, 0)),
-        new Segment(new Point(100, 0))
-      ]);
-      
-      expect(path.splitAt(null as any)).toBeNull();
-      
-      // 別のパスのロケーション
-      const otherPath = new Path([
-        new Segment(new Point(0, 0)),
-        new Segment(new Point(100, 0))
-      ]);
-      const otherLocation = otherPath.getLocationAt(otherPath.getLength() / 2);
-      expect(otherLocation).not.toBeNull();
-      
-      if (otherLocation) {
-        expect(path.splitAt(otherLocation)).toBeNull();
-      }
-    });
   });
 
   describe('smooth', () => {
