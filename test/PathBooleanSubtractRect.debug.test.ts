@@ -2,7 +2,7 @@ import { describe, it } from 'vitest';
 import { Path } from '../src/path/Path';
 import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
-import { PathBoolean } from '../src/path/PathBoolean';
+import { subtract } from '../src/path/PathBoolean';
 import { getMeta } from '../src/path/SegmentMeta';
 
 describe('🔥 PathBoolean.subtract debug (rect-rect)', () => {
@@ -22,7 +22,7 @@ describe('🔥 PathBoolean.subtract debug (rect-rect)', () => {
       new Segment(new Point(50, 150))
     ], true);
 
-    const result = PathBoolean.subtract(rect1, rect2);
+    const result = subtract(rect1, rect2);
 
     // 🔥 resultの全セグメントの座標・winding値を出力
     const segments = result.getSegments();

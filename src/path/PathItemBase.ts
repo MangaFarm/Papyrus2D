@@ -275,9 +275,4 @@ export abstract class PathItemBase implements PathItem {
     }
     return false;
   }
-
-  /**
-   * パスの交差（intersect）
-   * paper.js互換API
-   */
 }

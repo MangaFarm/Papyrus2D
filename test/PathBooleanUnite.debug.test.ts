@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { PathConstructors } from '../src/path/PathConstructors';
+import { unite } from '../src/path/PathBoolean'
 
 describe('🔥 PathBoolean.unite debug', () => {
   it('should output pathData for unite of two rectangles (paper.js基礎テストと同条件)', () => {
@@ -13,7 +14,7 @@ describe('🔥 PathBoolean.unite debug', () => {
     });
     // eslint-disable-next-line no-console
     // unite
-    const united = (path1 as any).unite(path2);
-    
+    const united = unite(path1, path2);
+
   });
 });

@@ -197,8 +197,8 @@ function runBoolean(
   });
   if (intersections.length === 0) {
     // 交点がない場合は、reorientPathsを使用して結果を決定
-    return this.createResult(
-      this.handleNoIntersections(_path1, _path2, operation),
+    return createResult(
+      handleNoIntersections(_path1, _path2, operation),
       true,
       path1,
       path2 as PathItem,
@@ -340,21 +340,21 @@ function runBoolean(
   const paths = tracePaths(intersectionSegments, operator);
 
   // 結果パスを結合
-  return this.createResult(paths, true, path1, path2 as PathItem, options);
+  return createResult(paths, true, path1, path2 as PathItem, options);
 }
 
 /**
  * パスの合成（unite）
  */
 export function unite(path1: PathItem, path2: PathItem): PathItem {
-  return this.runBoolean(path1, path2, 'unite');
+  return runBoolean(path1, path2, 'unite');
 }
 
 /**
  * パスの交差（intersect）
  */
 export function intersect(path1: PathItem, path2: PathItem): PathItem {
-  const result = this.runBoolean(path1, path2, 'intersect');
+  const result = runBoolean(path1, path2, 'intersect');
   // 🔥PathBoolean.intersect result
   console.log(
     '🔥PathBoolean.intersect result',
@@ -368,19 +368,19 @@ export function intersect(path1: PathItem, path2: PathItem): PathItem {
  * パスの差分（subtract）
  */
 export function subtract(path1: PathItem, path2: PathItem): PathItem {
-  return this.runBoolean(path1, path2, 'subtract');
+  return runBoolean(path1, path2, 'subtract');
 }
 
 /**
  * パスの排他的論理和（exclude）
  */
 export function exclude(path1: PathItem, path2: PathItem): PathItem {
-  return this.runBoolean(path1, path2, 'exclude');
+  return runBoolean(path1, path2, 'exclude');
 }
 
 /**
  * パスの分割（divide）
  */
 export function divide(path1: PathItem, path2: PathItem): PathItem {
-  return this.runBoolean(path1, path2, 'divide');
+  return runBoolean(path1, path2, 'divide');
 }
