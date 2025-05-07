@@ -170,25 +170,19 @@ console.log("🔥 splitPathAt location type:", typeof location, "value:", locati
     // for includeCurves, since we want to preserve and move them to
     // the new path through _add(), allowing us to have CurveLocation
     // keep the connection to the new path through moved curves.
-    var segs = path.removeSegments(index, path._segments.length, true),
-      path2;
+    var segs = path.removeSegments(index, path._segments.length, true);
+    let resultPath: Path;
     if (path._closed) {
-      // If the path is closed, open it and move the segments round,
-      // otherwise create two paths.
       path.setClosed(false);
-      // Just have path point to path. The moving around of segments
-      // will happen below.
-      path2 = path;
+      resultPath = path;
     } else {
-      path2 = new Path();
-      path2.insertAbove(path);
-      path2.copyAttributes(path);
+      resultPath = new Path();
+      resultPath.insertAbove(path);
+      resultPath.copyAttributes(path);
     }
-    path._add(segs, 0);
-    // Add dividing segment again. In case of a closed path, that's the
-    // beginning segment again at the end, since we opened it.
+    resultPath._add(segs, 0);
     path.addSegment(segs[0]);
-    return path;
+    return resultPath;
   }
   return null;
 }
