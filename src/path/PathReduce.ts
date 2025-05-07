@@ -13,6 +13,9 @@ import { Numerical } from '../util/Numerical';
  *   - simplify: trueの場合、コリニアな直線も除去
  * @returns reduce後のPath（破壊的操作）
  */
+// 🔥 DEBUG: reducePathのthisを出力
+// eslint-disable-next-line no-console
+console.log("🔥 reducePath this =", this, "typeof this:", typeof this);
 export function reducePath(path: Path, options?: { simplify?: boolean }): Path {
   var curves = path.getCurves(),
     // TODO: Find a better name, to not confuse with PathItem#simplify()
@@ -32,5 +35,5 @@ export function reducePath(path: Path, options?: { simplify?: boolean }): Path {
     )
       curve.remove();
   }
-  return this;
+  return path;
 }
