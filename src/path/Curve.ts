@@ -54,13 +54,13 @@ export class Curve {
 
   getPrevious(): Curve | null {
     const curves = this._path && this._path._curves;
-    return curves && (curves[this._segment1._index - 1]
+    return curves && (curves[this._segment1._index! - 1]
             || this._path!._closed && curves[curves.length - 1]) || null;
   }
 
   getNext(): Curve | null {
     const curves = this._path && this._path._curves;
-    return curves && (curves[this._segment1._index + 1]
+    return curves && (curves[this._segment1._index! + 1]
             || this._path!._closed && curves[0]) || null;
   }
 
@@ -82,7 +82,7 @@ export class Curve {
    * パス内でのこのカーブの位置を返す
    */
   getIndex(): number {
-    return this._segment1._index;
+    return this._segment1._index!;
   }
 
   /**
@@ -310,7 +310,7 @@ export class Curve {
           // パスが設定されている場合
           if (this._path) {
               // セグメントを挿入
-              this._path.insert(seg1._index + 1, segment);
+              this._path.insert(seg1._index! + 1, segment);
               // 新しく挿入されたセグメントは次のカーブの開始点
               res = this.getNext();
           } else {

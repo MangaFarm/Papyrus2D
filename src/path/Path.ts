@@ -163,45 +163,27 @@ export class Path extends PathItemBase {
    * カーブのセグメントを調整する内部メソッド
    */
   _adjustCurves(start: number, end: number): void {
-    const segments = this._segments;
-    const curves = this._curves;
-
-    if (!curves) return;
-
-    // paper.jsと同様に、カーブのセグメントを設定する
-    for (let i = start; i < end; i++) {
-      const curve = curves[i];
-      curve._path = this;
-      curve._segment1 = segments[i];
-      curve._segment2 = segments[i + 1] || segments[0];
-      curve._changed();
-    }
-
-    // 最初のセグメントの場合、閉じたパスの最後のセグメントも修正
-    if (this._closed && start === 0) {
-      const curve = curves[curves.length - 1];
-      if (curve) {
-        curve._segment2 = segments[0];
+    var segments = this._segments,
+      curves = this._curves!,
+      curve;
+    for (var i = start; i < end; i++) {
+        curve = curves[i];
+        curve._path = this;
+        curve._segment1 = segments[i];
+        curve._segment2 = segments[i + 1] || segments[0];
         curve._changed();
-      }
     }
-
-    // 修正範囲の前のセグメントがある場合も修正
-    if (start > 0) {
-      const curve = curves[start - 1];
-      if (curve) {
-        curve._segment2 = segments[start];
+    // If it's the first segment, correct the last segment of closed
+    // paths too:
+    if (curve = curves[this._closed && !start ? segments.length - 1
+            : start - 1]) {
+        curve._segment2 = segments[start] || segments[0];
         curve._changed();
-      }
     }
-
-    // 修正範囲の後のセグメントがある場合も修正
-    if (end < curves.length) {
-      const curve = curves[end];
-      if (curve) {
+    // Fix the segment after the modified range, if it exists
+    if (curve = curves[end]) {
         curve._segment1 = segments[end];
         curve._changed();
-      }
     }
   }
 
