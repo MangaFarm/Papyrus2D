@@ -55,20 +55,22 @@ export function addLineIntersection(
   include: (loc: CurveLocation) => boolean
 ): void {
   // paper.js本家同様、nullチェックせず!で扱う
-  const pt: Point = Line.intersect(
+  const pt = Line.intersect(
     v1[0], v1[1], v1[6], v1[7],
     v2[0], v2[1], v2[6], v2[7],
     false, false
-  )!;
-  addLocation(
-    locations,
-    include,
-    c1,
-    Curve.getTimeOf(v1, pt),
-    c2,
-    Curve.getTimeOf(v2, pt),
-    false
   );
+  if (pt) {
+    addLocation(
+      locations,
+      include,
+      c1,
+      Curve.getTimeOf(v1, pt!),
+      c2,
+      Curve.getTimeOf(v2, pt!),
+      false
+    );
+  }
 }
 
 /**

@@ -16,58 +16,29 @@ export class CurveLocationUtils {
    * paper.jsのgetTimeOf実装を移植
    */
   static getTimeOf(v: number[], point: Point): number | null {
-    // paper.jsの完全実装に合わせる
-    // まず端点との距離をチェック
-    const p0 = new Point(v[0], v[1]);
-    const p3 = new Point(v[6], v[7]);
-    const epsilon = Numerical.EPSILON;
-    const geomEpsilon = Numerical.GEOMETRIC_EPSILON;
-
-    // 直線の場合は線形補間でtを返す
-    // 直線分岐はpaper.jsには存在しないため削除
-
-    // 端点が十分近い場合は早期リターン
-    if (point.isClose(p0, epsilon)) {
-      return 0;
-    }
-    if (point.isClose(p3, epsilon)) {
-      return 1;
-    }
-
-    // x座標とy座標それぞれについて、曲線上の点と与えられた点の距離が
-    // 最小になる t を求める
-    const coords = [point.x, point.y];
-    const roots: number[] = [];
-
-    for (let c = 0; c < 2; c++) {
-      // 三次方程式を解く
-      const count = Numerical.solveCubic(
-        3 * (-v[c] + 3 * v[c + 2] - 3 * v[c + 4] + v[c + 6]),
-        6 * (v[c] - 2 * v[c + 2] + v[c + 4]),
-        3 * (-v[c] + v[c + 2]),
-        v[c] - coords[c],
-        roots, { min: 0, max: 1 }
-      );
-
-      // 各解について、曲線上の点と与えられた点の距離をチェック
-      for (let i = 0; i < count; i++) {
-        const t = roots[i];
-        const p = CurveCalculation.getPoint(v, t)!;
-        if (point.isClose(p, geomEpsilon)) {
-          return t;
+    // Before solving cubics, compare the beginning and end of the curve
+    // with zero epsilon:
+    var p0 = new Point(v[0], v[1]),
+      p3 = new Point(v[6], v[7]),
+      epsilon = /*#=*/ Numerical.EPSILON,
+      geomEpsilon = /*#=*/ Numerical.GEOMETRIC_EPSILON,
+      t = point.isClose(p0, epsilon) ? 0 : point.isClose(p3, epsilon) ? 1 : null;
+    if (t === null) {
+      // Solve the cubic for both x- and y-coordinates and consider all
+      // solutions, testing with the larger / looser geometric epsilon.
+      var coords = [point.x, point.y],
+        roots = [];
+      for (var c = 0; c < 2; c++) {
+        var count = Curve.solveCubic(v, c, coords[c], roots, 0, 1);
+        for (var i = 0; i < count; i++) {
+          var u = roots[i];
+          if (point.isClose(Curve.getPoint(v, u), geomEpsilon)) return u;
         }
       }
     }
-
-    // 端点が十分近い場合は幾何学的イプシロンでも確認
-    if (point.isClose(p0, geomEpsilon)) {
-      return 0;
-    }
-    if (point.isClose(p3, geomEpsilon)) {
-      return 1;
-    }
-
-    return null;
+    // Since we're comparing with geometric epsilon for any other t along
+    // the curve, do so as well now for the beginning and end of the curve.
+    return point.isClose(p0, geomEpsilon) ? 0 : point.isClose(p3, geomEpsilon) ? 1 : null;
   }
 
   /**
@@ -76,28 +47,31 @@ export class CurveLocationUtils {
    */
   static getNearestTime(v: number[], point: Point): number {
     if (CurveGeometry.isStraight(v)) {
-      const x0 = v[0], y0 = v[1];
-      const x3 = v[6], y3 = v[7];
-      const vx = x3 - x0, vy = y3 - y0;
+      const x0 = v[0],
+        y0 = v[1];
+      const x3 = v[6],
+        y3 = v[7];
+      const vx = x3 - x0,
+        vy = y3 - y0;
       const det = vx * vx + vy * vy;
-      
+
       // ゼロ除算を避ける
       if (det === 0) return 0;
-      
+
       // 点を線上に投影し、線形パラメータuを計算: u = (point - p1).dot(v) / v.dot(v)
       const u = ((point.x - x0) * vx + (point.y - y0) * vy) / det;
-      
+
       if (u < Numerical.EPSILON) return 0;
-      if (u > (1 - Numerical.EPSILON)) return 1;
-      
+      if (u > 1 - Numerical.EPSILON) return 1;
+
       const timeOf = CurveLocationUtils.getTimeOf(v, new Point(x0 + u * vx, y0 + u * vy));
       return timeOf !== null ? timeOf : 0;
     }
-    
+
     const count = 100;
     let minDist = Infinity;
     let minT = 0;
-    
+
     function refine(t: number): boolean {
       if (t >= 0 && t <= 1) {
         const p = CurveCalculation.getPoint(v, t)!;
@@ -110,11 +84,11 @@ export class CurveLocationUtils {
       }
       return false;
     }
-    
+
     for (let i = 0; i <= count; i++) {
       refine(i / count);
     }
-    
+
     // 解を反復的に精製して所望の精度に達するまで
     let step = 1 / (count * 2);
     while (step > Numerical.CURVETIME_EPSILON) {
@@ -122,7 +96,7 @@ export class CurveLocationUtils {
         step /= 2;
       }
     }
-    
+
     return minT;
   }
 
@@ -130,23 +104,33 @@ export class CurveLocationUtils {
    * 三次方程式を解く
    * paper.jsのsolveCubic実装を移植
    */
-  static solveCubic(v: number[], coord: number, val: number, roots: number[], range?: RangeConstraint): number {
+  static solveCubic(
+    v: number[],
+    coord: number,
+    val: number,
+    roots: number[],
+    range?: RangeConstraint
+  ): number {
     const v0 = v[coord];
     const v1 = v[coord + 2];
     const v2 = v[coord + 4];
     const v3 = v[coord + 6];
     let res = 0;
-    
+
     // 値が曲線の範囲外にある場合、解は存在しない
-    if (!(v0 < val && v3 < val && v1 < val && v2 < val ||
-          v0 > val && v3 > val && v1 > val && v2 > val)) {
+    if (
+      !(
+        (v0 < val && v3 < val && v1 < val && v2 < val) ||
+        (v0 > val && v3 > val && v1 > val && v2 > val)
+      )
+    ) {
       const c = 3 * (v1 - v0);
       const b = 3 * (v2 - v1) - c;
       const a = v3 - v0 - c - b;
-      
+
       res = Numerical.solveCubic(a, b, c, v0 - val, roots, range);
     }
-    
+
     return res;
   }
 
@@ -154,24 +138,22 @@ export class CurveLocationUtils {
    * 指定されたオフセットでの曲線のtパラメータを計算
    */
   static getTimeAt(v: number[], offset: number, start?: number): number | null {
-    if (start === undefined)
-      start = offset < 0 ? 1 : 0;
-    if (offset === 0)
-      return start;
-    
+    if (start === undefined) start = offset < 0 ? 1 : 0;
+    if (offset === 0) return start;
+
     // 前進または後退を判断し、それに応じて処理
     const abs = Math.abs;
     const epsilon = Numerical.EPSILON;
     const forward = offset > 0;
     const a = forward ? start : 0;
     const b = forward ? 1 : start;
-    
+
     // 積分を使用して範囲の長さと部分長を計算
     const ds = CurveGeometry.getLengthIntegrand(v);
     // 全範囲の長さを取得
     const rangeLength = Curve.getLength(v, a, b, ds);
     const diff = abs(offset) - rangeLength;
-    
+
     if (abs(diff) < epsilon) {
       // 終点に一致
       return forward ? b : a;
@@ -179,20 +161,25 @@ export class CurveLocationUtils {
       // 範囲外
       return null; // 範囲外の場合はnullを返す
     }
-    
+
     // 初期推測値としてoffset / rangeLengthを使用
     const guess = offset / rangeLength;
     let length = 0;
     let currentStart = start;
-    
+
     // 曲線範囲の長さを反復的に計算し、それらを合計
     function f(t: number): number {
       // startがtより大きい場合、積分は負の値を返す
-      length += Numerical.integrate(ds, currentStart, t, CurveGeometry.getIterations(currentStart, t));
+      length += Numerical.integrate(
+        ds,
+        currentStart,
+        t,
+        CurveGeometry.getIterations(currentStart, t)
+      );
       currentStart = t;
       return length - offset;
     }
-    
+
     // 初期推測値から始める
     return Numerical.findRoot(f, ds, start + guess, a, b, 32, epsilon);
   }
@@ -218,8 +205,10 @@ export class CurveLocationUtils {
         const diff = abs(loc1.getOffset() - loc2.getOffset());
         const i1 = !ignoreOther && loc1._intersection;
         const i2 = !ignoreOther && loc2._intersection;
-        res = !!((diff < epsilon || Boolean(p1 && abs(p1.getLength() - diff) < epsilon))
-          && (!i1 && !i2 || (i1 && i2 && !!i1.equals(i2, true))));
+        res = !!(
+          (diff < epsilon || Boolean(p1 && abs(p1.getLength() - diff) < epsilon)) &&
+          ((!i1 && !i2) || (i1 && i2 && !!i1.equals(i2, true)))
+        );
       }
     }
     return res;
@@ -244,7 +233,7 @@ export class CurveLocationUtils {
     if (t1 === null || t2 === null) {
       return false;
     }
-    
+
     const tMin = Numerical.CURVETIME_EPSILON;
     const tMax = 1 - tMin;
 
@@ -262,26 +251,26 @@ export class CurveLocationUtils {
     // 交差に関わる4つの曲線の参照を取得
     const c2 = loc.getCurve();
     if (!c2) return false;
-    
+
     const c1 = t1 < tMin ? c2.getPrevious() : c2;
     if (!c1) return false;
-    
+
     const c4 = inter.getCurve();
     if (!c4) return false;
-    
+
     const c3 = t2 < tMin ? c4.getPrevious() : c4;
     if (!c3) return false;
 
     // t1/t2が終点にある場合、次の曲線に進む
     const c2Next = t1 > tMax ? c2.getNext() : null;
     const c4Next = t2 > tMax ? c4.getNext() : null;
-    
+
     const curves = [c1, c2, c3, c4];
     if (c2Next) curves[1] = c2Next;
     if (c4Next) curves[3] = c4Next;
-    
+
     // 4つの曲線すべてが存在することを確認
-    if (curves.some(c => !c)) return false;
+    if (curves.some((c) => !c)) return false;
 
     // 交点での曖昧でない角度を計算するためのオフセットを追加
     const offsets: number[] = [];
@@ -291,7 +280,7 @@ export class CurveLocationUtils {
       const v = curve.getValues();
       const roots = CurveGeometry.classify(v).roots || [];
       const count = roots.length;
-      
+
       // 曲線の長さを計算
       let offset: number;
       if (end && count > 0) {
@@ -301,7 +290,7 @@ export class CurveLocationUtils {
       } else {
         offset = Curve.getLength(v, 0, 1);
       }
-      
+
       // ルートが見つからない場合、長さの一部を使用
       offsets.push(count ? offset : offset / 32);
     }
@@ -310,8 +299,8 @@ export class CurveLocationUtils {
     function isInRange(angle: number, min: number, max: number): boolean {
       return min < max
         ? angle > min && angle < max
-        // min > max: 範囲が-180/180度を超える
-        : angle > min || angle < max;
+        : // min > max: 範囲が-180/180度を超える
+          angle > min || angle < max;
     }
 
     // t1が曲線の内部にない場合、オフセットを追加
@@ -319,7 +308,7 @@ export class CurveLocationUtils {
       addOffsets(curves[0]!, true);
       addOffsets(curves[1]!, false);
     }
-    
+
     // t2が曲線の内部にない場合、オフセットを追加
     if (!t2Inside) {
       addOffsets(curves[2]!, true);
@@ -328,13 +317,13 @@ export class CurveLocationUtils {
 
     // 交点の座標を取得
     const pt = loc.getPoint();
-    
+
     // すべての関連する曲線で最短のオフセットを決定
     const offset = Math.min(...offsets);
-    
+
     // 各曲線の接線ベクトルを計算
     let v2, v1, v4, v3: Point;
-    
+
     // 268行目で curves.some(c => !c) をチェックしているので、
     // curves配列の要素はnullでないことが保証されている
     if (t1Inside) {
@@ -349,7 +338,7 @@ export class CurveLocationUtils {
       v1 = p1.subtract(pt);
       v2 = p2.subtract(pt);
     }
-    
+
     if (t2Inside) {
       const tangent = c4.getTangentAtTime(t2);
       if (!tangent) return false;
@@ -373,9 +362,9 @@ export class CurveLocationUtils {
     // 各角度ペアが他の2つを分割する場合、エッジは交差する
     // t1Insideを使用して、どの角度ペアをチェックするかを決定
     return !!(t1Inside
-      ? (isInRange(a1, a3, a4) !== isInRange(a2, a3, a4)) &&
-        (isInRange(a1, a4, a3) !== isInRange(a2, a4, a3))
-      : (isInRange(a3, a1, a2) !== isInRange(a4, a1, a2)) &&
-        (isInRange(a3, a2, a1) !== isInRange(a4, a2, a1)));
+      ? isInRange(a1, a3, a4) !== isInRange(a2, a3, a4) &&
+        isInRange(a1, a4, a3) !== isInRange(a2, a4, a3)
+      : isInRange(a3, a1, a2) !== isInRange(a4, a1, a2) &&
+        isInRange(a3, a2, a1) !== isInRange(a4, a2, a1));
   }
 }

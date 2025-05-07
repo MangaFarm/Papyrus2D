@@ -98,9 +98,9 @@ export class Line {
    *
    * @param line 交点を計算する直線
    * @param isInfinite 両方の直線を無限に延長するかどうか
-   * @return 交点、または直線が平行の場合はundefined、交点がない場合はnull
+   * @return 交点、または直線が平行の場合はundefined
    */
-  intersect(line: Line, isInfinite: boolean): Point | null | undefined {
+  intersect(line: Line, isInfinite: boolean): Point | undefined {
     return Line.intersect(
       this._px, this._py, this._vx, this._vy,
       line._px, line._py, line._vx, line._vy,
@@ -178,13 +178,13 @@ export class Line {
    * @param v2y 第2直線のベクトルのy成分
    * @param asVector 第3,4,7,8引数をベクトルとして扱うかどうか
    * @param isInfinite 両方の直線を無限に延長するかどうか
-   * @return 交点、または直線が平行の場合はundefined、交点がない場合はnull
+   * @return 交点、または直線が平行の場合はundefined
    */
   static intersect(
     p1x: number, p1y: number, v1x: number, v1y: number,
     p2x: number, p2y: number, v2x: number, v2y: number,
     asVector: boolean, isInfinite: boolean
-  ): Point | null | undefined {
+  ): Point | undefined {
     // 🔥 デバッグ出力
     // ベクトルとして指定されていない場合は、終点から始点を引いてベクトルに変換
     if (!asVector) {
