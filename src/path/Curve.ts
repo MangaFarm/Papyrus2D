@@ -235,10 +235,10 @@ export class Curve {
   /**
    * tで分割し、前半部分のCurveを返す（paper.jsとの互換性のため）
    */
-  splitAt(location: number | CurveLocation): Curve | null {
+  splitAt(location: CurveLocation): Curve | null {
     const path = this._path;
     // paper.jsのCurve#splitAtはCurveを返す。Path#splitAtではない。
-    return path ? this.splitAtTime((location as CurveLocation).getTime()!) : null;
+    return path ? this.splitAtTime(location.getTime()!) : null;
   }
 
   /**

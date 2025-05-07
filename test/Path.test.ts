@@ -518,7 +518,8 @@ describe('Path', () => {
     it('Splitting a straight path should produce segments without handles', () => {
       const path1 = Path.Line(new Point(0, 0), new Point(50, 50));
       const splitPoint = path1.getLength() / 2;
-      const path2 = path1.splitAt(splitPoint);
+      const loc = path1.getLocationAt(splitPoint);
+      const path2 = path1.splitAt(loc!);
       
       if (path2) {
         expect(!path1.getLastSegment()!.hasHandles() && !path2.getFirstSegment()!.hasHandles()).toBe(true);
