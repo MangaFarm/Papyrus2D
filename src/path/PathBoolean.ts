@@ -192,7 +192,14 @@ export class PathBoolean {
     // 交点計算
     // 交点を取得
 // 🔥 各パスのカーブ数と始点・終点
-    const intersections = _path2 ? getIntersections(_path1, _path2) : [];
+const intersections = _path2 ? getIntersections(_path1, _path2) : [];
+// 🔥 デバッグ: 交点数, 入力パスのSVG, getIntersectionsの戻り値
+// @ts-ignore
+const path1data = _path1.getPathData ? _path1.getPathData() : '';
+// @ts-ignore
+const path2data = _path2 && _path2.getPathData ? _path2.getPathData() : '';
+// @ts-ignore
+console.log("🔥 PathBoolean.runBoolean: path1data=", path1data, "path2data=", path2data, "intersections.length=", intersections.length, "intersections=", intersections);
 
     if (intersections.length === 0) {
       // 交点がない場合は、reorientPathsを使用して結果を決定

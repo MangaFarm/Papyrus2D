@@ -82,7 +82,8 @@ export function addCurveIntersections(
     
     addLocation(locations, include,
       flip ? c2 : c1, flip ? u : t,
-      flip ? c1 : c2, flip ? t : u);
+      flip ? c1 : c2, flip ? t : u,
+      false);
   } else {
     // Apply the result of the clipping to curve 1:
     const v1Clipped = Curve.getPart(v1, tMinClip, tMaxClip);

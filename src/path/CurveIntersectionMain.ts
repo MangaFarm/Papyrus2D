@@ -27,16 +27,16 @@ export function getCurveIntersections(
   locations: CurveLocation[],
   include?: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
-  // デバッグ: 入力値・直線判定・overlapsを出力
-  // eslint-disable-next-line no-console
-  
+  // 🔥 デバッグ: 入力値・直線判定・overlaps・AABB判定
+  // @ts-ignore
+  console.log("🔥 getCurveIntersections: v1=", v1, "v2=", v2);
   const straight1 = Curve.isStraight(v1);
   const straight2 = Curve.isStraight(v2);
-  // eslint-disable-next-line no-console
-  
+  // @ts-ignore
+  console.log("🔥 getCurveIntersections: straight1=", straight1, "straight2=", straight2);
   const overlaps = getOverlaps(v1, v2);
-  // eslint-disable-next-line no-console
-  
+  // @ts-ignore
+  console.log("🔥 getCurveIntersections: overlaps=", overlaps);
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
   const min = Math.min;
@@ -112,8 +112,7 @@ export function getCurveIntersections(
           const p1 = new Point(v1[i1], v1[i1 + 1]);
           const p2 = new Point(v2[i2], v2[i2 + 1]);
           if (p1.isClose(p2, epsilon)) {
-            const isOverlap = c1 === c2 ? false : true;
-            addLocation(locations, include, c1, t1, c2, t2, isOverlap);
+            addLocation(locations, include, c1, t1, c2, t2, false);
           }
         }
       }
@@ -302,8 +301,9 @@ export function getIntersections(
     self ? values1 : values2,
     epsilon
   );
-  // eslint-disable-next-line no-console
-  
+  // 🔥 デバッグ: boundsCollisions, 各カーブペアの交点数
+  // @ts-ignore
+  console.log("🔥 CurveIntersectionMain.getIntersections: boundsCollisions=", boundsCollisions);
 
   // 各曲線の交点を計算
   for (let index1 = 0; index1 < length1; index1++) {
@@ -331,7 +331,11 @@ export function getIntersections(
           const v2 = values2[index2];
 
           // 曲線の交点を計算
+          const before = locations.length;
           getCurveIntersections(v1, v2, curve1, curve2, locations, include);
+          const after = locations.length;
+          // @ts-ignore
+          console.log("🔥 CurveIntersectionMain.getIntersections: index1=", index1, "index2=", index2, "curve1=", v1, "curve2=", v2, "found=", after - before);
         }
       }
     }

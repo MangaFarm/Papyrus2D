@@ -46,7 +46,7 @@ export function addLocation(
   t1: number | null,
   c2: Curve,
   t2: number | null,
-  overlap: boolean = false
+  overlap: boolean
 ): void {
   // paper.jsのaddLocationを忠実にTypeScript化
   // excludeStart/Endの判定

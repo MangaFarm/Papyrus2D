@@ -24,6 +24,11 @@ export function addLineIntersection(
   include?: (loc: CurveLocation) => boolean,
   flip?: boolean
 ): CurveLocation[] {
+  // 🔥 デバッグ: 入力値・locations初期長
+  // @ts-ignore
+  const before = locations.length;
+  // @ts-ignore
+  console.log("🔥 addLineIntersection: v1=", v1, "v2=", v2, "before=", before);
   // オーバーラップ（重なり）を検出
   const overlaps = getOverlaps(v1, v2);
   if (overlaps) {
@@ -46,13 +51,17 @@ export function addLineIntersection(
     v2[0], v2[1], v2[6] - v2[0], v2[7] - v2[1],
     true // asVector
   );
-  
+  // @ts-ignore
+  console.log("🔥 addLineIntersection: Line.intersect pt=", pt);
   if (pt) {
     const t1 = flip ? Curve.getTimeOf(v2, pt) : Curve.getTimeOf(v1, pt);
     const t2 = flip ? Curve.getTimeOf(v1, pt) : Curve.getTimeOf(v2, pt);
+    // @ts-ignore
+    console.log("🔥 addLineIntersection: t1=", t1, "t2=", t2);
     addLocation(locations, include,
       flip ? c2 : c1, t1,
-      flip ? c1 : c2, t2);
+      flip ? c1 : c2, t2,
+      false);
   }
 
   // 端点が一致している場合も交点として追加
@@ -71,7 +80,7 @@ export function addLineIntersection(
         return Math.abs(pt.x - x1) < epsilon && Math.abs(pt.y - y1) < epsilon;
       });
       if (!already) {
-        addLocation(locations, include, c1, t1, c2, t2, true);
+        addLocation(locations, include, c1, t1, c2, t2, false);
         // 端点overlapなセグメントにもwindingをセット
         const seg1 = t1 === 0 ? c1._segment1 : c1._segment2;
         const seg2 = t2 === 0 ? c2._segment1 : c2._segment2;
@@ -84,6 +93,8 @@ export function addLineIntersection(
     }
   }
   
+  // @ts-ignore
+  console.log("🔥 addLineIntersection: after=", locations.length, "added=", locations.length - before);
   return locations;
 }
 
@@ -160,7 +171,8 @@ export function addCurveLineIntersections(
       // paper.jsと同様に、addLocationを呼び出す
       addLocation(locations, include,
         flip ? c2 : c1, flip ? t2 : t1,
-        flip ? c1 : c2, flip ? t1 : t2);
+        flip ? c1 : c2, flip ? t1 : t2,
+        false);
     }
   }
   
