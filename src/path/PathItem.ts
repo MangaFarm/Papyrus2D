@@ -202,4 +202,10 @@ export interface PathItem {
    * @returns パスの配列
    */
   getPaths(): Path[];
+
+  unite(item: PathItem): PathItem;
+  subtract(item: PathItem): PathItem;
+  intersect(item: PathItem): PathItem;
+  exclude(item: PathItem): PathItem;  
+  divide(item: PathItem): PathItem;
 }

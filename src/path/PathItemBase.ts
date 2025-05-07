@@ -72,7 +72,7 @@ export abstract class PathItemBase implements PathItem {
    * @param clockwise 時計回りにする場合はtrue、反時計回りにする場合はfalse
    * @returns このパス
    */
-  setClockwise(clockwise: boolean): PathItemBase {
+  setClockwise(clockwise: boolean): PathItem {
     if (this.isClockwise() !== !!clockwise) {
       this.reverse();
     }
@@ -146,7 +146,7 @@ export abstract class PathItemBase implements PathItem {
    * 指定されたパスの属性をコピーする
    * paper.jsのItem.copyAttributes()に準拠
    */
-  copyAttributes(path: PathItem, excludeMatrix?: boolean): this {
+  copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem {
     // 行列のコピー
     if (!excludeMatrix && path._matrix) {
       this._matrix = path._matrix.clone();
@@ -200,7 +200,7 @@ export abstract class PathItemBase implements PathItem {
    * @param rule 塗りつぶしルール ('nonzero' または 'evenodd')
    * @returns このパス
    */
-  setFillRule(rule: FillRule): PathItemBase {
+  setFillRule(rule: FillRule): PathItem {
     this.style.fillRule = rule;
     return this;
   }
@@ -284,5 +284,36 @@ export abstract class PathItemBase implements PathItem {
    */
   intersect(other: PathItem): PathItem {
     return PathBoolean.intersect(this, other);
+  }
+/**
+   * パスの合成（unite）
+   * paper.js互換API
+   */
+  unite(other: PathItem): PathItem {
+    return PathBoolean.unite(this, other);
+  }
+
+  /**
+   * パスの差分（subtract）
+   * paper.js互換API
+   */
+  subtract(other: PathItem): PathItem {
+    return PathBoolean.subtract(this, other);
+  }
+
+  /**
+    * パスの排他論理和（exclude）
+    * paper.js互換API
+    */
+  exclude(other: PathItem): PathItem {
+    return PathBoolean.exclude(this, other);
+  }
+
+  /**
+    * パスの分割（divide）
+    * paper.js互換API
+    */
+  divide(other: PathItem): PathItem {
+    return PathBoolean.divide(this, other);
   }
 }

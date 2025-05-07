@@ -889,7 +889,8 @@ export class Path extends PathItemBase {
    * @returns 円弧が追加されたパス（this）
    */
   arcTo(through: Point, to: Point): Path {
-    return PathArc.arcTo(this, through, to);
+    PathArc.arcTo(this, through, to);
+    return this;
   }
 
   /**
@@ -919,82 +920,6 @@ export class Path extends PathItemBase {
       segments[i].clearHandles();
     }
     this._changed(ChangeFlag.GEOMETRY);
-    return this;
-  }
-
-  // Boolean演算API（unite, intersect, subtract, exclude, divide）
-  /**
-   * パスの合成（unite）
-   * @param other 合成する相手のパス
-   * @returns 合成結果のパス（this）
-   */
-  unite(other: Path): Path {
-    // PathBooleanクラスを使用して結果を取得し、このパスに適用
-    const result = import('./PathBoolean').then((module) => {
-      return module.PathBoolean.unite(this, other);
-    });
-
-    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
-    return this;
-  }
-
-  /**
-   * パスの交差（intersect）
-   * @param other 交差する相手のパス
-   * @returns 交差結果のパス（this）
-   */
-  intersect(other: Path): Path {
-    // PathBooleanクラスを使用して結果を取得し、このパスに適用
-    const result = import('./PathBoolean').then((module) => {
-      return module.PathBoolean.intersect(this, other);
-    });
-
-    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
-    return this;
-  }
-
-  /**
-   * パスの差分（subtract）
-   * @param other 差し引く相手のパス
-   * @returns 差分結果のパス（this）
-   */
-  subtract(other: Path): Path {
-    // PathBooleanクラスを使用して結果を取得し、このパスに適用
-    const result = import('./PathBoolean').then((module) => {
-      return module.PathBoolean.subtract(this, other);
-    });
-
-    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
-    return this;
-  }
-
-  /**
-   * パスの排他的論理和（exclude）
-   * @param other 排他的論理和を取る相手のパス
-   * @returns 排他的論理和結果のパス（this）
-   */
-  exclude(other: Path): Path {
-    // PathBooleanクラスを使用して結果を取得し、このパスに適用
-    const result = import('./PathBoolean').then((module) => {
-      return module.PathBoolean.exclude(this, other);
-    });
-
-    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
-    return this;
-  }
-
-  /**
-   * パスの分割（divide）
-   * @param other 分割に使用する相手のパス
-   * @returns 分割結果のパス（this）
-   */
-  divide(other: Path): Path {
-    // PathBooleanクラスを使用して結果を取得し、このパスに適用
-    const result = import('./PathBoolean').then((module) => {
-      return module.PathBoolean.divide(this, other);
-    });
-
-    // 非同期処理の結果を待たずにthisを返す（paper.jsと同様のミュータブル設計）
     return this;
   }
 
