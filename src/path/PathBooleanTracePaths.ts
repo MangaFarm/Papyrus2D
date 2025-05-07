@@ -320,10 +320,14 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       handleIn = next ? next._handleIn!.toPoint() : null;
     }
     if (finished) {
+      // Carry over the last handleIn to the first segment.
+      path!.getFirstSegment()!.setHandleIn(handleIn!);
+      // paper.js互換: segOrNull!.isFirst() || segOrNull!.isLast() のときは元パスの_closedを伝播
+      if (segOrNull && (segOrNull.isFirst() || segOrNull.isLast())) {
+        closed = segOrNull._path._closed;
+      }
       if (closed) {
-        // Carry over the last handleIn to the first segment.
-        path!.getFirstSegment()!.setHandleIn(handleIn!);
-        path!.setClosed(true); // 必ずtrueをセット
+        path!.setClosed(true);
       }
       // Only add finished paths that cover an area to the result.
       if (path!.getArea() !== 0 && path!._segments.length > 2) {
@@ -354,7 +358,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       path.addSegments(rotated);
     }
   }
-// 🔥 生成パスのセグメント列をデバッグ出力
 for (const path of paths) {
   const segs = path.getSegments();
   // paper.js同様、collinearな直線をreduceでマージ

@@ -58,19 +58,14 @@ export function toPathData(path: Path, precision: number = 6): string {
   if (path.closed && length > 0) {
     const seg = segments[0];
     const pt = seg.getPoint();
-    inX = seg.getHandleIn().x + pt.x;
-    inY = seg.getHandleIn().y + pt.y;
-    if (inX === pt.x && inY === pt.y && outX === prevX && outY === prevY) {
-      const dx = pt.x - prevX;
-      const dy = pt.y - prevY;
-      // paper.jsは必ずlコマンドで出力
-      d += 'l' + pair(dx, dy);
+    // 始点と終点が一致していなければzのみ
+    if (pt.x === prevX && pt.y === prevY) {
+      // 完全一致なら何も追加しない（zのみ）
+      d += 'z';
     } else {
-      d += 'c' + pair(outX - prevX, outY - prevY)
-        + ' ' + pair(inX - prevX, inY - prevY)
-        + ' ' + pair(pt.x - prevX, pt.y - prevY);
+      // 一致していなければzのみ
+      d += 'z';
     }
-    d += 'z';
   }
   return d;
 }
