@@ -8,10 +8,43 @@ import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
 import { Line } from '../basic/Line';
-import { addLocation, addCurveIntersections } from './CurveIntersectionBase';
-import { getOverlaps } from './CurveIntersectionMain';
-import { propagateWinding } from './PathBooleanWinding';
-import { getMeta } from './SegmentMeta';
+import { addLocation } from './CurveIntersectionBase';
+
+export function getCurveLineIntersections(
+  v: number[],
+  px: number,
+  py: number,
+  vx: number,
+  vy: number
+): number[] {
+  var isZero = Numerical.isZero;
+  if (isZero(vx) && isZero(vy)) {
+      // Handle special case of a line with no direction as a point,
+      // and check if it is on the curve.
+      var t = Curve.getTimeOf(v, new Point(px, py));
+      return t === null ? [] : [t];
+  }
+  // Calculate angle to the x-axis (1, 0).
+  var angle = Math.atan2(-vy, vx),
+      sin = Math.sin(angle),
+      cos = Math.cos(angle),
+      // (rlx1, rly1) = (0, 0)
+      // Calculate the curve values of the rotated curve.
+      rv: number[] = [],
+      roots = [];
+  for (var i = 0; i < 8; i += 2) {
+      var x = v[i] - px,
+          y = v[i + 1] - py;
+      rv.push(
+          x * cos - y * sin,
+          x * sin + y * cos);
+  }
+  // Solve it for y = 0. We need to include t = 0, 1 and let addLocation()
+  // do the filtering, to catch important edge cases.
+  Curve.solveCubic(rv, 1, 0, roots, 0, 1);
+  return roots;
+}
+
 
 export function addLineIntersection(
   v1: number[],
@@ -21,10 +54,21 @@ export function addLineIntersection(
   locations: CurveLocation[],
   include: (loc: CurveLocation) => boolean
 ): void {
-  var pt = Line.intersect(v1[0], v1[1], v1[6], v1[7], v2[0], v2[1], v2[6], v2[7], false, false);
-  if (pt) {
-    addLocation(locations, include, c1, Curve.getTimeOf(v1, pt), c2, Curve.getTimeOf(v2, pt), false);
-  }
+  // paper.js本家同様、nullチェックせず!で扱う
+  const pt: Point = Line.intersect(
+    v1[0], v1[1], v1[6], v1[7],
+    v2[0], v2[1], v2[6], v2[7],
+    false, false
+  )!;
+  addLocation(
+    locations,
+    include,
+    c1,
+    Curve.getTimeOf(v1, pt),
+    c2,
+    Curve.getTimeOf(v2, pt),
+    false
+  );
 }
 
 /**
@@ -40,72 +84,35 @@ export function addCurveLineIntersections(
   include: (loc: CurveLocation) => boolean,
   flip: boolean
 ): CurveLocation[] {
-  // Avoid checking curves if completely out of control bounds.
-  var epsilon = /*#=*/ Numerical.EPSILON,
-    min = Math.min,
-    max = Math.max;
-
-  if (
-    max(v1[0], v1[2], v1[4], v1[6]) + epsilon > min(v2[0], v2[2], v2[4], v2[6]) &&
-    min(v1[0], v1[2], v1[4], v1[6]) - epsilon < max(v2[0], v2[2], v2[4], v2[6]) &&
-    max(v1[1], v1[3], v1[5], v1[7]) + epsilon > min(v2[1], v2[3], v2[5], v2[7]) &&
-    min(v1[1], v1[3], v1[5], v1[7]) - epsilon < max(v2[1], v2[3], v2[5], v2[7])
-  ) {
-    // Now detect and handle overlaps:
-    var overlaps = getOverlaps(v1, v2);
-    if (overlaps) {
-      for (var i = 0; i < 2; i++) {
-        var overlap = overlaps[i];
-        addLocation(locations, include, c1, overlap[0], c2, overlap[1], true);
-      }
-    } else {
-      var straight1 = Curve.isStraight(v1),
-        straight2 = Curve.isStraight(v2),
-        straight = straight1 && straight2,
-        flip = straight1 && !straight2,
-        before = locations.length;
-      // Determine the correct intersection method based on whether
-      // one or curves are straight lines:
-      (straight
-        ? addLineIntersection
-        : straight1 || straight2
-          ? addCurveLineIntersections
-          : addCurveIntersections)(
-        flip ? v2 : v1,
-        flip ? v1 : v2,
-        flip ? c2 : c1,
-        flip ? c1 : c2,
+  // addCurveLineIntersections() is called so that v1 is always the curve
+  // and v2 the line. flip indicates whether the curves need to be flipped
+  // in the call to addLocation().
+  const x1 = v2[0];
+  const y1 = v2[1];
+  const x2 = v2[6];
+  const y2 = v2[7];
+  const roots: number[] = getCurveLineIntersections(v1, x1, y1, x2 - x1, y2 - y1);
+  // NOTE: count could be -1 for infinite solutions, but that should only
+  // happen with lines, in which case we should not be here.
+  for (let i = 0, l = roots.length; i < l; i++) {
+    // For each found solution on the rotated curve, get the point on
+    // the real curve and with that the location on the line.
+    const t1 = roots[i];
+    const p1 = Curve.getPoint(v1, t1);
+    const t2 = Curve.getTimeOf(v2, p1);
+    if (t2 !== null) {
+      // Only use the time values if there was no recursion, and let
+      // addLocation() figure out the actual time values otherwise.
+      addLocation(
         locations,
         include,
-        flip,
-        // Define the defaults for these parameters of
-        // addCurveIntersections():
-        // recursion, calls, tMin, tMax, uMin, uMax
-        0,
-        0,
-        0,
-        1,
-        0,
-        1
+        flip ? c2 : c1,
+        flip ? t2 : t1,
+        flip ? c1 : c2,
+        flip ? t1 : t2
       );
-      // Handle the special case where the first curve's start- / end-
-      // point overlaps with the second curve's start- / end-point,
-      // but only if haven't found a line-line intersection already:
-      // #805#issuecomment-148503018
-      if (!straight || locations.length === before) {
-        for (var i = 0; i < 4; i++) {
-          var t1 = i >> 1, // 0, 0, 1, 1
-            t2 = i & 1, // 0, 1, 0, 1
-            i1 = t1 * 6,
-            i2 = t2 * 6,
-            p1 = new Point(v1[i1], v1[i1 + 1]),
-            p2 = new Point(v2[i2], v2[i2 + 1]);
-          if (p1.isClose(p2, epsilon)) {
-            addLocation(locations, include, c1, t1, c2, t2, false);
-          }
-        }
-      }
     }
   }
   return locations;
 }
+
