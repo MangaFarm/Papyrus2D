@@ -815,7 +815,7 @@ export class Path extends PathItemBase {
     if (options?.selfClosing) {
       const firstPt = this._segments[0].point;
       const lastPt = to;
-      if (firstPt.equals(lastPt)) {
+      if (firstPt.isClose(lastPt, Numerical.GEOMETRIC_EPSILON)) {
         this._closed = true;
       }
     }
@@ -864,7 +864,7 @@ export class Path extends PathItemBase {
       const firstPoint = firstSegment.point;
       const lastPoint = lastSegment.point;
 
-      if (firstPoint && lastPoint && !firstPoint.equals(lastPoint)) {
+      if (firstPoint && lastPoint && !firstPoint.isClose(lastPoint, tolerance)) {
         // 距離が許容誤差より大きい場合は線を追加
         if (firstPoint.getDistance(lastPoint) > tolerance) {
           // paper.js互換: 最初のセグメントのcloneを末尾に追加

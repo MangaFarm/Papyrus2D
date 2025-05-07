@@ -16,11 +16,8 @@ export class Point {
     Object.freeze(this);
   }
 
-  equals(point: Point, tolerance?: number): boolean {
-    if (tolerance !== undefined) {
-      return this.getDistance(point) < tolerance;
-    }
-    return this.x === point.x && this.y === point.y;
+  equals(point: Point): boolean {
+    return this === point || (point && this.x === point.x && this.y === point.y) || false;
   }
 
   clone(): Point {

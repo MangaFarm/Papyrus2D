@@ -68,12 +68,6 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     if (seg) {
       for (var i = 0, l = starts.length; i < l; i++) {
         if (seg === starts[i]) return true;
-        // 🔥 paper.js互換: 座標値が完全一致する場合もtrueとみなす
-        const p1 = seg.getPoint();
-        const p2 = starts[i].getPoint();
-        // 許容誤差内で一致する場合もtrue
-        const EPS = 1e-7;
-        if (Math.abs(p1.x - p2.x) < EPS && Math.abs(p1.y - p2.y) < EPS) return true;
       }
     }
     return false;
@@ -288,30 +282,26 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       // an open path would: Connecting the last and first segment
       // with a straight line, ignoring the handles.
       var next = segOrNull!.getNext();
-      // 直前のセグメントと同じ座標なら追加しない（重複防止）
+      // paper.js本家と同じく、無条件で追加
       const pt = segOrNull!._point!.toPoint();
-      const segs = path!._segments;
-      if (segs.length === 0 || !segs[segs.length - 1]._point.toPoint().equals(pt)) {
-        // open pathのfill時（segments[0]に戻る場合）はhandleIn/handleOutを0に
-        let hIn = handleIn!;
-        let hOut = (next && segOrNull!._handleOut)!.toPoint();
-        if (segOrNull! === segments[0] && !first) {
-          hIn = new Point(0, 0);
-          hOut = new Point(0, 0);
-        }
-        const newSeg = new Segment(
-          pt,
-          hIn,
-          hOut
-        );
-        // メタ情報をコピー
-        const srcMeta = getMeta(segOrNull!);
-        const dstMeta = getMeta(newSeg);
-        if (srcMeta._winding !== undefined) dstMeta._winding = JSON.parse(JSON.stringify(srcMeta._winding));
-        if (srcMeta._intersection !== undefined) dstMeta._intersection = srcMeta._intersection;
-        if (srcMeta._path !== undefined) dstMeta._path = srcMeta._path;
-        path!.add(newSeg);
+      let hIn = handleIn!;
+      let hOut = (next && segOrNull!._handleOut)!.toPoint();
+      if (segOrNull! === segments[0] && !first) {
+        hIn = new Point(0, 0);
+        hOut = new Point(0, 0);
       }
+      const newSeg = new Segment(
+        pt,
+        hIn,
+        hOut
+      );
+      // メタ情報をコピー
+      const srcMeta = getMeta(segOrNull!);
+      const dstMeta = getMeta(newSeg);
+      if (srcMeta._winding !== undefined) dstMeta._winding = JSON.parse(JSON.stringify(srcMeta._winding));
+      if (srcMeta._intersection !== undefined) dstMeta._intersection = srcMeta._intersection;
+      if (srcMeta._path !== undefined) dstMeta._path = srcMeta._path;
+      path!.add(newSeg);
       getMeta(segOrNull!)._visited = true;
       visited!.push(segOrNull!);
       // If this is the end of an open path, go back to its first
