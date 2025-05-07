@@ -758,8 +758,6 @@ export class Curve {
             if (removed) {
                 this._segment1._handleOut._set(handleOut._x, handleOut._y);
             }
-            // paper.js本家と同じく、curvesキャッシュを無効化
-            this._path._curves = null;
         }
         return removed;
     }
