@@ -347,7 +347,9 @@ export class Path extends PathItemBase {
   getLocationOf(point: Point): CurveLocation | null {
     const curves = this.getCurves();
     for (let i = 0, l = curves.length; i < l; i++) {
-      const loc = curves[i].getLocationOf(point);
+      const t = curves[i].getTimeOf(point);
+      if (t == null) { return null; }
+      const loc = curves[i].getLocationAtTime(t);
       if (loc) {
         return loc;
       }

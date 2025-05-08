@@ -133,6 +133,10 @@ export class Curve {
     return Curve.getLength(this.getValues(), from, to);
   }
 
+  getOffsetAtTime(time: number): number {
+    return this.getPartLength(0, time);
+  }
+
   _changed(): void {
     // キャッシュをクリア
     this._length = undefined;
