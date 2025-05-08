@@ -305,14 +305,14 @@ export class CurveLocationUtils {
 
     // t1が曲線の内部にない場合、オフセットを追加
     if (!t1Inside) {
-      addOffsets(curves[0]!, true);
-      addOffsets(curves[1]!, false);
+      addOffsets(curves[0], true);
+      addOffsets(curves[1], false);
     }
 
     // t2が曲線の内部にない場合、オフセットを追加
     if (!t2Inside) {
-      addOffsets(curves[2]!, true);
-      addOffsets(curves[3]!, false);
+      addOffsets(curves[2], true);
+      addOffsets(curves[3], false);
     }
 
     // 交点の座標を取得
@@ -332,8 +332,10 @@ export class CurveLocationUtils {
       v2 = tangent;
       v1 = v2.negate();
     } else {
-      const p1 = curves[0]!.getPointAt(-offset);
-      const p2 = curves[1]!.getPointAt(offset);
+      const c1 = curves[0];
+      const c2 = curves[1];
+      const p1 = c1.getPointAtTime(c1.getTimeAt(-offset)!);
+      const p2 = c2.getPointAtTime(c2.getTimeAt(offset)!);
       if (!p1 || !p2) return false;
       v1 = p1.subtract(pt);
       v2 = p2.subtract(pt);
@@ -345,8 +347,10 @@ export class CurveLocationUtils {
       v4 = tangent;
       v3 = v4.negate();
     } else {
-      const p3 = curves[2]!.getPointAt(-offset);
-      const p4 = curves[3]!.getPointAt(offset);
+      const c3 = curves[2];
+      const c4 = curves[3];
+      const p3 = c3.getPointAtTime(c3.getTimeAt(-offset)!);
+      const p4 = c4.getPointAtTime(c4.getTimeAt(offset)!);
       if (!p3 || !p4) return false;
       v3 = p3.subtract(pt);
       v4 = p4.subtract(pt);

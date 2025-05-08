@@ -136,13 +136,13 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
           : seg1._index! - seg2._index!;
   });
 
-  for (var i = 0, l = segments.length; i < l; i++) {
-    var seg: Segment | null = segments[i],
-      valid = isValid(seg),
+  for (let i: number = 0, l: number = segments.length; i < l; i++) {
+    let seg: Segment | null = segments[i],
+      valid: boolean = isValid(seg),
       path: Path | null = null,
-      finished = false,
-      closed = true,
-      branches: Array<Branch> = [],
+      finished: boolean = false,
+      closed: boolean = true,
+      branches: Branch[] = [],
       branch: Branch | null = null,
       visited: Segment[] | null = null,
       handleIn: Point | null = null;
@@ -150,8 +150,8 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     // two fully overlapping paths that need special handling.
     if (valid && getPathMeta(seg._path!)!._overlapsOnly) {
       // TODO: Don't we also need to check for multiple overlaps?
-      var path1 = seg._path!,
-        path2 = getMeta(seg)._intersection!._segment!._path!;
+      const path1: Path = seg._path!,
+        path2: Path = getMeta(seg)._intersection!._segment!._path!;
       if (path1.compare(path2)) {
         // Only add the path to the result if it has an area.
         if (path1.getArea()) paths.push(path1.clone(false));
@@ -166,12 +166,12 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     while (valid) {
       // For each segment we encounter, see if there are multiple
       // crossings, and if so, pick the best one:
-      var first = !path,
-        crossings = getCrossingSegments(seg!, first),
+      const first: boolean = !path;
+      let crossings: Segment[] = getCrossingSegments(seg!, first),
         // Get the other segment of the first found crossing.
-        other = crossings.shift(),
-        finished = !first && (isStart(seg) || isStart(other!)),
-        cross = !finished && other;
+        other: Segment | undefined = crossings.shift(),
+        finished: boolean = !first && (isStart(seg) || isStart(other!)),
+        cross: Segment | undefined | false = !finished && other;
       if (first) {
         path = new Path();
         // Clear branch to start a new one with each new path.
@@ -210,7 +210,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // Remove the already added segments, and mark them as not
         // visited so they become available again as options.
         path!.removeSegments(branch.start);
-        for (var j = 0, k = visited!.length; j < k; j++) {
+        for (let j: number = 0, k: number = visited!.length; j < k; j++) {
           getMeta(visited![j])._visited = false;
         }
         visited!.length = 0;
@@ -238,14 +238,14 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       // an open path, we need to treat it the same way as the fill of
       // an open path would: Connecting the last and first segment
       // with a straight line, ignoring the handles.
-      let next = seg!.getNext();
-      let newSeg = new Segment(seg!._point.toPoint(), handleIn,
+      const next: Segment | null = seg!.getNext();
+      const newSeg: Segment = new Segment(seg!._point.toPoint(), handleIn,
         next && seg!._handleOut.toPoint());
       path!.add(newSeg);
       getMeta(seg!)._visited = true;
       visited!.push(seg!);
-      seg = next || seg!._path!.getFirstSegment();
-      handleIn = next && next._segment;
+      seg = next || seg!._path!.getFirstSegment() || null;
+      handleIn = next && next._handleIn.toPoint();
     }
     if (finished) {
       if (closed) {
