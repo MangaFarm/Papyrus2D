@@ -49,6 +49,7 @@ export abstract class PathItemBase implements PathItem {
   _parent: PathItemBase | null = null;
 
   constructor() {
+    this._matrix = Matrix.identity();
     this._id = ++PathItemBase._idCount;
   }
 
@@ -339,13 +340,16 @@ export abstract class PathItemBase implements PathItem {
     // bounds.
     var internal = options.internal && !noInternal,
       cacheItem = options.cacheItem,
-      _matrix = internal ? null : this._matrix._orNullIfIdentity(),
-      // Create a key for caching, reflecting all bounds options.
-      cacheKey =
-        cacheItem &&
-        (!matrix || matrix.equals(_matrix!)) &&
-        this._getBoundsCacheKey(options, !!internal),
-      bounds = this._bounds;
+     _matrix = internal ? null : this._matrix._orNullIfIdentity(),
+     // Create a key for caching, reflecting all bounds options.
+     cacheKey =
+       cacheItem &&
+       (!matrix || matrix.equals(_matrix!)) &&
+       this._getBoundsCacheKey(options, !!internal),
+     bounds = this._bounds;
+// 🔥 デバッグ: this._matrix の値を出力
+// eslint-disable-next-line no-console
+console.log("🔥 PathItemBase._getCachedBounds this._matrix=", this._matrix);
     // NOTE: This needs to happen before returning cached values, since even
     // then, _boundsCache needs to be kept up-to-date.
     this._parent?._updateBoundsCache(cacheItem ?? null);
