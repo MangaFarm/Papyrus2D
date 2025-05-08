@@ -113,8 +113,8 @@ describe('Path Boolean Operations', () => {
       'M228.26666666666668,222.72h55.46666666666667c3.05499999999995,0 5.546666666666624,2.4916666666666742 5.546666666666624,5.546666666666681v55.46666666666667c0,3.05499999999995 -2.4916666666666742,5.546666666666624 -5.546666666666624,5.546666666666624h-55.46666666666667c-3.055000000000007,0 -5.546666666666681,-2.4916666666666742 -5.546666666666681,-5.546666666666624v-55.46666666666667c0,-3.055000000000007 2.4916666666666742,-5.546666666666681 5.546666666666681,-5.546666666666681z',
     ];
     for (let i = 0; i < paths.length; i++) {
-      const path = Path.fromSVG(paths[i]);
-      const result = Path.fromSVG(results[i]);
+      const path = Path.fromPathData(paths[i]);
+      const result = Path.fromPathData(results[i]);
       (path as any).fillRule = 'evenodd';
       const resolved = (path as any).resolveCrossings();
       if (resolved.getSegments) {

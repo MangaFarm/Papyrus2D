@@ -10,6 +10,7 @@ import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveSubdivision } from './CurveSubdivision';
 import { getMeta } from './SegmentMeta';
+import { CompoundPath } from './CompoundPath';
 
 /**
  * winding numberを伝播する
