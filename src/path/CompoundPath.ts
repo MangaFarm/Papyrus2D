@@ -7,14 +7,13 @@
 
 import type { PathItem } from './PathItem';
 import { Point } from '../basic/Point';
-import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { Path } from './Path';
 import { Segment } from './Segment';
 import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
-import { ChangeFlag, Change } from './ChangeFlag';
+import { Change } from './ChangeFlag';
 import { reorientPaths } from './PathBooleanReorient';
 import { resolveCrossings } from './PathBooleanResolveCrossings';
 
@@ -36,6 +35,10 @@ export class CompoundPath extends PathItemBase {
     if (paths && Array.isArray(paths)) {
       this.addChildren(paths);
     }
+  }
+
+  getChildren(): PathItem[] | null {
+    return this._children;    
   }
 
   // paper.jsのBase.each()の代わりに使用する内部メソッド
@@ -227,86 +230,6 @@ export class CompoundPath extends PathItemBase {
       length += children[i].getLength();
     }
     return length;
-  }
-
-  /**
-   * 子アイテムの境界ボックスを計算する内部メソッド
-   * paper.jsのItem._getBoundsメソッドを参考にした実装
-   * @param matrix 変換行列（オプション）
-   * @param options オプション
-   * @returns 境界ボックス
-   */
-  _getBounds(matrix?: Matrix | null): Rectangle {
-    const children = this._children;
-    if (!children || !children.length) {
-      return new Rectangle(0, 0, 0, 0);
-    }
-
-    let x1 = Infinity;
-    let x2 = -x1;
-    let y1 = x1;
-    let y2 = x2;
-
-    for (let i = 0, l = children.length; i < l; i++) {
-      const child = children[i];
-      // 子アイテムが空でない場合のみ境界ボックスを計算
-      if (!child.isEmpty()) {
-        // 子アイテムの境界ボックスを取得
-        const childMatrix = matrix && matrix.appended(child._matrix || Matrix.identity());
-        
-        // セグメントから直接境界を計算
-        const segments = child.getSegments();
-        let minX = Infinity, minY = Infinity;
-        let maxX = -Infinity, maxY = -Infinity;
-        
-        for (const segment of segments) {
-          const point = segment.point;
-          minX = Math.min(minX, point.x);
-          minY = Math.min(minY, point.y);
-          maxX = Math.max(maxX, point.x);
-          maxY = Math.max(maxY, point.y);
-        }
-        
-        // 手動で計算した境界ボックス
-        const manualRect = new Rectangle(minX, minY, maxX - minX, maxY - minY);
-        // 通常の方法で取得した境界ボックス
-        const rect = child.getBounds(childMatrix);
-        
-        // 手動で計算した境界ボックスを使用
-        // 最小値と最大値を更新
-        x1 = Math.min(manualRect.x, x1);
-        y1 = Math.min(manualRect.y, y1);
-        x2 = Math.max(manualRect.x + manualRect.width, x2);
-        y2 = Math.max(manualRect.y + manualRect.height, y2);
-      }
-    }
-
-    const result = isFinite(x1)
-      ? new Rectangle(x1, y1, x2 - x1, y2 - y1)
-      : new Rectangle(0, 0, 0, 0);
-    
-    return result;
-  }
-
-  /**
-   * パスの境界ボックスを取得
-   * @param matrix 変換行列（オプション）
-   */
-  getBounds(matrix?: Matrix | null): Rectangle {
-    if (!this._children.length) {
-      return new Rectangle(0, 0, 0, 0);
-    }
-    
-    if (!matrix && this._bounds) {
-      return this._bounds;
-    }
-    
-    const bounds = this._getBounds(matrix);
-    
-    if (!matrix) {
-      this._bounds = bounds;
-    }
-    return bounds;
   }
 
   /**
@@ -692,14 +615,6 @@ export class CompoundPath extends PathItemBase {
       this._children = remainingChildren;
     }
     return this;
-  }
-
-  isEmpty(): boolean {
-    if (!this._children.length) return true;
-    for (let i = 0; i < this._children.length; i++) {
-      if (!this._children[i].isEmpty()) return false;
-    }
-    return true;
   }
 
   /**

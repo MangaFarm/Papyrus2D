@@ -143,7 +143,7 @@ function createResult(
     // path1とpath2が存在し、兄弟関係にある場合、
     // path1のインデックスがpath2より小さければpath2の上に、
     // そうでなければpath1の上に挿入
-    if (path2 && path1 && path1.isSibling!(path2) && path1.getIndex!() < path2.getIndex!()) {
+    if (path2 && path1 && path1.isSibling!(path2) && path1.getIndex()! < path2.getIndex()!) {
       simplified.insertAbove!(path2);
     } else if (path1) {
       simplified.insertAbove!(path1);

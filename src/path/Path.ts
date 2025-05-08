@@ -1211,4 +1211,29 @@ export class Path extends PathItemBase {
   toString(): string {
     return this.getPathData();
   }
+
+  getChildren(): PathItem[] | null {
+    return null;
+  }
+
+  _changed(flags) {
+    super._changed(flags);
+    if (flags & /*#=*/ChangeFlag.GEOMETRY) {
+        this._length = this._area = undefined;
+        if (flags & /*#=*/ChangeFlag.SEGMENTS) {
+            this._version++; // See CurveLocation
+        } else if (this._curves) {
+            // Only notify all curves if we're not told that only segments
+            // have changed and took already care of notifications.
+           for (var i = 0, l = this._curves.length; i < l; i++)
+                this._curves[i]._changed();
+        }
+    } else if (flags & /*#=*/ChangeFlag.STROKE) {
+        // TODO: We could preserve the purely geometric bounds that are not
+        // affected by stroke: _bounds.bounds and _bounds.handleBounds
+        this._bounds = undefined;
+    }
+  }
+
+
 }

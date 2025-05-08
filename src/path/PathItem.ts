@@ -25,18 +25,17 @@ export type Style = {
 export interface PathItem {
   _matrix: Matrix;
   _matrixDirty: boolean;
-  style: Style;
+  _style: Style;
   readonly closed: boolean;
   readonly segmentCount: number;
 
   getLength(): number;
   getArea(): number;
-  getBounds(matrix: Matrix | null): Rectangle;
   getSegments(): Segment[];
   getPointAt(t: number): Point;
   getTangentAt(t: number): Point;
   contains(point: Point): boolean;
-  isEmpty(): boolean;
+  isEmpty(recursive: boolean): boolean;
   getCurves(): Curve[];
   getIntersections(
     targetPath: PathItem, 

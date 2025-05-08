@@ -6,18 +6,42 @@
 
 import type { PathItem, Style, FillRule } from './PathItem';
 import type { Point } from '../basic/Point';
-import type { Rectangle } from '../basic/Rectangle';
+import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import type { Curve } from './Curve';
 import type { Segment } from './Segment';
 import type { CurveLocation } from './CurveLocation';
-import { Change } from './ChangeFlag';
+import { ChangeFlag, Change } from './ChangeFlag';
+
+// _boundsCacheの型
+type BoundsCache = {
+  ids: { [id: string]: any };
+  list: any[];
+};
+
+// _boundsの型
+type BoundsEntry = {
+  rect: Rectangle;
+  internal?: boolean;
+};
+
+type Bounds = {
+  [key: string]: BoundsEntry;
+};
+
+type BoundsOptions = { 
+  internal?: boolean, 
+  cacheItem?: PathItemBase ,
+  stroke?: boolean,
+  handle?: boolean,
+};
 
 export abstract class PathItemBase implements PathItem {
   // PathItemインターフェースの実装
   _matrix: Matrix;
   _matrixDirty: boolean = false;
-  _bounds?: Rectangle;
+  _boundsCache?: BoundsCache;
+  _bounds?: Bounds;
   _version: number = 0;
   static _idCount: number = 0;
   _id: number;
@@ -110,7 +134,7 @@ export abstract class PathItemBase implements PathItem {
       }
       children.splice(index, 0, ...items);
       for (var i = 0, l = items.length; i < l; i++) {
-        var item = items[i]
+        var item = items[i];
         item._parent = this;
       }
       this._changed(/*#=*/ Change.CHILDREN);
@@ -121,7 +145,7 @@ export abstract class PathItemBase implements PathItem {
   }
 
   // スタイル設定
-  style: Style = {
+  _style: Style = {
     fillRule: 'nonzero',
   };
 
@@ -133,7 +157,7 @@ export abstract class PathItemBase implements PathItem {
   abstract getSegments(): Segment[];
   abstract getCurves(): Curve[];
   abstract getArea(): number;
-  abstract reverse(): PathItemBase;
+  abstract reverse(): PathItem;
   abstract getPaths(): any[];
   abstract clone(deep?: boolean): PathItem;
 
@@ -160,7 +184,6 @@ export abstract class PathItemBase implements PathItem {
   }
 
   abstract getLength(): number;
-  abstract getBounds(matrix?: Matrix | null): Rectangle;
   abstract getPointAt(t: number): Point;
   abstract getTangentAt(t: number): Point;
   abstract contains(point: Point): boolean;
@@ -170,14 +193,14 @@ export abstract class PathItemBase implements PathItem {
     _targetMatrix: Matrix | null,
     _returnFirst: boolean
   ): CurveLocation[];
-  abstract isEmpty(): boolean;
+
   abstract reduce(options?: { simplify?: boolean }): PathItem;
 
   copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem {
     if (!excludeMatrix && path._matrix) {
       this._matrix = path._matrix.clone();
     }
-    this.style = { ...path.style };
+    this._style = { ...path._style };
     return this;
   }
 
@@ -188,11 +211,11 @@ export abstract class PathItemBase implements PathItem {
   abstract reorient(nonZero?: boolean, clockwise?: boolean): PathItem;
 
   getFillRule(): string {
-    return this.style.fillRule;
+    return this._style.fillRule;
   }
 
   setFillRule(rule: FillRule): PathItem {
-    this.style.fillRule = rule;
+    this._style.fillRule = rule;
     return this;
   }
 
@@ -237,5 +260,191 @@ export abstract class PathItemBase implements PathItem {
   }
 
   abstract getChildren(): PathItem[] | null;
-  abstract _changed(flags: number, item?: PathItemBase): void;
+
+  _changed(flags: ChangeFlag, option?: any) {
+    var cacheParent = this._parent;
+    if (flags & /*#=*/ ChangeFlag.GEOMETRY) {
+      // Clear cached bounds, position and decomposed matrix whenever
+      // geometry changes.
+      this._bounds = undefined;
+    }
+    if (cacheParent && flags & /*#=*/ (ChangeFlag.GEOMETRY | ChangeFlag.STROKE)) {
+      // Clear cached bounds of all items that this item contributes to.
+      // We call this on the parent, since the information is cached on
+      // the parent, see getBounds().
+      cacheParent._clearBoundsCache();
+    }
+    if (flags & /*#=*/ ChangeFlag.CHILDREN) {
+      // Clear cached bounds of all items that this item contributes to.
+      // Here we don't call this on the parent, since adding / removing a
+      // child triggers this notification on the parent.
+      this._clearBoundsCache();
+    }
+  }
+
+  _updateBoundsCache(child: PathItemBase | null) {
+    if (!child) {
+      return;
+    }
+
+    // Set-up the parent's boundsCache structure if it does not
+    // exist yet and add the item to it.
+    const id = child._id;
+    this._boundsCache ??= {
+      ids: {},
+      list: [],
+    };
+    const ref = this._boundsCache;
+    if (!ref.ids[id]) {
+      ref.list.push(child);
+      ref.ids[id] = child;
+    }
+  }
+
+  _clearBoundsCache() {
+    var cache = this._boundsCache;
+    if (!cache) {
+      return;
+    }
+
+    // Erase cache before looping, to prevent circular recursion.
+    this._bounds = this._boundsCache = undefined;
+    for (var i = 0, list = cache.list, l = list.length; i < l; i++) {
+      var other = list[i];
+      if (other !== this) {
+        other._bounds = other._position = undefined;
+        // We need to recursively call _clearBoundsCache, as
+        // when the cache for the other item's children is not
+        // valid anymore, that propagates up the scene graph.
+        if (other._boundsCache) other._clearBoundsCache();
+      }
+    }
+  }
+
+  getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
+    matrix ??= this._matrix;
+
+    // キャッシュ取得・計算
+    const entry = this._getCachedBounds(matrix, options, false);
+    // 常にrectを返す（ラッパーは省略）
+    return entry.rect;
+  }
+
+  _getCachedBounds(matrix: Matrix | null, options: BoundsOptions, noInternal: boolean): BoundsEntry {
+    // See if we can cache these bounds. We only cache the bounds
+    // transformed with the internally stored _matrix, (the default if no
+    // matrix is passed).
+    matrix = matrix && matrix._orNullIfIdentity();
+    // Do not transform by the internal matrix for internal, untransformed
+    // bounds.
+    var internal = options.internal && !noInternal,
+      cacheItem = options.cacheItem,
+      _matrix = internal ? null : this._matrix._orNullIfIdentity(),
+      // Create a key for caching, reflecting all bounds options.
+      cacheKey =
+        cacheItem &&
+        (!matrix || matrix.equals(_matrix!)) &&
+        this._getBoundsCacheKey(options, !!internal),
+      bounds = this._bounds;
+    // NOTE: This needs to happen before returning cached values, since even
+    // then, _boundsCache needs to be kept up-to-date.
+    this._parent?._updateBoundsCache(cacheItem ?? null);
+    if (cacheKey && bounds && cacheKey in bounds) {
+      var cached = bounds[cacheKey];
+      return {
+        rect: cached.rect.clone(),
+      };
+    }
+    var res = this._getBounds(matrix || _matrix, options),
+      // Support two versions of _getBounds(): One that directly returns a
+      // Rectangle, and one that returns a bounds object with nonscaling.
+      rect = res.rect || res;
+    // If we can cache the result, update the _bounds cache structure
+    // before returning
+    if (cacheKey) {
+      if (!bounds) {
+        this._bounds = bounds = {};
+      }
+      bounds[cacheKey] = {
+        rect: rect.clone(),
+        // Mark as internal, so Item#transform() won't transform it
+        internal: internal,
+      };
+    }
+    return {
+      rect: rect,
+    };
+  }
+
+  _getBounds(matrix: Matrix | null, options: BoundsOptions): BoundsEntry {
+    // NOTE: We cannot cache these results here, since we do not get
+    // _changed() notifications here for changing geometry in children.
+    // But cacheName is used in sub-classes such as SymbolItem and Raster.
+    var children = this.getChildren();
+    // TODO: What to return if nothing is defined, e.g. empty Groups?
+    // Scriptographer behaves weirdly then too.
+    if (!children || !children.length)
+        return { rect: new Rectangle(0, 0, 0, 0) };
+    // Call _updateBoundsCache() even when the group only holds empty /
+    // invisible items), so future changes in these items will cause right
+    // handling of _boundsCache.
+    this._updateBoundsCache(options.cacheItem ?? null);
+    return PathItemBase._getBounds(children, matrix, options);
+  }
+
+  _getBoundsCacheKey(options: BoundsOptions, internal: boolean) {
+    return [
+        options.stroke ? 1 : 0,
+        options.handle ? 1 : 0,
+        internal ? 1 : 0
+    ].join('');
+  }
+
+  isEmpty(recursively: boolean) {
+    var children = this.getChildren();
+    var numChildren = children ? children.length : 0;
+    if (recursively) {
+        // In recursive check, item is empty if all its children are empty.
+        for (var i = 0; i < numChildren; i++) {
+            if (!children![i].isEmpty(recursively)) {
+                return false;
+            }
+        }
+        return true;
+    }
+    return !numChildren;
+  }
+
+  static _getBounds(items: PathItem[], matrix: Matrix | null, options: BoundsOptions): BoundsEntry {
+    var x1 = Infinity,
+        x2 = -x1,
+        y1 = x1,
+        y2 = x2;
+    // NOTE: As soon as one child-item has non-scaling strokes, the full
+    // bounds need to be considered non-scaling for caching purposes.
+    options = options || {};
+    for (var i = 0, l = items.length; i < l; i++) {
+        var item = items[i] as PathItemBase;
+        // Item is handled if it is visible and not recursively empty.
+        // This avoid errors with nested empty groups (#1467).
+        if (!item.isEmpty(true)) {
+            // Pass true for noInternal, since even when getting
+            // internal bounds for this item, we need to apply the
+            // matrices to its children.
+            var bounds = item._getCachedBounds(
+                matrix && matrix.appended(item._matrix), options, true),
+                rect = bounds.rect;
+            x1 = Math.min(rect.x, x1);
+            y1 = Math.min(rect.y, y1);
+            x2 = Math.max(rect.x + rect.width, x2);
+            y2 = Math.max(rect.y + rect.height, y2);
+        }
+    }
+    return {
+        rect: isFinite(x1)
+            ? new Rectangle(x1, y1, x2 - x1, y2 - y1)
+            : new Rectangle(0, 0, 0, 0),
+    };
+  }
+
 }

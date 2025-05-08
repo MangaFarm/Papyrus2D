@@ -100,7 +100,7 @@ describe('CompoundPath', () => {
     const compound = new CompoundPath([path1, path2]);
 
     // 境界ボックスは両方の矩形を含む
-    const bounds = compound.getBounds();
+    const bounds = compound.getBounds(null, {});
     
     expect(bounds.x).toBe(0);
     expect(bounds.y).toBe(0);
