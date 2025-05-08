@@ -27,8 +27,9 @@ export class PathFitter {
    */
   constructor(path: Path) {
     const points: Point[] = [];
-    const segments = path.getSegments();
+    const segments: Segment[] = path.getSegments();
     const closed = path.isClosed();
+    console.log(`🔥 segments = ${segments.length} closed=${closed}`);
     
     // パスからポイントをコピーし、隣接する重複を除外
     for (let i = 0, prev: Point | null = null, l = segments.length; i < l; i++) {
@@ -38,11 +39,14 @@ export class PathFitter {
       }
     }
     
+    console.log(`🔥 points(before) = ${points.length}`);
     // 閉じたパスを単純化する場合、最初と最後のセグメントを複製する必要がある
     if (closed) {
       points.unshift(points[points.length - 1]);
       points.push(points[1]); // インデックス0にあったポイントは現在1にある
     }
+    console.log(`🔥 points(seq) = ${JSON.stringify(points.map(p => ({x:p.x, y:p.y})))});`);
+    console.log(`🔥 points(after) = ${points.length}`);
     
     this.points = points;
     this.closed = closed;
@@ -56,7 +60,8 @@ export class PathFitter {
   fit(error: number): Segment[] | null {
     const points = this.points;
     const length = points.length;
-    let segments: Segment[] | null = null;
+      let segments: Segment[] | null = null;
+    console.log(`🔥 ${length}`);
     
     if (length > 0) {
       // 同じ場所に複数のポイントがあるパスを1つのセグメントに減らすことをサポート

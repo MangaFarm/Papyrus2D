@@ -423,7 +423,6 @@ export class Curve {
     let removed = false;
     if (this._path) {
       let segment2 = this._segment2;
-      // 🔥DEBUG: remove() called
       // paper.jsと同じく、常にcurve._segment2をremoveする
       const handleOut = segment2._handleOut;
       removed = segment2.remove();

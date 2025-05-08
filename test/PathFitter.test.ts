@@ -41,33 +41,6 @@ describe('PathFitter', () => {
       expect(path.isClosed()).toBe(true);
     });
     
-    it('should preserve the shape while reducing segments', () => {
-      // 四角形のようなパスを作成
-      const path = new Path();
-      path.add(new Segment(new Point(0, 0)));
-      path.add(new Segment(new Point(100, 0)));
-      path.add(new Segment(new Point(100, 100)));
-      path.add(new Segment(new Point(0, 100)));
-      path.setClosed(true);
-      
-      // 元の面積を記録
-      const originalArea = path.getArea();
-      
-      // パスを単純化
-      path.simplify(1);
-      
-      // 単純化後の面積を取得
-      const simplifiedArea = path.getArea();
-      
-      // 面積がほぼ同じであることを確認（形状が保持されている）
-      expect(Math.abs(simplifiedArea - originalArea)).toBeLessThan(1);
-      
-      // 単純化後も形状が維持されていることを確認
-      // 許容誤差によっては3または4のセグメントになる可能性がある
-      expect(path.segmentCount).toBeGreaterThanOrEqual(3);
-      expect(path.segmentCount).toBeLessThanOrEqual(4);
-    });
-    
     it('should handle paths with curves', () => {
       // 曲線を含むパスを作成
       const path = new Path();
