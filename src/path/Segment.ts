@@ -8,7 +8,7 @@ import { Point } from '../basic/Point';
 import { SegmentPoint } from './SegmentPoint';
 import { Path } from './Path';
 import { CurveLocation } from './CurveLocation';
-import { ChangeFlag } from './ChangeFlag';
+import { ChangeFlag, Change } from './ChangeFlag';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { getMeta } from './SegmentMeta';
@@ -86,7 +86,7 @@ export class Segment {
 
     // パスに変更を通知
     if (path._changed) {
-      path._changed(/*#=*/ChangeFlag.SEGMENTS);
+      path._changed(/*#=*/Change.SEGMENTS);
     }
   }
 

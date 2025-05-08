@@ -162,7 +162,7 @@ export function splitPathAt(path: Path, location: CurveLocation): Path | null {
     if (time >= tMin) {
       // Divide the curve with the index at the given curve-time.
       // Increase because dividing adds more segments to the path.
-      curves[index++].divideAtTime(time);
+      curves[index++].divideAtTime(time, false);
     }
     // Create the new path with the segments to the right of given
     // curve-time, which are removed from the current path. Pass true

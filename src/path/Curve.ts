@@ -711,6 +711,14 @@ export class Curve {
       return res!;
   }
 
+  splitAt(location: CurveLocation) {
+    var path = this._path;
+    return path ? path.splitAt(location) : null;
+  }
+
+  splitAtTime(time: number) {
+    return this.splitAt(this.getLocationAtTime(time)!);
+  }
 
 }
 

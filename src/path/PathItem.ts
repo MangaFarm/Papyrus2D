@@ -23,189 +23,39 @@ export type Style = {
 };
 
 export interface PathItem {
-  /**
-   * 変換行列（paper.js互換）
-   * 内部キャッシュとして使用
-   */
-  _matrix?: Matrix;
-  
-  /**
-   * 行列が変更されたかどうかのフラグ
-   */
-  _matrixDirty?: boolean;
-  
-  /**
-   * スタイル設定
-   */
+  _matrix: Matrix;
+  _matrixDirty: boolean;
   style: Style;
-  /**
-   * パスが閉じているかどうか
-   */
   readonly closed: boolean;
-
-  /**
-   * パスの全セグメント数
-   */
   readonly segmentCount: number;
 
-  /**
-   * パスの全長
-   */
   getLength(): number;
-
-  /**
-   * パスの面積
-   */
   getArea(): number;
-
-  /**
-   * パスの外接矩形
-   * @param matrix 変換行列（オプション）
-   */
-  getBounds(matrix?: Matrix | null): Rectangle;
-
-  /**
-   * パスのセグメントを取得
-   */
+  getBounds(matrix: Matrix | null): Rectangle;
   getSegments(): Segment[];
-
-  /**
-   * 指定位置の点を取得
-   * @param t 0〜1のパラメータ
-   */
   getPointAt(t: number): Point;
-
-  /**
-   * 指定位置の接線ベクトルを取得
-   * @param t 0〜1のパラメータ
-   */
   getTangentAt(t: number): Point;
-
-  /**
-   * パスが点を含むか判定
-   */
   contains(point: Point): boolean;
-
-  /**
-   * パスが空かどうかを判定
-   */
-  isEmpty?(): boolean;
-
-  /**
-   * パスを削除する
-   */
-  remove?(): PathItem | null;
-
-  /**
-   * パスの全Curveを取得
-   */
+  isEmpty(): boolean;
   getCurves(): Curve[];
-  /**
-   * 他のPathItemとの交点列挙
-   */
-  /**
-   * 他のパスとの交点を取得
-   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
-   * @param include 交点をフィルタリングするコールバック関数
-   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
-   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
-   * @returns 交点情報の配列
-   */
   getIntersections(
     targetPath: PathItem, 
     include: (loc: CurveLocation) => boolean,
     _targetMatrix: Matrix | null, 
     _returnFirst: boolean): CurveLocation[];
-
-  /**
-   * パスを簡略化する
-   * 単一のPathに変換できる場合は変換する
-   * paper.jsのPathItem.reduce()を移植
-   * @param options 簡略化オプション
-   * @returns 簡略化されたPathItemオブジェクト
-   */
-  reduce(options?: { simplify?: boolean }): PathItem;
-
-  /**
-   * パスのクローンを作成する
-   * paper.jsのItem.clone()を移植
-   * @param deep 深いクローンを作成するかどうか
-   * @returns クローンされたパス
-   */
+  reduce(options: { simplify: boolean }): PathItem;
   clone(deep?: boolean): PathItem;
-
-  /**
-   * 交差を解決する
-   * paper.jsのPathItem.resolveCrossings()を移植
-   * @returns 交差が解決されたパス
-   */
   resolveCrossings(): PathItem;
-
-  /**
-   * パスの向きを再設定する
-   * paper.jsのPathItem.reorient()を移植
-   * @param nonZero 非ゼロ塗りつぶしルールを適用するかどうか
-   * @param clockwise 時計回りにするかどうか
-   * @returns このパス
-   */
-  reorient(nonZero?: boolean, clockwise?: boolean): PathItem;
-
-  /**
-   * 塗りつぶしルールを取得する
-   * paper.jsのItem.getFillRule()を移植
-   * @returns 塗りつぶしルール
-   */
+  reorient(nonZero: boolean, clockwise: boolean): PathItem;
   getFillRule(): string;
 
-  /**
-   * 指定されたパスが兄弟関係にあるかどうかを判定する
-   * paper.jsのItem.isSibling()を移植
-   * @param path 判定するパス
-   * @returns 兄弟関係にある場合はtrue
-   */
-  isSibling?(path: PathItem): boolean;
-
-  /**
-   * パスのインデックスを取得する
-   * paper.jsのItem.getIndex()を移植
-   * @returns インデックス
-   */
-  getIndex?(): number;
-
-  /**
-   * 指定されたパスの上に挿入する
-   * paper.jsのItem.insertAbove()を移植
-   * @param path 挿入する位置の基準となるパス
-   * @returns このパス
-   */
-  insertAbove?(path: PathItem): PathItem;
-
-  /**
-   * 指定されたパスの属性をコピーする
-   * paper.jsのItem.copyAttributes()を移植
-   * @param path コピー元のパス
-   * @param excludeMatrix 行列を除外するかどうか
-   * @returns このパス
-   */
+  getIndex(): number | null;
+  getParent(): PathItem | null;
+  isSibling(item: PathItem): boolean
+  insertAbove(path: PathItem): PathItem | null;
   copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem;
-
-  /**
-   * 変換行列を適用する
-   * paper.jsのItem.transform()を移植
-   * @param matrix 変換行列
-   * @param applyRecursively 再帰的に適用するかどうか
-   * @param setApplyMatrix 行列を適用するかどうか
-   * @returns このパス
-   */
   transform(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem;
-
-  /**
-   * パスの配列を取得する
-   * CompoundPathの場合は子パスの配列、Pathの場合は自身を含む配列を返す
-   * paper.jsのgetPaths関数を移植
-   * @returns パスの配列
-   */
   getPaths(): Path[];
-
   isClockwise(): boolean;
+  reverse(): PathItem;
 }

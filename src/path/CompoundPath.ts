@@ -14,7 +14,7 @@ import { Path } from './Path';
 import { Segment } from './Segment';
 import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
-import { ChangeFlag } from './ChangeFlag';
+import { ChangeFlag, Change } from './ChangeFlag';
 import { reorientPaths } from './PathBooleanReorient';
 import { resolveCrossings } from './PathBooleanResolveCrossings';
 
@@ -71,7 +71,7 @@ export class CompoundPath extends PathItemBase {
    */
   addChild(path: Path): Path {
     this._children.push(path);
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return path;
   }
 
@@ -82,7 +82,7 @@ export class CompoundPath extends PathItemBase {
   removeChildren(): Path[] {
     const children = this._children;
     this._children = [];
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return children;
   }
 
@@ -123,7 +123,7 @@ export class CompoundPath extends PathItemBase {
     for (let i = 0, l = children.length; i < l; i++) {
       children[i].setClosed(closed);
     }
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
   }
 
   /**
@@ -711,7 +711,7 @@ export class CompoundPath extends PathItemBase {
   remove(): PathItem | null {
     // 実際のpaper.jsでは親からの削除処理があるが、
     // 現在の実装では親子関係の管理がないため、自身を返す
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return this;
   }
 
@@ -721,7 +721,7 @@ export class CompoundPath extends PathItemBase {
   _insertAt(item: PathItem, offset: number): PathItem {
     // 実際のpaper.jsでは親子関係の管理があるが、
     // 現在の実装ではダミー実装
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return this;
   }
 
@@ -733,34 +733,11 @@ export class CompoundPath extends PathItemBase {
   }
   
   _changed(flags?: number): void {
-    if (flags === ChangeFlag.GEOMETRY) {
+    if (flags && (flags & ChangeFlag.GEOMETRY)) {
       // 境界ボックスをリセット
       this._bounds = undefined;
       this._version++;
     }
-  }
-
-  /**
-   * 指定されたパスが兄弟関係にあるかどうかを判定する
-   * paper.jsのItem.isSibling()を移植
-   * @param path 判定するパス
-   * @returns 兄弟関係にある場合はtrue
-   */
-  isSibling(path: PathItem): boolean {
-    // 現在の実装では常にfalseを返す
-    // 実際のpaper.jsでは、同じ親を持つアイテムかどうかを判定する
-    return false;
-  }
-
-  /**
-   * パスのインデックスを取得する
-   * paper.jsのItem.getIndex()を移植
-   * @returns インデックス
-   */
-  getIndex(): number {
-    // 現在の実装では常に0を返す
-    // 実際のpaper.jsでは、親アイテム内でのインデックスを返す
-    return 0;
   }
 
   /**

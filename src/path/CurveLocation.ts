@@ -449,4 +449,16 @@ export class CurveLocation {
     
     return expanded;
   }
+
+  split(): Path | null {
+    var curve = this.getCurve(),
+        path = curve!._path,
+        res = curve && curve.splitAtTime(this.getTime()!);
+    if (res) {
+        // Set the segment to the end-segment of the path after splitting.
+        this._setSegment(path!.getLastSegment()!);
+    }
+    return  res;
+  }
+
 }

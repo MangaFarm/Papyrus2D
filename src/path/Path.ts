@@ -15,7 +15,7 @@ import { SegmentPoint } from './SegmentPoint';
 import { Numerical } from '../util/Numerical';
 import { PathItemBase } from './PathItemBase';
 import { PathArc } from './PathArc';
-import { ChangeFlag } from './ChangeFlag';
+import { ChangeFlag, Change } from './ChangeFlag';
 import { computeBounds, getIntersections, contains } from './PathGeometry';
 import { PathFlattener } from './PathFlattener';
 import { PathFitter } from './PathFitter';
@@ -155,7 +155,7 @@ export class Path extends PathItemBase {
     }
     // Use SEGMENTS notification instead of GEOMETRY since curves are kept
     // up-to-date by _adjustCurves() and don't need notification.
-    this._changed(/*#=*/ ChangeFlag.SEGMENTS);
+    this._changed(/*#=*/ Change.SEGMENTS);
     return segs;
   }
 
@@ -229,7 +229,7 @@ export class Path extends PathItemBase {
           this._curves[length - 1] = curve;
         }
       }
-      this._changed(ChangeFlag.SEGMENTS);
+      this._changed(Change.SEGMENTS);
     }
   }
 
@@ -286,27 +286,6 @@ export class Path extends PathItemBase {
    */
   isClockwise(): boolean {
     return this.getArea() >= 0;
-  }
-
-  /**
-   * 変更通知メソッド
-   * @param flags 変更フラグ
-   */
-  _changed(flags: number): void {
-    if (flags & ChangeFlag.GEOMETRY) {
-      this._length = this._area = undefined;
-      if (flags & ChangeFlag.SEGMENTS) {
-        this._version++; // CurveLocationのキャッシュ更新用
-      } else if (this._curves) {
-        // セグメントの変更でない場合は、すべての曲線に変更を通知
-        for (let i = 0, l = this._curves.length; i < l; i++) {
-          this._curves[i]._changed();
-        }
-      }
-    } else if (flags & ChangeFlag.STROKE) {
-      // ストロークの変更時は境界ボックスのキャッシュをクリア
-      this._bounds = undefined;
-    }
   }
 
   /**
@@ -682,7 +661,7 @@ export class Path extends PathItemBase {
     }
     // Use SEGMENTS notification instead of GEOMETRY since curves are kept
     // up-to-date by _adjustCurves() and don't need notification.
-    this._changed(/*#=*/ ChangeFlag.SEGMENTS);
+    this._changed(/*#=*/ Change.SEGMENTS);
     return removed;
   }
 
@@ -790,7 +769,7 @@ export class Path extends PathItemBase {
    */
   close(): Path {
     this._closed = true;
-    this._changed(ChangeFlag.SEGMENTS);
+    this._changed(Change.SEGMENTS);
     return this;
   }
 
@@ -817,7 +796,7 @@ export class Path extends PathItemBase {
       }
 
       this._closed = true;
-      this._changed(ChangeFlag.SEGMENTS);
+      this._changed(Change.SEGMENTS);
     }
 
     return this;
@@ -865,7 +844,7 @@ export class Path extends PathItemBase {
     for (let i = 0, l = segments.length; i < l; i++) {
       segments[i].clearHandles();
     }
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return this;
   }
 
@@ -966,7 +945,7 @@ export class Path extends PathItemBase {
   splitAt(location: CurveLocation): Path | null {
     this._curves = null;
     const result = splitPathAt(this, location);
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return result;
   }
 
@@ -1067,17 +1046,6 @@ export class Path extends PathItemBase {
   }
 
   /**
-   * パスを削除する
-   * paper.jsのItem.remove()を移植
-   * @returns 削除されたパス、または削除できなかった場合はnull
-   */
-  remove(): PathItem | null {
-    // 現在の実装では単純に自身を返す
-    // 実際のpaper.jsでは、親アイテムから削除する
-    return this;
-  }
-
-  /**
    * パスの内部点を取得する
    * paper.jsのgetInteriorPoint()メソッドを移植
    * @returns パス内部の点
@@ -1110,46 +1078,11 @@ export class Path extends PathItemBase {
   }
 
   /**
-   * 指定されたパスが兄弟関係にあるかどうかを判定する
-   * paper.jsのItem.isSibling()を移植
-   * @param path 判定するパス
-   * @returns 兄弟関係にある場合はtrue
-   */
-  isSibling(path: PathItem): boolean {
-    // 現在の実装では常にfalseを返す
-    // 実際のpaper.jsでは、同じ親を持つアイテムかどうかを判定する
-    return false;
-  }
-
-  /**
-   * パスのインデックスを取得する
-   * paper.jsのItem.getIndex()を移植
-   * @returns インデックス
-   */
-  getIndex(): number {
-    // 現在の実装では常に0を返す
-    // 実際のpaper.jsでは、親アイテム内でのインデックスを返す
-    return 0;
-  }
-
-  /**
-   * 指定されたパスの上に挿入する
-   * paper.jsのItem.insertAbove()を移植
-   * @param path 挿入する位置の基準となるパス
-   * @returns このパス
-   */
-  insertAbove(path: PathItem): Path {
-    // 現在の実装では何もしない
-    // 実際のpaper.jsでは、指定されたアイテムの上に挿入する
-    return this;
-  }
-
-  /**
    * パスの向きを反転させる
    * paper.jsのPath.reverse()を移植
    * @returns このパス
    */
-  reverse(): PathItemBase {
+  reverse(): Path {
     this._segments.reverse();
     // ハンドルを反転
     for (let i = 0, l = this._segments.length; i < l; i++) {
@@ -1161,7 +1094,7 @@ export class Path extends PathItemBase {
     }
     // カーブのキャッシュをクリア
     this._curves = null;
-    this._changed(ChangeFlag.GEOMETRY);
+    this._changed(Change.GEOMETRY);
     return this;
   }
 

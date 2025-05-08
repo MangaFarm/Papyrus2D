@@ -314,7 +314,7 @@ function splitBoolean(path1, path2, operation) {
   // Now loop backwards through all crossings, split the path and check
   // the new path that was split off for inclusion.
   for (var i = crossings.length - 1; i >= 0; i--) {
-      var path: Path = crossings[i].split();
+      var path: Path | null = crossings[i].split();
       if (path) {
           // See if we can add the path, and if so, clear the first handle
           // at the split, because it might have been a curve.

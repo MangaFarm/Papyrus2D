@@ -11,36 +11,76 @@ import { Matrix } from '../basic/Matrix';
 import type { Curve } from './Curve';
 import type { Segment } from './Segment';
 import type { CurveLocation } from './CurveLocation';
+import { ChangeFlag } from './ChangeFlag';
 
 export abstract class PathItemBase implements PathItem {
- // PathItemインターフェースの実装
- _matrix?: Matrix;
- _matrixDirty: boolean = false;
- _bounds?: Rectangle;
- _version: number = 0;
- static _idCount: number = 0;
- _id: number;
+  // PathItemインターフェースの実装
+  _matrix: Matrix;
+  _matrixDirty: boolean = false;
+  _bounds?: Rectangle;
+  _version: number = 0;
+  static _idCount: number = 0;
+  _id: number;
+  _index: number | null;
+  _parent: PathItemBase | null = null;
 
- /** 親アイテム (paper.js互換) */
- protected _parent: PathItemBase | null = null;
+  constructor() {
+    this._id = ++PathItemBase._idCount;
+  }
 
- constructor() {
-   this._id = ++PathItemBase._idCount;
- }
+  getIndex(): number | null {
+    return this._index;
+  }
 
- /** 親アイテムを取得 (paper.js: getParent) */
- getParent(): PathItemBase | null {
-   return this._parent;
- }
+  getParent(): PathItem | null {
+    return this._parent;
+  }
 
- /** 挿入済みかどうか (paper.js: isInserted) */
- isInserted(): boolean {
-   return this._parent ? this._parent.isInserted() : false;
- }
-  
+  isSibling(item: PathItem): boolean {
+    if (!(item instanceof PathItemBase)) {
+      return false;
+    }
+    return this._parent === item._parent;
+  }
+
+  insertAbove(item: PathItem): PathItem | null {
+    return this._insertAt(item, 1);
+  }
+
+  _insertAt(item: PathItem, offset: number): PathItem | null {
+    const parent = item?.getParent();
+    // Only insert if the item is not the same as `this`, and if it
+    // actually has an owner into which we can insert.
+    const res: PathItemBase | null = parent && item !== this ? this : null;
+    if (res) {
+      // Notify parent of change. Don't notify item itself yet,
+      // as we're doing so when adding it to the new owner below.
+      res._remove(false, true);
+      parent!._insertItem(item.getIndex()! + offset, res);
+    }
+    return res;
+  }
+
+  _remove(notifySelf: boolean, notifyParent: boolean) {
+    const parent = this._parent;
+    const index = this._index;
+
+    if (parent) {
+      if (index != null) {
+        parent.getChildren().splice(index, 1);
+      }
+      if (notifySelf) this._changed(/*#=*/ ChangeFlag.INSERTION);
+      // Notify owner of changed children (this can be the project too).
+      if (notifyParent) owner._changed(/*#=*/ Change.CHILDREN, this);
+      this._parent = null;
+      return true;
+    }
+    return false;
+  }
+
   // スタイル設定
   style: Style = {
-    fillRule: 'nonzero'
+    fillRule: 'nonzero',
   };
 
   // 抽象プロパティ
@@ -77,193 +117,67 @@ export abstract class PathItemBase implements PathItem {
     return this;
   }
 
-  /**
-   * パスの長さを取得
-   */
   abstract getLength(): number;
-
-  /**
-   * パスの境界ボックスを取得
-   */
   abstract getBounds(matrix?: Matrix | null): Rectangle;
-
-  /**
-   * 指定されたパラメータ位置のパス上の点を取得
-   */
   abstract getPointAt(t: number): Point;
-
-  /**
-   * 指定されたパラメータ位置のパス上の接線ベクトルを取得
-   */
   abstract getTangentAt(t: number): Point;
-
-  /**
-   * 点がパス内部にあるかどうかを判定
-   */
   abstract contains(point: Point): boolean;
-
-  /**
-   * 他のパスとの交点を取得
-   */
   abstract getIntersections(
-    targetPath: PathItem, 
+    targetPath: PathItem,
     include: (loc: CurveLocation) => boolean,
-    _targetMatrix: Matrix | null, 
-    _returnFirst: boolean): CurveLocation[];
-
-  /**
-   * パスが空かどうかを判定
-   */
+    _targetMatrix: Matrix | null,
+    _returnFirst: boolean
+  ): CurveLocation[];
   abstract isEmpty(): boolean;
-
-  /**
-   * パスを削除する
-   */
-  abstract remove(): PathItem | null;
-
-  /**
-   * パスを簡略化する
-   */
   abstract reduce(options?: { simplify?: boolean }): PathItem;
 
-  /**
-   * 指定されたパスが兄弟関係にあるかどうかを判定する
-   */
-  abstract isSibling(path: PathItem): boolean;
-
-  /**
-   * パスのインデックスを取得する
-   */
-  abstract getIndex(): number;
-
-  /**
-   * 指定されたパスの上に挿入する
-   */
-  abstract insertAbove(path: PathItem): PathItem;
-
-  /**
-   * 指定されたパスの属性をコピーする
-   */
-  /**
-   * 指定されたパスの属性をコピーする
-   * paper.jsのItem.copyAttributes()に準拠
-   */
   copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem {
-    // 行列のコピー
     if (!excludeMatrix && path._matrix) {
       this._matrix = path._matrix.clone();
     }
-    // styleのコピー（シャローコピー）
     this.style = { ...path.style };
-    // その他の属性コピー
-    // Papyrus2Dでは _locked, _visible, _blendMode, _opacity, _clipMask, _guide などをPathItemBaseで定義していない場合は無視
-    // 必要ならPathItemBaseに明示的に追加する
-    // データと名前
-    // Papyrus2DのPathItemBaseには_dataや_nameは定義されていないため、ここは一旦放置
-    // paper.jsではItem._data, Item._nameが存在するが、Papyrus2Dで必要ならPathItemBaseに追加すること
-    // if (path._data !== undefined) {
-    //   this._data = path._data ? JSON.parse(JSON.stringify(path._data)) : null;
-    // }
-    // if (path._name !== undefined) {
-    //   this._name = path._name!;
-    // }
     return this;
   }
 
-  /**
-   * 交差を解決する
-   * paper.jsのPathItem.resolveCrossings()を移植
-   * @returns 交差が解決されたパス
-   */
   resolveCrossings(): PathItem {
     throw new Error('Method resolveCrossings() not implemented yet');
   }
 
-  /**
-   * パスの向きを再設定する
-   * paper.jsのPathItem.reorient()を移植
-   * @param nonZero 非ゼロ塗りつぶしルールを適用するかどうか
-   * @param clockwise 時計回りにするかどうか
-   * @returns このパス
-   */
   abstract reorient(nonZero?: boolean, clockwise?: boolean): PathItem;
 
-  /**
-   * 塗りつぶしルールを取得する
-   * paper.jsのItem.getFillRule()を移植
-   * @returns 塗りつぶしルール
-   */
   getFillRule(): string {
     return this.style.fillRule;
   }
 
-  /**
-   * 塗りつぶしルールを設定する
-   * @param rule 塗りつぶしルール ('nonzero' または 'evenodd')
-   * @returns このパス
-   */
   setFillRule(rule: FillRule): PathItem {
     this.style.fillRule = rule;
     return this;
   }
 
-  /**
-   * 変換行列を適用する
-   * paper.jsのItem.transform()を移植
-   * @param matrix 変換行列
-   * @param applyRecursively 再帰的に適用するかどうか
-   * @param setApplyMatrix 行列を適用するかどうか
-   * @returns このパス
-   */
-  /**
-   * 変換行列を適用する
-   * paper.jsのItem.transformを移植
-   * @param matrix 変換行列
-   * @param applyRecursively 再帰的に適用するかどうか
-   * @param setApplyMatrix 行列を適用するかどうか（Papyrus2Dでは無視）
-   * @returns このパス
-   */
   transform(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem {
-    // マトリックスを更新
     const _matrix = this._matrix || Matrix.identity();
     const transformMatrix = matrix && !matrix.isIdentity();
 
-    // 変換行列が単位行列で再帰適用の必要がなければ、そのまま返す
     if (!transformMatrix && !applyRecursively) {
       return this;
     }
 
-    // 行列を適用
     if (transformMatrix) {
-      // 行列を適用
       if (this._matrix) {
         this._matrix = _matrix.prepend(matrix);
       } else {
         this._matrix = matrix.clone();
       }
-      
+
       this._matrixDirty = true;
-      
-      // バウンズのキャッシュをクリア
       this._bounds = undefined;
     }
-
-    // 子要素に再帰的に適用
     this._transformContent(matrix, applyRecursively);
-
-    // 変更を通知
     this._version++;
 
     return this;
   }
 
-  /**
-   * 内容に変換を適用する
-   * paper.jsのItem._transformContentを移植
-   * @param matrix 変換行列
-   * @param applyRecursively 再帰的に適用するかどうか
-   * @returns 変換が適用されたかどうか
-   */
   protected _transformContent(matrix: Matrix | null, applyRecursively?: boolean): boolean {
     // PathItemBaseは抽象クラスなので、実装はサブクラスで行う
     // getPaths()は抽象メソッドなので、それを使って子パスに変換を適用
@@ -279,4 +193,8 @@ export abstract class PathItemBase implements PathItem {
     }
     return false;
   }
+
+  abstract getChildren(): PathItem[]; // 親にしか呼ばないので、子がないということはない
+  abstract _changed(flags: number): void;
+
 }
