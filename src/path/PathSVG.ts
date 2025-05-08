@@ -66,9 +66,17 @@ export function toPathData(path: Path, matrix: Matrix, precision: number): strin
         if (!skipLine) {
           var dx = curX - prevX,
             dy = curY - prevY;
-          parts.push(
-            dx === 0 ? 'v' + f.number(dy) : dy === 0 ? 'h' + f.number(dx) : 'l' + f.pair(dx, dy)
-          );
+          // 🔥 デバッグ: どのコマンドが選ばれたか出力
+          let cmd;
+          if (dx === 0) {
+            cmd = 'v' + f.number(dy);
+          } else if (dy === 0) {
+            cmd = 'h' + f.number(dx);
+          } else {
+            cmd = 'l' + f.pair(dx, dy);
+          }
+          console.log(`🔥 toPathData: dx=${dx}, dy=${dy}, コマンド=${cmd}`);
+          parts.push(cmd);
         }
       } else {
         // c = relative curveto:

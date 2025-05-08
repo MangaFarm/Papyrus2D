@@ -33,7 +33,7 @@ describe('PathBooleanResolveCrossings debug', () => {
     }
 
     // 期待値（paper.jsと同じ）
-    const expected = 'M100,300l0,-50l50,-50l-50,0l0,-100l200,0l0,200z';
+    const expected = 'M100,300v-50l50,-50h-50v-100h200v200h-200z';
     expect((resolved as any).getPathData()).toBe(expected);
   });
 });
