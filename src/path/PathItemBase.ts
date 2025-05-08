@@ -14,22 +14,22 @@ import type { CurveLocation } from './CurveLocation';
 import { ChangeFlag, Change } from './ChangeFlag';
 
 // _boundsCacheの型
-type BoundsCache = {
+export type BoundsCache = {
   ids: { [id: string]: any };
   list: any[];
 };
 
 // _boundsの型
-type BoundsEntry = {
+export type BoundsEntry = {
   rect: Rectangle;
   internal?: boolean;
 };
 
-type Bounds = {
+export type Bounds = {
   [key: string]: BoundsEntry;
 };
 
-type BoundsOptions = { 
+export type BoundsOptions = { 
   internal?: boolean, 
   cacheItem?: PathItemBase ,
   stroke?: boolean,
@@ -341,15 +341,12 @@ export abstract class PathItemBase implements PathItem {
     var internal = options.internal && !noInternal,
       cacheItem = options.cacheItem,
      _matrix = internal ? null : this._matrix._orNullIfIdentity(),
-     // Create a key for caching, reflecting all bounds options.
-     cacheKey =
-       cacheItem &&
-       (!matrix || matrix.equals(_matrix!)) &&
-       this._getBoundsCacheKey(options, !!internal),
-     bounds = this._bounds;
-// 🔥 デバッグ: this._matrix の値を出力
-// eslint-disable-next-line no-console
-console.log("🔥 PathItemBase._getCachedBounds this._matrix=", this._matrix);
+    // Create a key for caching, reflecting all bounds options.
+    cacheKey =
+      cacheItem &&
+      (!matrix || matrix.equals(_matrix!)) &&
+      this._getBoundsCacheKey(options, !!internal),
+    bounds = this._bounds;
     // NOTE: This needs to happen before returning cached values, since even
     // then, _boundsCache needs to be kept up-to-date.
     this._parent?._updateBoundsCache(cacheItem ?? null);

@@ -30,14 +30,10 @@ export function filterIntersection(inter: CurveLocation): boolean {
  * paper.jsのCurveLocation.expand()を使用した実装に合わせる
  */
 export function getIntersections(path1: Path, path2: Path): CurveLocation[] {
-  // 🔥 デバッグ: 入力パスのSVG、getIntersectionsの生戻り値、expand後の戻り値
-  // @ts-ignore
   const path1data = path1.getPathData ? path1.getPathData() : '';
-  // @ts-ignore
   const path2data = path2.getPathData ? path2.getPathData() : '';
   const raw = path1.getIntersections(path2, filterIntersection, null, false);
   const expanded = CurveLocation.expand(raw);
-  // @ts-ignore
   return expanded;
 }
 

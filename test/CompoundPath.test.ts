@@ -93,8 +93,8 @@ describe('CompoundPath', () => {
     const path2 = Path.Rectangle({ from: new Point(50, 50), to: new Point(150, 150) });
 
     // 各パスの境界ボックスを確認
-    const bounds1 = path1.getBounds();
-    const bounds2 = path2.getBounds();
+    const bounds1 = path1.getBounds(null, {});
+    const bounds2 = path2.getBounds(null, {});
     
     // CompoundPathを作成
     const compound = new CompoundPath([path1, path2]);

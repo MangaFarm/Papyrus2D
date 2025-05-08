@@ -23,11 +23,5 @@ describe('🔥 PathBooleanTracePaths debug', () => {
     // ここでは単純な { 1: true } を使う
     const operator = { 1: true };
 
-    // tracePathsを直接呼び出し
-    // isValidの🔥デバッグ出力を観察する
-    const result = tracePaths(segments, operator);
-
-    // 結果自体は気にしない
-    // デバッグ出力が目的
   });
 });

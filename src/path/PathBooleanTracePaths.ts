@@ -22,8 +22,6 @@ type Branch = {
  * paper.jsのtracePathsアルゴリズムを忠実に移植
  */
 export function tracePaths(segments: Segment[], operator: Record<string, boolean> | null): Path[] {
-  // 🔥 デバッグ: segments配列の内容
-  // --- 以下、paper.jsのtracePaths本体を忠実に移植 ---
   var paths: Path[] = [],
     starts: Segment[];
 

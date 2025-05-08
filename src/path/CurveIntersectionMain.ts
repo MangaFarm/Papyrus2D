@@ -32,7 +32,6 @@ export function getCurveIntersections(
   const max = Math.max;
 
   // Paper.jsと同様の境界ボックスチェック - 正確に同じ条件判定を使用
-  // 🔥AABB判定デバッグ
   const aabbCheck =
     max(v1[0], v1[2], v1[4], v1[6]) + epsilon > min(v2[0], v2[2], v2[4], v2[6]) &&
     min(v1[0], v1[2], v1[4], v1[6]) - epsilon < max(v2[0], v2[2], v2[4], v2[6]) &&
@@ -57,7 +56,6 @@ export function getCurveIntersections(
 
       // 直線か曲線かに基づいて適切な交点計算メソッドを決定
       if (straight) {
-        // 🔥addLineIntersection呼び出しデバッグ
         addLineIntersection(
           flip ? v2 : v1,
           flip ? v1 : v2,

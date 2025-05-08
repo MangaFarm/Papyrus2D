@@ -144,7 +144,6 @@ export function smoothPath(
  * Pathの分割ロジック（Path.splitAtのロジックを移植）
  */
 export function splitPathAt(path: Path, location: CurveLocation): Path | null {
-// 🔥 DEBUG: location type = ${typeof location}, value = ${location}
  // NOTE: getLocationAt() handles both offset and location:
   var loc = location,
     index = loc && loc.getIndex(),

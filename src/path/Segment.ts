@@ -467,7 +467,6 @@ export class Segment {
    */
   remove(): boolean {
     if (!this._path) return false;
-    // 🔥DEBUG: Segment#remove
     return !!this._path.removeSegment(this._index!);
   }
 }

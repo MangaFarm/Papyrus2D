@@ -1,8 +1,6 @@
 // Papyrus2D: Boolean演算のwinding分布デバッグ用
 import { describe, it, expect } from 'vitest';
-import { Path } from '../src/path/Path';
 import { PathConstructors } from '../src/path/PathConstructors';
-import { PathBoolean } from '../src/path/PathBoolean';
 import { reorientPaths } from '../src/path/PathBooleanReorient';
 
 describe('🔥 PathBoolean intersect no crossing debug', () => {
@@ -21,29 +19,6 @@ describe('🔥 PathBoolean intersect no crossing debug', () => {
     const paths = [path1, path2];
     const result = reorientPaths(paths, (w) => !!operator[w]);
 
-    // winding分布を🔥出力
-    for (const p of paths) {
-      if (!p) continue;
-      // @ts-ignore
-      const id = p._id;
-      // @ts-ignore
-      const area = p.getArea();
-      // @ts-ignore
-      const clockwise = p.isClockwise();
-      // @ts-ignore
-      const segs = p.getSegments().length;
-      // @ts-ignore
-      const bounds = p.getBounds();
-      // @ts-ignore
-      const pathData = p.getPathData ? p.getPathData() : '';
-      // @ts-ignore
-    }
-    // 結果のパスデータも出力
-    for (const p of result) {
-      if (!p) continue;
-      // @ts-ignore
-      const pathData = p.getPathData ? p.getPathData() : '';
-    }
     // テスト自体は常に通す
     expect(true).toBe(true);
   });

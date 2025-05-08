@@ -15,31 +15,6 @@ function compareBoolean(actualFn: () => any, expected: any, message?: string, op
     const actualPathData = (actual && typeof actual.getPathData === 'function')
       ? actual.getPathData()
       : ((actual as any).pathData ?? (actual + ''));
-    // 🔥 デバッグ出力
-    console.log("🔥 actualPathData:", actualPathData, "expected:", expected);
-    // 🔥 各サブパスの始点座標・順序を出力
-    if (actual && typeof actual.getChildren === 'function') {
-      const children = actual.getChildren();
-      children.forEach((child: any, i: number) => {
-        if (child && typeof child.getSegments === 'function') {
-          const segs = child.getSegments();
-          if (segs && segs.length > 0) {
-            const pt = segs[0].point || segs[0]._point;
-            if (pt) {
-              console.log(`🔥 subPath[${i}] start: (${pt.x},${pt.y})`);
-            }
-          }
-        }
-      });
-    } else if (actual && typeof actual.getSegments === 'function') {
-      const segs = actual.getSegments();
-      if (segs && segs.length > 0) {
-        const pt = segs[0].point || segs[0]._point;
-        if (pt) {
-          console.log(`🔥 subPath[0] start: (${pt.x},${pt.y})`);
-        }
-      }
-    }
     expect(actualPathData).toBe(expected + '');
   }
 }
@@ -77,7 +52,6 @@ describe('Path Boolean Operations', () => {
       'M50,150v-100h100v100z',
       'M0,200v-200h200v200zM150,150v-100h-100v100z',
     ]);
-    // 🔥 Papyrus2Dのintersect出力をデバッグ出力
 
     testOperations(path1, path3, [
       'M0,200v-200h200v200zM250,150v-100h100v100z',

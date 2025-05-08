@@ -49,7 +49,6 @@ function handleNoIntersections(
 
   // reorientPathsを使用して結果を決定
   const result = reorientPaths(path2 ? [path1, path2] : [path1], (w: number) => !!operator[w]);
-  // 🔥 デバッグ: reorientPaths後の各パスの winding, area, pathData を出力
   for (const p of path2 ? [path1, path2] : [path1]) {
     if (!p) continue;
     const id = p._id;
@@ -101,38 +100,8 @@ function createResult(
   // pathsが空でない場合の冗長なループは削除
 
   // 結果のCompoundPathを作成
-  // 🔥 デバッグ: createResultに渡されたpathsの順序・始点
-  for (let i = 0; i < paths.length; i++) {
-    if (paths[i] && typeof paths[i].getSegments === 'function') {
-      const segs = paths[i].getSegments();
-      if (segs && segs.length > 0) {
-        const pt = segs[0].point || segs[0]._point;
-        if (pt) {
-          // eslint-disable-next-line no-console
-          console.log(`🔥 createResult paths[${i}] start: (${pt.x},${pt.y})`);
-        }
-      }
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(`🔥 createResult paths[${i}] is null or invalid`);
-    }
-  }
   const result = new CompoundPath();
   result.addChildren(paths);
-  // 🔥 CompoundPathのchildren順序を出力
-  for (let i = 0; i < result._children.length; i++) {
-    const child = result._children[i];
-    if (child && typeof child.getSegments === 'function') {
-      const segs = child.getSegments();
-      if (segs && segs.length > 0) {
-        const pt = segs[0].point || segs[0]._point;
-        if (pt) {
-          // eslint-disable-next-line no-console
-          console.log(`🔥 CompoundPath children[${i}] start: (${pt.x},${pt.y})`);
-        }
-      }
-    }
-  }
 
   // パスを簡略化（reduce相当の処理）
   const simplified = result.reduce({ simplify });
@@ -353,7 +322,6 @@ export function unite(path1: PathItem, path2: PathItem): PathItem {
  */
 export function intersect(path1: PathItem, path2: PathItem): PathItem {
   const result = traceBoolean(path1, path2, 'intersect');
-  // 🔥PathBoolean.intersect result
   return result;
 }
 

@@ -13,7 +13,7 @@ import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { SegmentPoint } from './SegmentPoint';
 import { Numerical } from '../util/Numerical';
-import { PathItemBase } from './PathItemBase';
+import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag, Change } from './ChangeFlag';
 import { computeBounds, getIntersections, contains } from './PathGeometry';
@@ -288,20 +288,20 @@ export class Path extends PathItemBase {
     return this.getArea() >= 0;
   }
 
+  _getBounds(matrix: Matrix | null, options: BoundsOptions): BoundsEntry {
+      return { rect: this.getBounds(matrix, options) };
+  }
+
   /**
    * パスの境界ボックスを取得
    * @param matrix 変換行列（オプション）
    * @returns 境界ボックス
    */
-  getBounds(matrix?: Matrix | null): Rectangle {
-    // paper.jsのCurve._addBoundsロジックを移植
+  getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
     let bounds = this._computeBounds(0);
-
-    // 行列変換がある場合は適用
     if (matrix) {
       bounds = bounds.transform(matrix);
     }
-
     return bounds;
   }
 
@@ -1056,7 +1056,7 @@ export class Path extends PathItemBase {
    * @returns パス内部の点
    */
   getInteriorPoint(): Point {
-    const bounds = this.getBounds();
+    const bounds = this.getBounds(null, {});
     const point = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
 
     // 中心点がパス内部にない場合は、別の方法で内部点を探す
@@ -1158,8 +1158,8 @@ export class Path extends PathItemBase {
     if (!path || !(path instanceof Path)) return false;
 
     // 境界ボックスの一致判定
-    const bounds1 = this.getBounds();
-    const bounds2 = path.getBounds();
+    const bounds1 = this.getBounds(null, {});
+    const bounds2 = path.getBounds(null, {});
     if (!bounds1.equals(bounds2)) return false;
 
     // セグメント数の一致

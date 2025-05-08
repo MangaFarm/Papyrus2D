@@ -54,12 +54,10 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
       }
     }
 
-    // 🔥 Papyrus2D: tracePaths前に_windingをセット
     for (const path of res.getPaths()) {
       setWindingInfoForPath(path);
     }
 
-    // 🔥 デバッグ: closePath後のセグメント情報
     for (const path of res.getPaths()) {
       const segs = path.getSegments();
     }

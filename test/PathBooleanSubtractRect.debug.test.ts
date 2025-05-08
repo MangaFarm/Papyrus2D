@@ -23,18 +23,5 @@ describe('🔥 PathBoolean.subtract debug (rect-rect)', () => {
     ], true);
 
     const result = subtract(rect1, rect2);
-
-    // 🔥 resultの全セグメントの座標・winding値を出力
-    const segments = result.getSegments();
-    for (const seg of segments) {
-      const pt = seg._point?.toPoint();
-      const meta = getMeta(seg);
-      const winding = meta._winding ? meta._winding.winding : undefined;
-    }
-
-    // getPathData()があれば出力
-    if (typeof (result as any).getPathData === 'function') {
-    } else {
-    }
   });
 });
