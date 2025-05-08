@@ -874,18 +874,13 @@ export class Path extends PathItemBase {
 
   /**
    * 円弧を描画する
-   *
-   * 3つの形式で呼び出すことができます：
-   * 1. arcTo(to, clockwise) - 現在の点から指定された点までの円弧を描画
-   * 2. arcTo(through, to) - 現在の点から、指定された中間点を通って、指定された終点までの円弧を描画
-   * 3. arcTo(to, radius, rotation, clockwise, large) - SVGスタイルの円弧を描画
-   *
+   * arcTo(through, to) - 現在の点から、指定された中間点を通って、指定された終点までの円弧を描画
    * @returns 円弧が追加されたパス（this）
    */
   /**
    * 円弧を描画する
+   * @param through
    * @param to 終点
-   * @param clockwise 時計回りかどうか（省略可）
    * @returns 円弧が追加されたパス（this）
    */
   arcTo(through: Point, to: Point): Path {
@@ -1316,7 +1311,7 @@ export class Path extends PathItemBase {
 
   // --- SVGパスデータ getter/setter・staticメソッド ---
   get pathData(): string {
-    return toPathData(this);
+    return toPathData(this, 0);
   }
 
   set pathData(val: string) {
