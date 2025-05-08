@@ -143,19 +143,12 @@ function runBoolean(
   operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide',
   options?: { insert?: boolean; trace?: boolean; stroke?: boolean }
 ): PathItem {
-  // ストロークベースのBoolean演算の場合は別の処理を行う
-  if (
-    options &&
-    (options.trace === false || options.stroke) &&
-    /^(subtract|intersect)$/.test(operation)
-  ) {
-    // TODO: splitBooleanの実装
-    // return splitBoolean(path1, path2, operation);
-  }
-
+  // 🔥 デバッグ: _path1, _path2の型・getPaths()の長さ・SVG
   // パスを準備
   const _path1 = preparePath(path1, true) as Path;
   const _path2 = preparePath(path2, true) as Path;
+  // eslint-disable-next-line no-console
+
 
   // 演算子に応じたフィルタ関数を定義
   const operators: Record<string, Record<string, boolean>> = {
@@ -190,11 +183,6 @@ function runBoolean(
   const path1data = _path1.getPathData ? _path1.getPathData() : '';
   // @ts-ignore
   const path2data = _path2 && _path2.getPathData ? _path2.getPathData() : '';
-  console.log('🔥runBoolean intersections', intersections.length, {
-    path1data,
-    path2data,
-    intersections,
-  });
   if (intersections.length === 0) {
     // 交点がない場合は、reorientPathsを使用して結果を決定
     return createResult(
@@ -356,11 +344,6 @@ export function unite(path1: PathItem, path2: PathItem): PathItem {
 export function intersect(path1: PathItem, path2: PathItem): PathItem {
   const result = runBoolean(path1, path2, 'intersect');
   // 🔥PathBoolean.intersect result
-  console.log(
-    '🔥PathBoolean.intersect result',
-    result,
-    result && typeof result.isEmpty === 'function' ? result.isEmpty() : undefined
-  );
   return result;
 }
 

@@ -39,7 +39,6 @@ export function getCurveIntersections(
     max(v1[1], v1[3], v1[5], v1[7]) + epsilon > min(v2[1], v2[3], v2[5], v2[7]) &&
     min(v1[1], v1[3], v1[5], v1[7]) - epsilon < max(v2[1], v2[3], v2[5], v2[7]);
   if (!aabbCheck) {
-    console.log("🔥AABB判定でスキップ", { v1, v2, epsilon });
   }
   if (aabbCheck) {
     // オーバーラップの検出と処理
@@ -59,12 +58,6 @@ export function getCurveIntersections(
       // 直線か曲線かに基づいて適切な交点計算メソッドを決定
       if (straight) {
         // 🔥addLineIntersection呼び出しデバッグ
-        console.log("🔥addLineIntersection call", {
-          v1: flip ? v2 : v1,
-          v2: flip ? v1 : v2,
-          c1: flip ? c2 : c1,
-          c2: flip ? c1 : c2
-        });
         addLineIntersection(
           flip ? v2 : v1,
           flip ? v1 : v2,

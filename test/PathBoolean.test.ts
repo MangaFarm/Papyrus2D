@@ -11,6 +11,18 @@ function intersectCompoundPath(comp: CompoundPath, other: Path): CompoundPath {
   // Papyrus2D CompoundPathは getPaths() で子パス配列取得
   for (const child of comp.getPaths()) {
     const inter = intersect(child, other);
+    // 🔥 デバッグ: 各子パスとotherのintersect結果
+    const childSVG = child.getPathData ? child.getPathData() : '';
+    const otherSVG = other.getPathData ? other.getPathData() : '';
+    const interSVG = inter && typeof inter.getPathData === 'function' ? inter.getPathData() : '';
+    const isEmpty = inter && typeof inter.isEmpty === 'function' ? inter.isEmpty() : undefined;
+    // eslint-disable-next-line no-console
+    console.log('🔥intersectCompoundPath', {
+      childSVG,
+      otherSVG,
+      interSVG,
+      isEmpty,
+    });
     if (inter && typeof inter.isEmpty === 'function' && !inter.isEmpty()) {
       result.addChild(inter as Path);
     }
