@@ -881,7 +881,7 @@ export class Path extends PathItemBase {
     // まずバウンディングボックスで交差判定
     if (
       self ||
-      this.getBounds(matrix1).intersects((targetPath as Path).getBounds(matrix2), Numerical.EPSILON)
+      this.getBounds(matrix1, {}).intersects((targetPath as Path).getBounds(matrix2, {}), Numerical.EPSILON)
     ) {
       return getIntersections(
         this.getCurves(),

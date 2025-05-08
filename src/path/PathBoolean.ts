@@ -7,6 +7,7 @@ import { Point } from '../basic/Point';
 import { Path } from './Path';
 import { Segment } from './Segment';
 import { Curve } from './Curve';
+import { CurveLocation } from './CurveLocation';
 import { CompoundPath } from './CompoundPath';
 import type { PathItem } from './PathItem';
 import { reorientPaths } from './PathBooleanReorient';
@@ -16,7 +17,7 @@ import { tracePaths } from './PathBooleanTracePaths';
 import { propagateWinding } from './PathBooleanWinding';
 import { getMeta } from './SegmentMeta';
 import { getPathMeta } from './PathMeta';
-import { getIntersections, divideLocations } from './PathBooleanIntersections';
+import { divideLocations } from './PathBooleanIntersections';
 
 // SegmentInfoインターフェースとasSegmentInfo関数はPathBooleanWinding.tsに移動しました
 
@@ -49,15 +50,6 @@ function handleNoIntersections(
 
   // reorientPathsを使用して結果を決定
   const result = reorientPaths(path2 ? [path1, path2] : [path1], (w: number) => !!operator[w]);
-  for (const p of path2 ? [path1, path2] : [path1]) {
-    if (!p) continue;
-    const id = p._id;
-    const area = p.getArea && p.getArea();
-    const clockwise = p.isClockwise && p.isClockwise();
-    const segs = p.getSegments && p.getSegments().length;
-    const bounds = p.getBounds && p.getBounds();
-    const pathData = p.getPathData ? p.getPathData() : '';
-  }
   for (const p of result) {
     if (!p) continue;
     // @ts-ignore
