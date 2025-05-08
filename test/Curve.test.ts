@@ -115,7 +115,9 @@ describe('Curve', () => {
       
       // 範囲外のオフセットはnullを返すが、getPointAtはエラーをスローするので
       // getLocationAtでテストする
-      expect(curve.getLocationAt(curve.getLength() + 1)).toBeNull();
+      // 範囲外のオフセットはgetTimeAtでnullを返すので、その場合getLocationAtTimeを呼ばない
+      const outOfRangeTime = curve.getTimeAt(curve.getLength() + 1);
+      expect(outOfRangeTime).toBeNull();
     });
     
     it('should accurately calculate points at extreme values', () => {
@@ -335,7 +337,8 @@ describe('Curve', () => {
         new Segment(new Point(200, 200), null, null)
       );
       
-      expect(curve.getLocationAt(curve.getLength() + 1)).toBeNull();
+      const outOfRangeTime2 = curve.getTimeAt(curve.getLength() + 1);
+      expect(outOfRangeTime2).toBeNull();
     });
   });
 
@@ -454,7 +457,12 @@ describe('Curve', () => {
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
-      expect(curve1.divideAt(curve1.getLocationAt(50)!).point1).toEqual(middle);
+      // divideAtは廃止、divideAtTimeのみ
+      const tDiv = curve1.getTimeAt(50);
+      expect(tDiv).not.toBeNull();
+      if (tDiv !== null) {
+        expect(curve1.divideAtTime(tDiv, true).point1).toEqual(middle);
+      }
       
       // divideAtTimeのテスト
       const curve2 = new Curve(
@@ -462,7 +470,7 @@ describe('Curve', () => {
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
-      expect(curve2.divideAt(curve1.getLocationAtTime(0.5)!).point1).toEqual(middle);
+      expect(curve2.divideAtTime(0.5, true).point1).toEqual(middle);
     });
   });
 
@@ -564,10 +572,8 @@ describe('Curve', () => {
           const time = curve.getTimeOf(point1!);
           if (time !== null) {
             const loc = curve.getLocationAtTime(time);
-            if (loc !== null) {
-              point2 = loc.getPoint();
-              break;
-            }
+            point2 = loc.getPoint();
+            break;
           }
         }
         
