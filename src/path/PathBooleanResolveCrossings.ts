@@ -196,6 +196,10 @@ export function resolveCrossings(path: PathItem): PathItem {
     // TypeScriptの制約上、replaceWithメソッドの実装が必要だが、
     // 今回はresolveCrossingsの挙動を合わせることが目的なので省略
   }
+// 🔥 デバッグ出力: resolveCrossingsの出力SVG
+if (result) {
+  console.log("🔥 resolveCrossings 出力SVG:", (result as any).getPathData());
+}
   return result;
 }
 

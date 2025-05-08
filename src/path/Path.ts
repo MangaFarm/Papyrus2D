@@ -1246,7 +1246,7 @@ export class Path extends PathItemBase {
    */
   getPathData(): string {
     // PathSVG.tsに外注
-    return toPathData(this);
+    return toPathData(this, Matrix.identity(), 5);
   }
 
   /**
@@ -1298,7 +1298,7 @@ export class Path extends PathItemBase {
 
   // --- SVGパスデータ getter/setter・staticメソッド ---
   get pathData(): string {
-    return toPathData(this, 0);
+    return toPathData(this, Matrix.identity(), 5);
   }
 
   set pathData(val: string) {

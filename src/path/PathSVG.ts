@@ -15,13 +15,17 @@ import { Matrix } from '../basic/Matrix';
  * SVG出力用の数値フォーマッタ（paper.js互換、最小限）
  */
 class Formatter {
-  private precision: number;
-  constructor(precision: number) {
-    this.precision = precision;
+  private multiplier: number;
+
+  constructor(private precision: number) {
+    this.multiplier = Math.pow(10, this.precision);
   }
-  number(n: number): string {
-    return +n.toFixed(this.precision) + '';
+
+  number(val: number): number {
+    return this.precision < 16
+            ? Math.round(val * this.multiplier) / this.multiplier : val;
   }
+
   pair(x: number, y: number): string {
     return this.number(x) + ',' + this.number(y);
   }
