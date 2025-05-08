@@ -229,9 +229,8 @@ export class Curve {
   /**
    * 曲線上の指定されたオフセット位置の位置情報を取得
    */
-  getLocationAt(offset: number, _isTime?: boolean): CurveLocation | null {
-    const time = _isTime ? offset : this.getTimeAt(offset);
-    return this.getLocationAtTime(time!);
+  getLocationAt(offset: number): CurveLocation | null {
+    return this.getLocationAtTime(this.getTimeAt(offset)!);
   }
 
   /**
@@ -665,6 +664,12 @@ export class Curve {
         // paper.js精密移植
         return curve && this.isStraight() && curve.isStraight()
             && this.getLine().isCollinear(curve.getLine());
+    }
+
+    divideAt(location: CurveLocation) {
+      // Accept offsets and CurveLocation objects, as well as objects that act
+      // like them.
+      return this.divideAtTime(location._time!, false);
     }
 
     divideAtTime(time: number, _setHandles: boolean): Curve {

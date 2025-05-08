@@ -454,7 +454,7 @@ describe('Curve', () => {
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
-      expect(curve1.divideAt(50)!.point1).toEqual(middle);
+      expect(curve1.divideAt(curve1.getLocationAt(50)!).point1).toEqual(middle);
       
       // divideAtTimeのテスト
       const curve2 = new Curve(
@@ -462,7 +462,7 @@ describe('Curve', () => {
         new Segment(point1, null, null),
         new Segment(point2, null, null)
       );
-      expect(curve2.divideAtTime(0.5)!.point1).toEqual(middle);
+      expect(curve2.divideAt(curve1.getLocationAtTime(0.5)!).point1).toEqual(middle);
     });
   });
 
