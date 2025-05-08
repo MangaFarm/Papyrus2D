@@ -32,7 +32,7 @@ class Formatter {
  */
 export function toPathData(path: Path, matrix: Matrix, precision: number): string {
   // NOTE: #setPathData() is defined in PathItem.
-  var segments = this._segments,
+  var segments = path._segments,
     length = segments.length,
     f = new Formatter(precision),
     coords = new Array(6),
@@ -88,7 +88,7 @@ export function toPathData(path: Path, matrix: Matrix, precision: number): strin
 
   for (var i = 0; i < length; i++) addSegment(segments[i], false);
   // Close path by drawing first segment again
-  if (this._closed && length > 0) {
+  if (path._closed && length > 0) {
     addSegment(segments[0], true);
     parts.push('z');
   }
