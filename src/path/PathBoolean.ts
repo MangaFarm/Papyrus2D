@@ -3,6 +3,7 @@
  * paper.jsのPathItem.Boolean.jsを参考に実装
  */
 
+import { Point } from '../basic/Point';
 import { Path } from './Path';
 import { Segment } from './Segment';
 import { Curve } from './Curve';
@@ -318,10 +319,10 @@ function splitBoolean(path1, path2, operation) {
           // See if we can add the path, and if so, clear the first handle
           // at the split, because it might have been a curve.
           if (addPath(path))
-              path.getFirstSegment()!.setHandleIn(0, 0);
+              path.getFirstSegment()!.setHandleIn(new Point(0, 0));
           // Clear the other side of the split too, which is always the
           // end of the remaining _path1.
-          _path1.getLastSegment()!.setHandleOut(0, 0);
+          (_path1 as Path).getLastSegment()!.setHandleOut(new Point(0, 0));
       }
   }
   // At the end, add what's left from our path after all the splitting.

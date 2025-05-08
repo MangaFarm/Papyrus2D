@@ -666,7 +666,52 @@ export class Curve {
         return curve && this.isStraight() && curve.isStraight()
             && this.getLine().isCollinear(curve.getLine());
     }
+
+    divideAtTime(time: number, _setHandles: boolean): Curve {
+      // Only divide if not at the beginning or end.
+      var tMin = /*#=*/Numerical.CURVETIME_EPSILON,
+          tMax = 1 - tMin,
+          res: Curve | null = null;
+      if (time >= tMin && time <= tMax) {
+          var parts = Curve.subdivide(this.getValues(), time),
+              left = parts[0],
+              right = parts[1],
+              setHandles = _setHandles || this.hasHandles(),
+              seg1 = this._segment1,
+              seg2 = this._segment2,
+              path = this._path;
+          if (setHandles) {
+              // Adjust the handles on the existing segments. The new segment
+              // will be inserted between the existing segment1 and segment2:
+              // Convert absolute -> relative
+              seg1._handleOut._set(left[2] - left[0], left[3] - left[1]);
+              seg2._handleIn._set(right[4] - right[6],right[5] - right[7]);
+          }
+          // Create the new segment:
+          const x: number = left[6], y: number = left[7];
+          const handleOut: Point | null = setHandles ? new Point(left[4] - x, left[5] - y) : null;
+          const handleIn: Point | null = setHandles ? new Point(right[2] - x, right[3] - y) : null;
+          const segment: Segment = new Segment(new Point(x, y), handleOut, handleIn);
+
+          // Insert it in the segments list, if needed:
+          if (path) {
+              // By inserting at seg1.index + 1, we make sure to insert at
+              // the end if this curve is a closing curve of a closed path,
+              // as with segment2.index it would be inserted at 0.
+              path.insert(seg1._index! + 1, segment);
+              // The newly inserted segment is the start of the next curve:
+              res = this.getNext();
+          } else {
+              // otherwise create it from the result of split
+              this._segment2 = segment;
+              this._changed();
+              res = new Curve(null, segment, seg2);
+          }
+      }
+      return res!;
+  }
+
+
 }
 
 
-// --- paper.js isCollinear 精密移植 ---

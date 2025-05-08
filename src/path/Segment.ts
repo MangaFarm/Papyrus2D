@@ -94,24 +94,24 @@ export class Segment {
     return this._point.toPoint();
   }
 
-  setPoint(...args: (Point | [number, number] | number[])[]): void {
-    this._point.setPoint(Point.read(args));
+  setPoint(pt: Point) {
+    this._point.setPoint(pt);
   }
 
   getHandleIn(): Point {
     return this._handleIn.toPoint();
   }
 
-  setHandleIn(...args: (Point | [number, number] | number[])[]): void {
-    this._handleIn.setPoint(Point.read(args));
+  setHandleIn(pt: Point) {
+    this._handleIn.setPoint(pt);
   }
 
   getHandleOut(): Point {
     return this._handleOut.toPoint();
   }
 
-  setHandleOut(...args: (Point | [number, number] | number[])[]): void {
-    this._handleOut.setPoint(Point.read(args));
+  setHandleOut(pt: Point) {
+    this._handleOut.setPoint(pt);
   }
 
   hasHandles(): boolean {

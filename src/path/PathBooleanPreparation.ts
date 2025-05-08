@@ -12,6 +12,7 @@ import { Segment } from './Segment';
 import { Curve } from './Curve';
 import { tracePaths } from './PathBooleanTracePaths';
 import { getMeta, IntersectionInfo } from './SegmentMeta';
+import { Point } from '../basic/Point';
 
 /**
  * 各パスの全セグメントに_winding情報をセットする
@@ -48,8 +49,8 @@ export function preparePath(path: PathItem, resolve: boolean = false): PathItem 
         // Close with epsilon tolerance, to avoid tiny straight
         // that would cause issues with intersection detection.
         path.closePath(Numerical.EPSILON);
-        path.getFirstSegment()!.setHandleIn([0, 0]);
-        path.getLastSegment()!.setHandleOut([0, 0]);
+        path.getFirstSegment()!.setHandleIn(new Point(0, 0));
+        path.getLastSegment()!.setHandleOut(new Point(0, 0));
       }
     }
 
