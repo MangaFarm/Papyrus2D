@@ -10,10 +10,12 @@ import { getMeta } from './SegmentMeta';
 import { CurveLocation } from './CurveLocation';
 import { getPathMeta } from './PathMeta';
 
-/**
- * 交点情報
- * SegmentMeta.ts の IntersectionInfo を再エクスポート
- */
+type Branch = {
+  start: number;
+  crossings: Segment[];
+  visited: Segment[];
+  handleIn: Point | null;
+};
 
 /**
  * マーチングアルゴリズムによるパス構築
@@ -25,43 +27,28 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
   var paths: Path[] = [],
     starts: Segment[];
 
-  function isValid(seg: Segment | null): boolean {
-    // 🔥 デバッグ出力
-    const meta = getMeta(seg!);
-    var winding: {
-      winding: number;
-      windingL: number;
-      windingR: number;
-    };
-    // _windingはpaper.jsでもオブジェクトで、winding, windingL, windingRを持つ
-    // undefinedの場合は0扱い（paper.jsの実装に合わせる）
+  function getWinding(seg: Segment) {
+    const meta = getMeta(seg);
     const metaWinding = meta._winding!;
-    winding = {
+    const winding = {
       winding: metaWinding?.winding ?? 0,
       windingL: metaWinding?.windingL ?? 0,
       windingR: metaWinding?.windingR ?? 0,
     };
-    // paper.js互換: open pathの単純ケースでsegments[0]に戻った場合は_visitedを無視してtrue
-    if (seg && seg === segments[0]) {
-      return true;
-    }
-    return !!(
-      seg &&
-      !meta._visited &&
-      (!operator ||
-        (operator[winding.winding] &&
-          // Unite operations need special handling of segments
-          // with a winding contribution of two (part of both
-          // areas), which are only valid if they are part of the
-          // result's contour, not contained inside another area.
-          !(
-            operator.unite &&
-            winding.winding === 2 &&
-            // No contour if both windings are non-zero.
-            winding.windingL &&
-            winding.windingR
-          )))
-    );
+    return winding;
+  }
+
+  function isValid(seg: Segment | null): boolean {
+    let winding: {winding: number, windingL: number, windingR: number};
+    return !!(seg && !getMeta(seg)._visited && (!operator
+            || operator[(winding = getWinding(seg)).winding]
+                // Unite operations need special handling of segments
+                // with a winding contribution of two (part of both
+                // areas), which are only valid if they are part of the
+                // result's contour, not contained inside another area.
+                && !(operator.unite && winding.winding === 2
+                    // No contour if both windings are non-zero.
+                    && winding.windingL && winding.windingR)));
   }
 
   function isStart(seg: Segment | null): boolean {
@@ -105,9 +92,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
                 (isValid(next!) || (nextInter && isValid(nextInter._segment!)))))
           ) {
             crossings.push(other);
-// 🔥 デバッグ: collect時のother/next/nextInter/crossings/starts
           }
-          // paper.js互換: collectStarts時はstarts.push(other)する
           if (collectStarts) starts.push(other);
         }
         inter = inter._next!;
@@ -154,36 +139,22 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
   });
 
   for (var i = 0, l = segments.length; i < l; i++) {
-    var seg = segments[i],
+    var seg: Segment | null = segments[i],
       valid = isValid(seg),
       path: Path | null = null,
       finished = false,
       closed = true,
-      branches: Array<{
-        start: number;
-        crossings: Segment[];
-        visited: Segment[];
-        handleIn: Point | null;
-      }> = [],
-      branch: {
-        start: number;
-        crossings: Segment[];
-        visited: Segment[];
-        handleIn: Point | null;
-      } | null = null,
+      branches: Array<Branch> = [],
+      branch: Branch | null = null,
       visited: Segment[] | null = null,
       handleIn: Point | null = null;
-    // 🔥 デバッグ: isValid判定の詳細
-    const metaWinding = getMeta(seg)._winding;
-    // segの型をSegment | nullに統一
-    let segOrNull: Segment | null = seg;
     // If all encountered segments in a path are overlaps, we may have
     // two fully overlapping paths that need special handling.
     if (valid && getPathMeta(seg._path!)!._overlapsOnly) {
       // TODO: Don't we also need to check for multiple overlaps?
       var path1 = seg._path!,
         path2 = getMeta(seg)._intersection!._segment!._path!;
-      if (path1.compare!(path2)) {
+      if (path1.compare(path2)) {
         // Only add the path to the result if it has an area.
         if (path1.getArea()) paths.push(path1.clone(false));
         // Now mark all involved segments as visited.
@@ -195,38 +166,26 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     // Do not start with invalid segments (segments that were already
     // visited, or that are not going to be part of the result).
     while (valid) {
-      // 🔥 デバッグ: ループ進行の詳細
       // For each segment we encounter, see if there are multiple
       // crossings, and if so, pick the best one:
       var first = !path,
-        crossings = getCrossingSegments(segOrNull!, first),
+        crossings = getCrossingSegments(seg!, first),
         // Get the other segment of the first found crossing.
         other = crossings.shift(),
-        // 🔥 デバッグ: isStart判定の詳細
-        finished = !first && (isStart(segOrNull!) || isStart(other!));
-        // paper.js互換: open pathの単純ケースで最初のセグメント（segments[0]）に戻ったら_visitedを無視してfinished
-        if (!finished && segOrNull && segOrNull === segments[0] && !first) {
-          finished = true;
-          closed = true; // 必ずパスを閉じる
-        }
-      var cross = !finished && other;
+        finished = !first && (isStart(seg) || isStart(other!)),
+        cross = !finished && other;
       if (first) {
         path = new Path();
         // Clear branch to start a new one with each new path.
         branch = null;
       }
       if (finished) {
-        // 🔥 デバッグ: first/last判定とclosed伝播
         // If we end up on the first or last segment of an operand,
         // copy over its closed state, to support mixed open/closed
         // scenarios as described in #1036
-        if (segOrNull!.isFirst() || segOrNull!.isLast()) closed = segOrNull!._path!._closed;
-        getMeta(segOrNull!)._visited = true;
+        if (seg!.isFirst() || seg!.isLast()) closed = seg!._path!._closed;
+        getMeta(seg!)._visited = true;
         break;
-      }
-      // paper.js互換: open pathの単純ケースでsegments[0]に戻った場合も_visitedを必ずセット
-      if (finished && segOrNull) {
-        getMeta(segOrNull)._visited = true;
       }
       if (cross && branch) {
         // If we're about to cross, start a new branch and add the
@@ -237,7 +196,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       if (!branch) {
         // Add the branch's root segment as the last segment to try,
         // to see if we get to a solution without crossing.
-        if (cross) crossings.push(segOrNull!);
+        if (cross) crossings.push(seg!);
         branch = {
           start: path!._segments.length,
           crossings: crossings,
@@ -245,14 +204,14 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
           handleIn: handleIn,
         };
       }
-      if (cross) segOrNull = other!;
+      if (cross) seg = other!;
       // If an invalid segment is encountered, go back to the last
       // crossing and try other possible crossings, as well as not
       // crossing at the branch's root.
-      if (!isValid(segOrNull!)) {
+      if (!isValid(seg)) {
         // Remove the already added segments, and mark them as not
         // visited so they become available again as options.
-        path!.removeSegments(branch!.start);
+        path!.removeSegments(branch.start);
         for (var j = 0, k = visited!.length; j < k; j++) {
           getMeta(visited![j])._visited = false;
         }
@@ -262,9 +221,9 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // tests the root segment without crossing as it is added to
         // the list of crossings when the branch is created above.
         do {
-          segOrNull = (branch && branch.crossings.shift()) || null;
-          if (!segOrNull || !segOrNull._path) {
-            segOrNull = null;
+          seg = branch && branch.crossings.shift()!;
+          if (!seg || !seg._path) {
+            seg = null;
             // If there are no segments left, try previous
             // branches until we find one that works.
             branch = branches.pop()!;
@@ -273,85 +232,33 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
               handleIn = branch.handleIn;
             }
           }
-        } while (branch && segOrNull && !isValid(segOrNull));
-        if (!segOrNull) break;
+        } while (branch && !isValid(seg));
+        if (!seg) break;
       }
       // Add the segment to the path, and mark it as visited.
       // But first we need to look ahead. If we encounter the end of
       // an open path, we need to treat it the same way as the fill of
       // an open path would: Connecting the last and first segment
       // with a straight line, ignoring the handles.
-      var next = segOrNull!.getNext();
-      // paper.js本家と同じく、無条件で追加
-      const pt = segOrNull!._point!.toPoint();
-      let hIn = handleIn!;
-      let hOut = (next && segOrNull!._handleOut)!.toPoint();
-      if (segOrNull! === segments[0] && !first) {
-        hIn = new Point(0, 0);
-        hOut = new Point(0, 0);
-      }
-      const newSeg = new Segment(
-        pt,
-        hIn,
-        hOut
-      );
-      // メタ情報をコピー
-      const srcMeta = getMeta(segOrNull!);
-      const dstMeta = getMeta(newSeg);
-      if (srcMeta._winding !== undefined) dstMeta._winding = JSON.parse(JSON.stringify(srcMeta._winding));
-      if (srcMeta._intersection !== undefined) dstMeta._intersection = srcMeta._intersection;
-      if (srcMeta._path !== undefined) dstMeta._path = srcMeta._path;
+      let next = seg!.getNext();
+      let newSeg = new Segment(seg!._point.toPoint(), handleIn,
+        next && seg!._handleOut.toPoint());
       path!.add(newSeg);
-      getMeta(segOrNull!)._visited = true;
-      visited!.push(segOrNull!);
-      // If this is the end of an open path, go back to its first
-      // segment but ignore its handleIn (see above for handleOut).
-      segOrNull = next! || segOrNull!._path!.getFirstSegment()!;
-      handleIn = next ? next._handleIn!.toPoint() : null;
+      getMeta(seg!)._visited = true;
+      visited!.push(seg!);
+      seg = next || seg!._path!.getFirstSegment();
+      handleIn = next && next._segment;
     }
     if (finished) {
-      // Carry over the last handleIn to the first segment.
-      path!.getFirstSegment()!.setHandleIn(handleIn!);
-      // paper.js互換: segOrNull!.isFirst() || segOrNull!.isLast() のときは元パスの_closedを伝播
-      if (segOrNull && (segOrNull.isFirst() || segOrNull.isLast())) {
-        closed = segOrNull._path!._closed;
-      }
       if (closed) {
+        path!.getFirstSegment()?.setHandleIn(handleIn!);
         path!.setClosed(true);
       }
       // Only add finished paths that cover an area to the result.
-      if (path!.getArea() !== 0 && path!._segments.length > 2) {
+      if (path!.getArea() !== 0) {
         paths.push(path!);
       }
     }
   }
-  // paper.js互換: 各パスの始点を「最小y,x座標のセグメント」に揃える
-  for (const path of paths) {
-    const segments = path.getSegments();
-    if (segments.length === 0) continue;
-    let minIdx = 0;
-    let maxPt = segments[0]._point.toPoint();
-    for (let i = 1; i < segments.length; i++) {
-      const pt = segments[i]._point.toPoint();
-      if (
-        pt.y > maxPt.y ||
-        (Math.abs(pt.y - maxPt.y) < 1e-7 && pt.x < maxPt.x)
-      ) {
-        minIdx = i;
-        maxPt = pt;
-      }
-    }
-    if (minIdx !== 0) {
-      // segmentsをminIdx分だけ回転させて始点を揃える
-      const rotated = segments.slice(minIdx).concat(segments.slice(0, minIdx));
-      path.removeSegments(0);
-      path.addSegments(rotated);
-    }
-  }
-for (const path of paths) {
-  const segs = path.getSegments();
-  // paper.js同様、collinearな直線をreduceでマージ
-  path.reduce();
-}
-return paths;
+  return paths;
 }
