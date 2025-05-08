@@ -658,7 +658,7 @@ export class CompoundPath extends PathItemBase {
       const path = new Path();
       path.copyAttributes(this);
       path.insertAbove(this);
-      this.remove();
+      this._remove(true, true);
       return path;
     }
 
@@ -666,7 +666,7 @@ export class CompoundPath extends PathItemBase {
     for (let i = validChildren.length - 1; i >= 0; i--) {
       const path = validChildren[i].reduce(options) as Path;
       if (path && path.isEmpty()) {
-        path.remove();
+        path._remove(true, true);
       }
     }
 
@@ -677,7 +677,7 @@ export class CompoundPath extends PathItemBase {
       const path = new Path();
       path.copyAttributes(this);
       path.insertAbove(this);
-      this.remove();
+      this._remove(true, true);
       return path;
     }
 
@@ -685,7 +685,7 @@ export class CompoundPath extends PathItemBase {
     if (remainingChildren.length === 1) {
       const child = remainingChildren[0];
       child.insertAbove(this);
-      this.remove();
+      this._remove(true, true);
       return child;
     }
     if (remainingChildren.length !== children.length) {
@@ -694,50 +694,12 @@ export class CompoundPath extends PathItemBase {
     return this;
   }
 
-  /**
-   * 全ての子パスが空ならtrue
-   */
   isEmpty(): boolean {
     if (!this._children.length) return true;
     for (let i = 0; i < this._children.length; i++) {
       if (!this._children[i].isEmpty()) return false;
     }
     return true;
-  }
-
-  /**
-   * ダミーremove（グループ管理がないため）
-   */
-  remove(): PathItem | null {
-    // 実際のpaper.jsでは親からの削除処理があるが、
-    // 現在の実装では親子関係の管理がないため、自身を返す
-    this._changed(Change.GEOMETRY);
-    return this;
-  }
-
-  /**
-   * ダミー_insertAt（グループ管理がないため）
-   */
-  _insertAt(item: PathItem, offset: number): PathItem {
-    // 実際のpaper.jsでは親子関係の管理があるが、
-    // 現在の実装ではダミー実装
-    this._changed(Change.GEOMETRY);
-    return this;
-  }
-
-  /**
-   * 指定されたパスの上に挿入
-   */
-  insertAbove(path: PathItem): CompoundPath {
-    return this._insertAt(path, 1) as CompoundPath;
-  }
-  
-  _changed(flags?: number): void {
-    if (flags && (flags & ChangeFlag.GEOMETRY)) {
-      // 境界ボックスをリセット
-      this._bounds = undefined;
-      this._version++;
-    }
   }
 
   /**

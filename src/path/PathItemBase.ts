@@ -11,7 +11,7 @@ import { Matrix } from '../basic/Matrix';
 import type { Curve } from './Curve';
 import type { Segment } from './Segment';
 import type { CurveLocation } from './CurveLocation';
-import { ChangeFlag } from './ChangeFlag';
+import { Change } from './ChangeFlag';
 
 export abstract class PathItemBase implements PathItem {
   // PathItemインターフェースの実装
@@ -48,7 +48,7 @@ export abstract class PathItemBase implements PathItem {
   }
 
   _insertAt(item: PathItem, offset: number): PathItem | null {
-    const parent = item?.getParent();
+    const parent = item?.getParent() as PathItemBase | null;
     // Only insert if the item is not the same as `this`, and if it
     // actually has an owner into which we can insert.
     const res: PathItemBase | null = parent && item !== this ? this : null;
@@ -56,7 +56,7 @@ export abstract class PathItemBase implements PathItem {
       // Notify parent of change. Don't notify item itself yet,
       // as we're doing so when adding it to the new owner below.
       res._remove(false, true);
-      parent!._insertItem(item.getIndex()! + offset, res);
+      parent!._insertChild(item.getIndex()! + offset, res);
     }
     return res;
   }
@@ -67,15 +67,57 @@ export abstract class PathItemBase implements PathItem {
 
     if (parent) {
       if (index != null) {
-        parent.getChildren().splice(index, 1);
+        parent.getChildren()!.splice(index, 1);
       }
-      if (notifySelf) this._changed(/*#=*/ ChangeFlag.INSERTION);
+      if (notifySelf) this._changed(/*#=*/ Change.INSERTION);
       // Notify owner of changed children (this can be the project too).
-      if (notifyParent) owner._changed(/*#=*/ Change.CHILDREN, this);
+      if (notifyParent) parent._changed(/*#=*/ Change.CHILDREN, this);
       this._parent = null;
       return true;
     }
     return false;
+  }
+
+  _insertChild(index: number, item: PathItemBase) {
+    var res = item ? this.insertChildren(index, [item]) : null;
+    return res && res[0];
+  }
+
+  insertChildren(index: number, items: PathItemBase[]) {
+    var children = this.getChildren();
+    if (children && items && items.length > 0) {
+      // We need to clone items because it may be an Item#children array.
+      // Also, we're removing elements if they don't match _type.
+      // Use Base.slice() because items can be an arguments object.
+      items = items.slice();
+      // Remove the items from their parents first, since they might be
+      // inserted into their own parents, affecting indices.
+      // Use the loop also to filter invalid items.
+      var inserted = {};
+      for (var i = items.length - 1; i >= 0; i--) {
+        var item = items[i],
+          id = item && item._id;
+        // If an item was inserted already, it must be included multiple
+        // times in the items array. Only insert once.
+        if (!item || inserted[id]) {
+          items.splice(i, 1);
+        } else {
+          // Notify parent of change. Don't notify item itself yet,
+          // as we're doing so when adding it to the new owner below.
+          item._remove(false, true);
+          inserted[id] = true;
+        }
+      }
+      children.splice(index, 0, ...items);
+      for (var i = 0, l = items.length; i < l; i++) {
+        var item = items[i]
+        item._parent = this;
+      }
+      this._changed(/*#=*/ Change.CHILDREN);
+      return items;
+    } else {
+      return null;
+    }
   }
 
   // スタイル設定
@@ -194,7 +236,6 @@ export abstract class PathItemBase implements PathItem {
     return false;
   }
 
-  abstract getChildren(): PathItem[]; // 親にしか呼ばないので、子がないということはない
-  abstract _changed(flags: number): void;
-
+  abstract getChildren(): PathItem[] | null;
+  abstract _changed(flags: number, item?: PathItemBase): void;
 }
