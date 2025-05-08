@@ -9,7 +9,6 @@ import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Size } from '../basic/Size';
 import { Numerical } from '../util/Numerical';
-import { PathConstructors } from './PathConstructors';
 import { Matrix } from '../basic/Matrix';
 
 /**
@@ -195,13 +194,18 @@ export function fromSVG(svg: string): Path {
         break;
       case 'a':
         for (var j = 0; j < length; j += 7) {
-          path.arcTo(
-            (current = getPoint(j + 5)),
+          const end = getPoint(j + 5);
+          const { through, to } = arcToSvgLike(
+            current, 
+            end,
             new Size(+coords[j], +coords[j + 1]),
             +coords[j + 2],
-            +coords[j + 4],
-            +coords[j + 3]
+            +coords[j + 4] ? true : false,
+            +coords[j + 3] ? true : false
           );
+          current = end;
+          path.arcTo(through, to);
+          previous = lower;
         }
         break;
       case 'z':

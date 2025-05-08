@@ -160,4 +160,8 @@ export class SegmentPoint {
     }
     return new Point(this._x * value, this._y * value);
   }
+
+  static fromPoint(p: Point) {
+    return new SegmentPoint([p.x, p.y]);
+  }
 }

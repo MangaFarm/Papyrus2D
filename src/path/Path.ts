@@ -11,6 +11,7 @@ import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
+import { SegmentPoint } from './SegmentPoint';
 import { Numerical } from '../util/Numerical';
 import { PathItemBase } from './PathItemBase';
 import { PathArc } from './PathArc';
@@ -167,23 +168,22 @@ export class Path extends PathItemBase {
       curves = this._curves!,
       curve;
     for (var i = start; i < end; i++) {
-        curve = curves[i];
-        curve._path = this;
-        curve._segment1 = segments[i];
-        curve._segment2 = segments[i + 1] || segments[0];
-        curve._changed();
+      curve = curves[i];
+      curve._path = this;
+      curve._segment1 = segments[i];
+      curve._segment2 = segments[i + 1] || segments[0];
+      curve._changed();
     }
     // If it's the first segment, correct the last segment of closed
     // paths too:
-    if (curve = curves[this._closed && !start ? segments.length - 1
-            : start - 1]) {
-        curve._segment2 = segments[start] || segments[0];
-        curve._changed();
+    if ((curve = curves[this._closed && !start ? segments.length - 1 : start - 1])) {
+      curve._segment2 = segments[start] || segments[0];
+      curve._changed();
     }
     // Fix the segment after the modified range, if it exists
-    if (curve = curves[end]) {
-        curve._segment1 = segments[end];
-        curve._changed();
+    if ((curve = curves[end])) {
+      curve._segment1 = segments[end];
+      curve._changed();
     }
   }
 
@@ -641,11 +641,11 @@ export class Path extends PathItemBase {
    */
   add(...segments: Segment[]): Segment | Segment[] {
     if (segments.length > 1) {
-        // 複数Segmentを追加
-        return this._add(segments);
+      // 複数Segmentを追加
+      return this._add(segments);
     } else {
-        // 単一Segmentを追加
-        return this._add(segments)[0];
+      // 単一Segmentを追加
+      return this._add(segments)[0];
     }
   }
 
@@ -656,11 +656,11 @@ export class Path extends PathItemBase {
    */
   insert(index: number, ...segments: Segment[]): Segment[] {
     if (segments.length > 1) {
-        // 複数Segmentを挿入
-        return this._add(segments, index);
+      // 複数Segmentを挿入
+      return this._add(segments, index);
     } else {
-        // 単一Segmentを挿入
-        return this._add([segments[0]], index);
+      // 単一Segmentを挿入
+      return this._add([segments[0]], index);
     }
   }
 
@@ -701,8 +701,7 @@ export class Path extends PathItemBase {
       segment._index = segment._path = null;
     }
     // Adjust the indices of the segments above.
-    for (var i = start, l = segments.length; i < l; i++)
-        segments[i]._index = i;
+    for (var i = start, l = segments.length; i < l; i++) segments[i]._index = i;
     // Keep curves in sync
     if (curves) {
       // If we're removing the last segment, remove the last curve (the
@@ -756,6 +755,13 @@ export class Path extends PathItemBase {
     return this;
   }
 
+  getCurrentSegment() {
+    var segments = this._segments;
+    if (!segments.length)
+        throw new Error('Use a moveTo() command first');
+    return segments[segments.length - 1];
+  }
+
   /**
    * cubicCurveTo: smoothHandles/selfClosing対応
    * @param handle1
@@ -774,45 +780,29 @@ export class Path extends PathItemBase {
   cubicCurveTo(
     handle1: Point,
     handle2: Point,
-    to: Point,
-    options?: { smoothHandles?: boolean; selfClosing?: boolean }
+    to: Point
   ): Path {
-    if (this._segments.length === 0) {
-      this.add(new Segment(to));
-      return this;
-    }
+    // First modify the current segment:
+    const current = this.getCurrentSegment();
+    // Convert to relative values:
+    current.setHandleOut(handle1.subtract(current._point.toPoint()));
+    // And add the new segment, with handleIn set to c2
+    this._add([new Segment(to, handle2.subtract(to))]);
+    return this;
+  }
 
-    const lastIdx = this._segments.length - 1;
-    const lastSeg = this._segments[lastIdx];
-
-    // handleOut: handle1 - last.point
-    let relHandleOut = handle1.subtract(lastSeg.point);
-    let relHandleIn = handle2.subtract(to);
-
-    // smoothHandles: 連続ノードのハンドルを平滑化
-    if (options?.smoothHandles && lastIdx > 0) {
-      const prev = this._segments[lastIdx - 1].point;
-      const curr = lastSeg.point;
-      // Catmull-Rom的な平滑化
-      relHandleOut = curr.subtract(prev).multiply(1 / 3);
-      relHandleIn = to.subtract(lastSeg.point).multiply(-1 / 3);
-    }
-
-    // 最後のセグメントのハンドルを設定
-    lastSeg.setHandleOut(relHandleOut);
-
-    // 新しいセグメントを追加
-    this.add(new Segment(to, relHandleIn, new Point(0, 0)));
-
-    // selfClosing: 始点と終点が一致していれば自動的にclose
-    if (options?.selfClosing) {
-      const firstPt = this._segments[0].point;
-      const lastPt = to;
-      if (firstPt.isClose(lastPt, Numerical.GEOMETRIC_EPSILON)) {
-        this._closed = true;
-      }
-    }
-
+  quadraticCurveTo(handle: Point, to: Point): Path {
+    const current = this.getCurrentSegment()._point;
+    // This is exact:
+    // If we have the three quad points: A E D,
+    // and the cubic is A B C D,
+    // B = E + 1/3 (A - E)
+    // C = E + 1/3 (D - E)
+    this.cubicCurveTo(
+      handle.add(current.subtract(SegmentPoint.fromPoint(handle)).multiply(1 / 3)),
+      handle.add(to.subtract(handle).multiply(1 / 3)),
+      to
+    );
     return this;
   }
 
@@ -939,17 +929,14 @@ export class Path extends PathItemBase {
       ? matrix1
       : _targetMatrix
         ? _targetMatrix._orNullIfIdentity()
-        : (targetPath instanceof Path && targetPath._matrix)
+        : targetPath instanceof Path && targetPath._matrix
           ? targetPath._matrix._orNullIfIdentity()
           : null;
 
     // まずバウンディングボックスで交差判定
     if (
       self ||
-      this.getBounds(matrix1).intersects(
-        (targetPath as Path).getBounds(matrix2),
-        Numerical.EPSILON
-      )
+      this.getBounds(matrix1).intersects((targetPath as Path).getBounds(matrix2), Numerical.EPSILON)
     ) {
       return getIntersections(
         this.getCurves(),
