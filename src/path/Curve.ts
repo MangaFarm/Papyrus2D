@@ -83,10 +83,8 @@ export class Curve {
   }
 
   getPointAtTime(t: number): Point {
-    if (t == null || isNaN(t) || t < 0 || t > 1) return new Point(0, 0);
-    const values = this.getValues();
-    const pt = Curve.getPoint(values, t);
-    return pt;
+    // tは0-1範囲で呼ばれる前提
+    return Curve.getPoint(this.getValues(), t);
   }
 
   getTangentAtTime(t: number): Point {
@@ -113,12 +111,9 @@ export class Curve {
     return tangent.isZero() ? [] : CurveCalculation.getTimesWithTangent(this.getValues(), tangent);
   }
 
-  getLocationAtTime(t: number): CurveLocation | null {
-    if (t != null && t >= 0 && t <= 1) {
-      return new CurveLocation(this, t);
-    } else {
-      return null;
-    }
+  getLocationAtTime(t: number): CurveLocation {
+    // tは0-1範囲で呼ばれる前提
+    return new CurveLocation(this, t);
   }
 
   getTimeOf(point: Point): number | null {

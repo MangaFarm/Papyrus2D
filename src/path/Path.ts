@@ -348,10 +348,8 @@ export class Path extends PathItemBase {
     const curves = this.getCurves();
     for (let i = 0, l = curves.length; i < l; i++) {
       const t = curves[i].getTimeOf(point);
-      if (t == null) { return null; }
-      const loc = curves[i].getLocationAtTime(t);
-      if (loc) {
-        return loc;
+      if (t != null) {
+        return curves[i].getLocationAtTime(t);
       }
     }
     return null;
@@ -390,7 +388,8 @@ export class Path extends PathItemBase {
       if (curLength > offset) {
         // この曲線上の位置を計算
         const curveOffset = offset - start;
-        const loc = curve.getLocationAt(curveOffset);
+        const t = curve.getTimeAt(curveOffset)!;
+        const loc = curve.getLocationAtTime(t);
         return loc;
       }
     }
@@ -410,9 +409,13 @@ export class Path extends PathItemBase {
    */
   getTangentAt(offset: number): Point {
     const loc = this.getLocationAt(offset);
-    return loc && loc.getCurve()
-      ? loc.getCurve()!.getTangentAt(loc.getTime()!, true)
-      : new Point(0, 0);
+    if (loc) {
+      const curve = loc.getCurve();
+      if (curve) {
+        return curve.getTangentAtTime(loc.getTime()!);
+      }
+    }
+    return new Point(0,0);
   }
 
   /**
