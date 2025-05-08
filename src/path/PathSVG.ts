@@ -110,7 +110,7 @@ export function toPathData(path: Path, matrix: Matrix, precision: number): strin
 /**
  * SVGパスデータからPathを生成（fromSVGのエイリアス）
  */
-export function fromSVG(svg: string): Path {
+export function fromPathData(svg: string): Path {
   // NOTE: #getPathData() is defined in CompoundPath / Path
   // This is a very compact SVG Path svg parser that works both for Path
   // and CompoundPath.

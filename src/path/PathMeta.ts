@@ -18,8 +18,7 @@ const pathMetaStore = new WeakMap<Path, PathMeta>();
 /**
  * Pathの拡張情報を取得（なければ新規作成）
  */
-export function getPathMeta(path: Path | null | undefined): PathMeta | null | undefined {
-  if (!path) return null;
+export function getPathMeta(path: Path): PathMeta {
   let meta = pathMetaStore.get(path);
   if (!meta) {
     meta = {};

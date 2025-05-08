@@ -14,6 +14,7 @@ import { preparePath } from './PathBooleanPreparation';
 import { tracePaths } from './PathBooleanTracePaths';
 import { propagateWinding } from './PathBooleanWinding';
 import { getMeta } from './SegmentMeta';
+import { getPathMeta } from './PathMeta';
 import { getIntersections, divideLocations } from './PathBooleanIntersections';
 
 // SegmentInfoインターフェースとasSegmentInfo関数はPathBooleanWinding.tsに移動しました
@@ -50,19 +51,12 @@ function handleNoIntersections(
   // 🔥 デバッグ: reorientPaths後の各パスの winding, area, pathData を出力
   for (const p of path2 ? [path1, path2] : [path1]) {
     if (!p) continue;
-    // @ts-ignore
     const id = p._id;
-    // @ts-ignore
     const area = p.getArea && p.getArea();
-    // @ts-ignore
     const clockwise = p.isClockwise && p.isClockwise();
-    // @ts-ignore
     const segs = p.getSegments && p.getSegments().length;
-    // @ts-ignore
     const bounds = p.getBounds && p.getBounds();
-    // @ts-ignore
     const pathData = p.getPathData ? p.getPathData() : '';
-    // @ts-ignore
   }
   for (const p of result) {
     if (!p) continue;
@@ -106,8 +100,38 @@ function createResult(
   // pathsが空でない場合の冗長なループは削除
 
   // 結果のCompoundPathを作成
+  // 🔥 デバッグ: createResultに渡されたpathsの順序・始点
+  for (let i = 0; i < paths.length; i++) {
+    if (paths[i] && typeof paths[i].getSegments === 'function') {
+      const segs = paths[i].getSegments();
+      if (segs && segs.length > 0) {
+        const pt = segs[0].point || segs[0]._point;
+        if (pt) {
+          // eslint-disable-next-line no-console
+          console.log(`🔥 createResult paths[${i}] start: (${pt.x},${pt.y})`);
+        }
+      }
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(`🔥 createResult paths[${i}] is null or invalid`);
+    }
+  }
   const result = new CompoundPath();
   result.addChildren(paths);
+  // 🔥 CompoundPathのchildren順序を出力
+  for (let i = 0; i < result._children.length; i++) {
+    const child = result._children[i];
+    if (child && typeof child.getSegments === 'function') {
+      const segs = child.getSegments();
+      if (segs && segs.length > 0) {
+        const pt = segs[0].point || segs[0]._point;
+        if (pt) {
+          // eslint-disable-next-line no-console
+          console.log(`🔥 CompoundPath children[${i}] start: (${pt.x},${pt.y})`);
+        }
+      }
+    }
+  }
 
   // パスを簡略化（reduce相当の処理）
   const simplified = result.reduce({ simplify });
@@ -137,212 +161,197 @@ function createResult(
  * Boolean演算の実行
  * paper.jsの関数を移植
  */
-function runBoolean(
+function traceBoolean(
   path1: PathItem,
   path2: PathItem,
   operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide',
   options?: { insert?: boolean; trace?: boolean; stroke?: boolean }
 ): PathItem {
-  // 🔥 デバッグ: _path1, _path2の型・getPaths()の長さ・SVG
-  // パスを準備
-  const _path1 = preparePath(path1, true) as Path;
-  const _path2 = preparePath(path2, true) as Path;
-  // eslint-disable-next-line no-console
-
-
-  // 演算子に応じたフィルタ関数を定義
-  const operators: Record<string, Record<string, boolean>> = {
-    unite: { '1': true, '2': true },
+  const operators = {
+    unite:     { '1': true, '2': true },
     intersect: { '2': true },
-    subtract: { '1': true },
-    exclude: { '1': true, '-1': true },
+    subtract:  { '1': true },
+    // exclude only needs -1 to support reorientPaths() when there are
+    // no crossings. The actual boolean code uses unsigned winding.
+    exclude:   { '1': true, '-1': true }
   };
 
-  // 現在の演算に対応するフィルタ関数
+  // Only support subtract and intersect operations when computing stroke
+  // based boolean operations (options.split = true).
+  if (
+    options &&
+    (options.trace == false || options.stroke) &&
+    /^(subtract|intersect)$/.test(operation)
+  )
+    return splitBoolean(path1, path2, operation);
+  // We do not modify the operands themselves, but create copies instead,
+  // fas produced by the calls to preparePath().
+  // NOTE: The result paths might not belong to the same type i.e.
+  // subtract(A:Path, B:Path):CompoundPath etc.
+  let _path1: PathItem = preparePath(path1, true);
+  let _path2: PathItem | null = path2 && path1 !== path2 ? preparePath(path2, true) : null;
+    // Retrieve the operator lookup table for winding numbers.
   const operator = operators[operation];
-
-  // paper.jsと同様に、operatorにoperationプロパティを追加
+  // Add a simple boolean property to check for a given operation,
+  // e.g. `if (operator.unite)`
   operator[operation] = true;
-
-  // 減算と排他的論理和の場合、パスの向きを調整
-  // paper.jsと同じreverse条件に修正
+  // Give both paths the same orientation except for subtraction
+  // and exclusion, where we need them at opposite orientation.
   if (
     _path2 &&
-    Boolean(operator.subtract || operator.exclude) !==
-      Boolean(_path2.isClockwise() !== _path1.isClockwise())
-  ) {
+    (operator.subtract || operator.exclude) ^ +(+_path2.isClockwise() ^ +_path1.isClockwise())
+  )
     _path2.reverse();
+  // Split curves at crossings on both paths. Note that for self-
+  // intersection, path2 is null and getIntersections() handles it.
+  var crossings = divideLocations(
+      CurveLocation.expand(_path1.getIntersections(_path2!, filterIntersection, null, false))
+    ),
+    paths1 = _path1.getPaths(),
+    paths2 = _path2 && _path2.getPaths(),
+    segments: Segment[] = [],
+    curves: Curve[] = [],
+    paths;
+
+  function collectPaths(paths: Path[]) {
+    for (var i = 0, l = paths.length; i < l; i++) {
+      const path = paths[i];
+      segments.push(...path._segments);
+      curves.push(...path.getCurves());
+      // See if all encountered segments in a path are overlaps, to
+      // be able to separately handle fully overlapping paths.
+      getPathMeta(path)._overlapsOnly = true;
+    }
   }
 
-  // 交点計算
-  // 交点を取得
-  // 🔥 各パスのカーブ数と始点・終点
-  const intersections = _path2 ? getIntersections(_path1, _path2) : [];
-  // 🔥 デバッグ: 交点数, 入力パスのSVG, getIntersectionsの戻り値
-  // @ts-ignore
-  const path1data = _path1.getPathData ? _path1.getPathData() : '';
-  // @ts-ignore
-  const path2data = _path2 && _path2.getPathData ? _path2.getPathData() : '';
-  if (intersections.length === 0) {
-    // 交点がない場合は、reorientPathsを使用して結果を決定
-    return createResult(
-      handleNoIntersections(_path1, _path2, operation),
-      true,
-      path1,
-      path2 as PathItem,
-      options
-    );
+  function getCurves(indices) {
+    var list: Curve[] = [];
+    for (var i = 0, l = indices && indices.length; i < l; i++) {
+      list.push(curves[indices[i]]);
+    }
+    return list;
   }
 
-  // 交点でパスを分割
-  const dividedLocs1 = divideLocations(intersections);
-  const dividedLocs2 = _path2 ? divideLocations(intersections) : null;
+  if (crossings.length) {
+    // Collect all segments and curves of both involved operands.
+    collectPaths(paths1);
+    if (paths2) collectPaths(paths2);
 
-  // 交点のwinding number計算
-  if (dividedLocs2) {
-    // 曲線の衝突マップを作成
-    const segments: Segment[] = [];
-    segments.push(...dividedLocs1.map((loc) => loc._segment!));
-    segments.push(...dividedLocs2.map((loc) => loc._segment!));
-
-    const curves: Curve[] = [];
-    for (const segment of segments) {
-      const curve = segment.getCurve();
-      if (curve) curves.push(curve);
+    var curvesValues = new Array(curves.length);
+    for (var i = 0, l = curves.length; i < l; i++) {
+      curvesValues[i] = curves[i].getValues();
     }
-
-    const curvesValues = curves.map((curve) => curve.getValues());
-    const curveCollisions = CollisionDetection.findCurveBoundsCollisionsWithBothAxis(
+    var curveCollisions = CollisionDetection.findCurveBoundsCollisions(
       curvesValues,
       curvesValues,
-      0
-    );
-
-    // paper.jsと同じgetCurves関数を追加
-    function getCurves(indices: number[] | null): Curve[] {
-      const list: Curve[] = [];
-      if (indices) {
-        for (let i = 0; i < indices.length; i++) {
-          if (indices[i] !== null) {
-            list.push(curves[indices[i]]);
-          }
-        }
-      }
-      return list;
-    }
-
-    const curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>> = {};
-    for (let i = 0; i < curves.length; i++) {
-      const curve = curves[i];
-      const id = curve._path!._id;
-      const map = (curveCollisionsMap[id] = curveCollisionsMap[id] || {});
-      const collision = curveCollisions[i];
+      0,
+      true
+    ) as { hor: number[], ver: number[] }[]; // both type
+    var curveCollisionsMap = {};
+    for (var i = 0; i < curves.length; i++) {
+      var curve = curves[i],
+        id = curve._path!._id,
+        map = (curveCollisionsMap[id] = curveCollisionsMap[id] || {});
       map[curve.getIndex()] = {
-        hor: getCurves(collision ? collision.hor : null),
-        ver: getCurves(collision ? collision.ver : null),
+        hor: getCurves(curveCollisions[i].hor),
+        ver: getCurves(curveCollisions[i].ver),
       };
     }
 
-    // 交点からwinding numberを伝播
-    // divideLocationsで得られた全セグメントに必ずwindingを伝播
-    // divideLocationsで返される全セグメント（重複除外）にwindingを伝播
-    const dividedSegments1 = Array.from(new Set(dividedLocs1.map((loc) => loc._segment))).filter(
-      (seg) => seg && seg._path && seg._path._segments && seg._path._segments.includes(seg)
-    );
-    for (const seg of dividedSegments1) {
-      propagateWinding(seg!, _path1, _path2, curveCollisionsMap, operator);
-      const meta = getMeta(seg!);
-      const winding = meta._winding ? meta._winding.winding : undefined;
+    // Propagate the winding contribution. Winding contribution of
+    // curves does not change between two crossings.
+    // First, propagate winding contributions for curve chains starting
+    // in all crossings:
+    for (var i = 0, l = crossings.length; i < l; i++) {
+      propagateWinding(crossings[i]._segment!, _path1, _path2, curveCollisionsMap, operator);
     }
-    if (dividedLocs2) {
-      for (const loc of dividedLocs2) {
-        propagateWinding(loc._segment!, _path1, _path2, curveCollisionsMap, operator);
-      }
-    }
-    // segments全体にもwinding未セットなら伝播（冗長だが安全）
-    for (const segment of segments) {
-      let meta = getMeta(segment);
-      if (!meta._winding) {
+    for (var i = 0, l = segments.length; i < l; i++) {
+      var segment = segments[i],
+        inter = getMeta(segment)._intersection;
+      if (!getMeta(segment)._winding) {
         propagateWinding(segment, _path1, _path2, curveCollisionsMap, operator);
       }
+      // See if all encountered segments in a path are overlaps.
+      if (!(inter && inter._overlap)) getPathMeta(segment._path!)._overlapsOnly = false;
     }
-  }
-
-  // デバッグ: dividedLocs1/2のwindingを出力
-  for (let i = 0; i < dividedLocs1.length; i++) {
-    const seg = dividedLocs1[i]._segment;
-    const pt = seg!._point!.toPoint();
-    const meta = getMeta(seg!);
-    const winding = meta._winding ? meta._winding.winding : undefined;
-  }
-  if (dividedLocs2) {
-    for (let i = 0; i < dividedLocs2.length; i++) {
-      const seg = dividedLocs2[i]._segment;
-      const pt = seg!._point!.toPoint();
-      const meta = getMeta(seg!);
-      const winding = meta._winding ? meta._winding.winding : undefined;
-    }
-  }
-
-  // セグメントを収集
-  // paper.jsと同じく、分割後の全パスの全セグメントをsegmentsに集める
-  // paper.jsと同じ: 分割後の全パスの全セグメントをsegmentsに集める
-  // paper.jsと同じく、分割後パス（paths1, paths2）の全セグメントをsegments配列にする
-  const paths1 = _path1.getPaths ? _path1.getPaths() : [_path1];
-  const paths2 = _path2 && _path2.getPaths ? _path2.getPaths() : _path2 ? [_path2] : [];
-  const segments: Segment[] = [];
-  for (const p of paths1) segments.push(...p.getSegments());
-  for (const p of paths2) segments.push(...p.getSegments());
-  // 交点を持つセグメントだけに限定
-  const intersectionSegments = segments.filter((seg) => !!getMeta(seg)._intersection);
-  function collectSegments(path: Path) {
-    // CompoundPath型ならgetChildren()で再帰
-    if (path instanceof CompoundPath) {
-      for (const child of path._children) {
-        collectSegments(child);
+    paths = tracePaths(segments, operator);
+  } else {
+    // When there are no crossings, the result can be determined through
+    // a much faster call to reorientPaths():
+    paths = reorientPaths(
+      // Make sure reorientPaths() never works on original
+      // _children arrays by calling paths1.slice()
+      paths2 ? paths1.concat(paths2) : paths1.slice(),
+      function (w) {
+        return !!operator[w];
       }
-    } else {
-      segments.push(...path.getSegments());
-    }
+    );
   }
-  collectSegments(_path1);
-  if (_path2) {
-    collectSegments(_path2);
+  return createResult(paths, true, path1, path2, options);
+}
+
+function splitBoolean(path1, path2, operation) {
+  var _path1 = preparePath(path1),
+      _path2 = preparePath(path2),
+      crossings = _path1.getIntersections(_path2, filterIntersection, null, false),
+      subtract = operation === 'subtract',
+      divide = operation === 'divide',
+      added = {},
+      paths: Path[] = [];
+
+  function addPath(path) {
+      // Simple see if the point halfway across the open path is inside
+      // path2, and include / exclude the path based on the operator.
+      if (!added[path._id] && (divide ||
+              +_path2.contains(path.getPointAt(path.getLength() / 2))
+                  ^ +subtract)) {
+          paths.unshift(path);
+          return added[path._id] = true;
+      }
   }
-  // paper.jsと同じく、分割後パス（paths1, paths2）の全セグメントをsegments配列にする
-  // 重複したsegments宣言を削除
 
-  // デバッグ: segmentsのwinding分布を出力
-  for (let i = 0; i < segments.length; i++) {
-    const meta = getMeta(segments[i]);
-    const winding = meta._winding ? meta._winding.winding : undefined;
-    const pt = segments[i]._point?.toPoint();
+  // Now loop backwards through all crossings, split the path and check
+  // the new path that was split off for inclusion.
+  for (var i = crossings.length - 1; i >= 0; i--) {
+      var path = crossings[i].split();
+      if (path) {
+          // See if we can add the path, and if so, clear the first handle
+          // at the split, because it might have been a curve.
+          if (addPath(path))
+              path.getFirstSegment().setHandleIn(0, 0);
+          // Clear the other side of the split too, which is always the
+          // end of the remaining _path1.
+          _path1.getLastSegment().setHandleOut(0, 0);
+      }
   }
-  // intersectionSegmentsのwinding=1座標列を出力
-  const winding1Segs = intersectionSegments.filter((seg) => {
-    const meta = getMeta(seg);
-    return meta._winding && meta._winding.winding === 1;
-  });
+  // At the end, add what's left from our path after all the splitting.
+  addPath(_path1);
+  return createResult(paths, false, path1, path2);
+}
 
-  // マーチングアルゴリズムで結果パスを構築
-  const paths = tracePaths(intersectionSegments, operator);
-
-  // 結果パスを結合
-  return createResult(paths, true, path1, path2 as PathItem, options);
+function filterIntersection(inter) {
+  // TODO: Change isCrossing() to also handle overlaps (hasOverlap())
+  // that are actually involved in a crossing! For this we need proper
+  // overlap range detection / merging first... But as we call
+  // #resolveCrossings() first in boolean operations, removing all
+  // self-touching areas in paths, this works for the known use cases.
+  // The ideal implementation would deal with it in a way outlined in:
+  // https://github.com/paperjs/paper.js/issues/874#issuecomment-168332391
+  return inter.hasOverlap() || inter.isCrossing();
 }
 
 /**
  * パスの合成（unite）
  */
 export function unite(path1: PathItem, path2: PathItem): PathItem {
-  return runBoolean(path1, path2, 'unite');
+  return traceBoolean(path1, path2, 'unite');
 }
 
 /**
  * パスの交差（intersect）
  */
 export function intersect(path1: PathItem, path2: PathItem): PathItem {
-  const result = runBoolean(path1, path2, 'intersect');
+  const result = traceBoolean(path1, path2, 'intersect');
   // 🔥PathBoolean.intersect result
   return result;
 }
@@ -351,19 +360,19 @@ export function intersect(path1: PathItem, path2: PathItem): PathItem {
  * パスの差分（subtract）
  */
 export function subtract(path1: PathItem, path2: PathItem): PathItem {
-  return runBoolean(path1, path2, 'subtract');
+  return traceBoolean(path1, path2, 'subtract');
 }
 
 /**
  * パスの排他的論理和（exclude）
  */
 export function exclude(path1: PathItem, path2: PathItem): PathItem {
-  return runBoolean(path1, path2, 'exclude');
+  return traceBoolean(path1, path2, 'exclude');
 }
 
 /**
  * パスの分割（divide）
  */
 export function divide(path1: PathItem, path2: PathItem): PathItem {
-  return runBoolean(path1, path2, 'divide');
+  return traceBoolean(path1, path2, 'divide');
 }

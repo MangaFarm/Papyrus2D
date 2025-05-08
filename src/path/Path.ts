@@ -16,11 +16,10 @@ import { Numerical } from '../util/Numerical';
 import { PathItemBase } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag } from './ChangeFlag';
-import { computeBounds, isOnPath, getIntersections, contains } from './PathGeometry';
-import { getWinding } from './PathBooleanWinding';
+import { computeBounds, getIntersections, contains } from './PathGeometry';
 import { PathFlattener } from './PathFlattener';
 import { PathFitter } from './PathFitter';
-import { toPathData, fromPathData, fromSVG } from './PathSVG';
+import { toPathData, fromPathData } from './PathSVG';
 import { reducePath } from './PathReduce';
 import { PathConstructors } from './PathConstructors';
 import { smoothPath, splitPathAt } from './PathUtils';
@@ -449,44 +448,6 @@ export class Path extends PathItemBase {
     }
   ): boolean {
     return contains(this._segments, this._closed, this.getCurves(), point, options);
-  }
-
-  /**
-   * 点がパス上にあるかどうかを判定
-   * @param point 判定する点
-   * @param epsilon 許容誤差
-   * @returns パス上ならtrue
-   */
-  private _isOnPath(point: Point, epsilon = Numerical.GEOMETRIC_EPSILON): boolean {
-    return isOnPath(this._segments, this.getCurves(), point, epsilon);
-  }
-
-  /**
-   * 点に対するwinding numberを計算（左右分割版）
-   * @param point 判定する点
-   * @returns {windingL, windingR} 左右のwinding number
-   */
-  getWinding(
-    point: Point,
-    dir: boolean = false,
-    closed: boolean = false
-  ): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } {
-    return getWinding(point, this.getCurves(), dir, closed);
-  }
-
-  /**
-   * 内部用のwinding number計算メソッド（paper.jsとの互換性のため）
-   * @param point 判定する点
-   * @param dir 方向（falseならx方向、trueならy方向）
-   * @param closed パスが閉じているかどうか
-   * @returns winding情報
-   */
-  _getWinding(
-    point: Point,
-    dir: boolean = false,
-    closed: boolean = false
-  ): { winding: number; windingL: number; windingR: number; quality: number; onPath: boolean } {
-    return getWinding(point, this.getCurves(), dir, closed);
   }
 
   /**
@@ -1311,9 +1272,6 @@ export class Path extends PathItemBase {
     return fromPathData(val);
   }
 
-  static fromSVG(val: string): Path {
-    return fromSVG(val);
-  }
   /**
    * toString() でSVGパスデータを返す（paper.js互換）
    */

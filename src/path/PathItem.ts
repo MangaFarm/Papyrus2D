@@ -206,4 +206,6 @@ export interface PathItem {
    * @returns パスの配列
    */
   getPaths(): Path[];
+
+  isClockwise(): boolean;
 }

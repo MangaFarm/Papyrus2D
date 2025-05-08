@@ -3,7 +3,7 @@
  * paper.jsのPathItem.Boolean.jsを参考に実装
  */
 
-import { Path } from './Path';
+import { PathItem } from './PathItem';
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Curve } from './Curve';
@@ -17,8 +17,8 @@ import { getMeta } from './SegmentMeta';
  */
 export function propagateWinding(
   segment: Segment,
-  path1: Path,
-  path2: Path | null,
+  path1: PathItem,
+  path2: PathItem | null,
   curveCollisionsMap: Record<string, Record<number, { hor: Curve[]; ver: Curve[] }>>,
   operator: Record<string, boolean>
 ): void {
@@ -91,7 +91,7 @@ export function propagateWinding(
         if (operator.subtract && path2) {
           // Calculate path winding at point depending on operand.
           const otherPath = operand === path1 ? path2 : path1;
-          const pathWinding = otherPath._getWinding(pt, dir, true);
+          const pathWinding = getWinding(pt, otherPath.getCurves(), dir, true);
 
           // Check if curve should be omitted.
           if (operand === path1 && pathWinding.winding ||
