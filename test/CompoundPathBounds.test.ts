@@ -10,8 +10,8 @@ describe('CompoundPathBounds', () => {
     const path2 = Path.Rectangle({ from: new Point(50, 50), to: new Point(150, 150) });
 
     // 各パスの境界ボックスを確認
-    const bounds1 = path1.getBounds();
-    const bounds2 = path2.getBounds();
+    const bounds1 = path1.getBounds(null, {});
+    const bounds2 = path2.getBounds(null, {});
     
     // 期待される結果を確認
     expect(bounds1.x).toBe(0);
@@ -34,11 +34,12 @@ describe('CompoundPathBounds', () => {
     const compound = new CompoundPath([path1, path2]);
     
     // _getBoundsメソッドを直接テスト
-    const bounds = compound._getBounds();
-    
+    const boundsEntry = compound._getBounds(null, {});
+    const bounds = boundsEntry.rect;
+
     // getBoundsメソッドの結果も確認
-    const publicBounds = compound.getBounds();
-    
+    const publicBounds = compound.getBounds(null, {});
+
     // 期待される結果を確認
     expect(bounds.x).toBe(0);
     expect(bounds.y).toBe(0);
