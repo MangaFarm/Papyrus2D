@@ -116,7 +116,7 @@ export function divideLocations(
       }
     }
     loc._setSegment(segment!);
-    const inter = getMeta(segment)._intersection;
+    const inter = getMeta(segment!)._intersection;
     const dest = loc._intersection;
     if (inter && dest) {
       linkIntersections(inter, dest);
@@ -126,7 +126,7 @@ export function divideLocations(
         other = other._next;
       }
     } else if (dest) {
-      getMeta(segment)._intersection = dest;
+      getMeta(segment!)._intersection = dest;
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);

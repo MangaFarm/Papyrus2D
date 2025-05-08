@@ -291,9 +291,9 @@ export function getIntersections(
   const boundsCollisions = CollisionDetection.findCurveBoundsCollisions(
     values1,
     self ? values1 : values2,
-    epsilon
-  );
-  // 🔥 デバッグ: boundsCollisions, 各カーブペアの交点数
+    epsilon,
+    false
+  ) as number[][];
     // 各曲線の交点を計算
     for (let index1 = 0; index1 < length1; index1++) {
     const curve1 = curveArray1[index1];

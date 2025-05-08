@@ -313,15 +313,15 @@ function splitBoolean(path1, path2, operation) {
   // Now loop backwards through all crossings, split the path and check
   // the new path that was split off for inclusion.
   for (var i = crossings.length - 1; i >= 0; i--) {
-      var path = crossings[i].split();
+      var path: Path = crossings[i].split();
       if (path) {
           // See if we can add the path, and if so, clear the first handle
           // at the split, because it might have been a curve.
           if (addPath(path))
-              path.getFirstSegment().setHandleIn(0, 0);
+              path.getFirstSegment()!.setHandleIn(0, 0);
           // Clear the other side of the split too, which is always the
           // end of the remaining _path1.
-          _path1.getLastSegment().setHandleOut(0, 0);
+          _path1.getLastSegment()!.setHandleOut(0, 0);
       }
   }
   // At the end, add what's left from our path after all the splitting.

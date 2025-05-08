@@ -420,35 +420,3 @@ export function getWinding(
     onPath: onAnyPath
   };
 }
-
-/**
- * 交点のwinding numberの寄与を計算
- * paper.jsのgetWindingContribution関数を移植
- *
- * @param segment - winding寄与を計算するセグメント
- * @param path1 - ブール演算の最初のパス
- * @param path2 - ブール演算の2番目のパス（存在する場合）
- * @param operator - ブール演算子
- * @returns winding寄与
- */
-export function getWindingContribution(
-  segment: Segment,
-  path1: Path,
-  path2: Path | null,
-  operator: Record<string, boolean>
-): number {
-  const meta = getMeta(segment);
-  if (!meta._winding) {
-    return 0;
-  }
-  
-  const winding = meta._winding;
-  return operator.subtract && path2
-    ? path1.isClockwise() !== path2.isClockwise()
-      ? winding.winding
-      : winding.windingL! - winding.windingR!
-    : winding.winding;
-}
-
-// CompoundPathのimport
-import { CompoundPath } from './CompoundPath';

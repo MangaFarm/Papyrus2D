@@ -317,37 +317,6 @@ export class CurveLocation {
   }
 
   /**
-   * 曲線を分割
-   * @returns 分割結果
-   */
-  divide(): Curve | null {
-    const curve = this.getCurve();
-    const time = this.getTime() || 0;
-    const res = curve && curve.divideAtTime(time);
-
-    // Change to the newly inserted segment, also adjusts _time.
-    if (res) {
-      this._setSegment(res._segment1);
-    }
-
-    return res;
-  }
-
-  /**
-   * パスを分割
-   * @returns 分割結果
-   */
-  split(): Curve | null {
-    const curve = this.getCurve();
-    const path = curve?._path;
-    const res = curve && curve.splitAtTime(this.getTime() || 0);
-    if (res && path) {
-      this._setSegment(path.getLastSegment() ?? null);
-    }
-    return res;
-  }
-
-  /**
    * 2つのCurveLocationが等しいかを確認
    * @param loc 比較対象のCurveLocation
    * @param _ignoreOther 相互参照を無視するかどうか
