@@ -1217,7 +1217,7 @@ export class Path extends PathItemBase {
     return this.getPathData();
   }
 
-  getChildren(): PathItem[] | null {
+  getChildren(): PathItemBase[] | null {
     return null;
   }
 

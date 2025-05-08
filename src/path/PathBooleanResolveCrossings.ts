@@ -3,8 +3,7 @@
  * paper.jsのPathItem.Boolean.jsのresolveCrossings関数とその関連関数を移植
  */
 
-import { Path } from './Path';
-import { PathItem } from './PathItem';
+import { PathItemBase } from './PathItemBase';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { tracePaths } from './PathBooleanTracePaths';
@@ -21,10 +20,10 @@ import { CollisionDetection } from '../util/CollisionDetection';
  * @param thisPath 交差を解決するパス
  * @returns 交差が解決されたパス
  */
-export function resolveCrossings(thisPath: PathItem): PathItem {
-  var children = this._children,
+export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
+  var children = thisPath.getChildren(),
     // Support both path and compound-path items
-    paths = children || [this];
+    paths = children || [thisPath];
 
   function hasOverlap(seg, path) {
     var inter = seg && seg._intersection;
@@ -35,12 +34,12 @@ export function resolveCrossings(thisPath: PathItem): PathItem {
   // existence of both.
   var hasOverlaps = false,
     hasCrossings = false,
-    intersections = this.getIntersections(null, function (inter) {
+    intersections = thisPath.getIntersections(thisPath, function (inter) {
       return (
         (inter.hasOverlap() && (hasOverlaps = true)) ||
         (inter.isCrossing() && (hasCrossings = true))
       );
-    });
+    }, null, false);
     // We only need to keep track of curves that need clearing
     // outside of divideLocations() if two calls are necessary.
   const clearCurves: any[] | undefined = hasOverlaps && hasCrossings ? [] : undefined;
@@ -114,11 +113,11 @@ export function resolveCrossings(thisPath: PathItem): PathItem {
   var length = paths.length,
     item;
   if (length > 1 && children) {
-    if (paths !== children) this.setChildren(paths);
-    item = this;
+    if (paths !== children) thisPath.setChildren(paths);
+    item = thisPath;
   } else if (length === 1 && !children) {
-    if (paths[0] !== this) this.setSegments(paths[0].removeSegments());
-    item = this;
+    if (paths[0] !== thisPath) thisPath.setSegments(paths[0].removeSegments());
+    item = thisPath;
   }
   // Otherwise create a new compound-path and see if we can reduce it,
   // and attempt to replace this item with it.

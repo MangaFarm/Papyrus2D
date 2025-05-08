@@ -145,6 +145,45 @@ export abstract class PathItemBase implements PathItem {
     }
   }
 
+  setChildren(items: PathItemBase[]) {
+    this.removeChildren(0);
+    this.addChildren(items);
+  }
+
+  removeChildren(start: number, end?: number) {
+    const children = this.getChildren();
+    if (!children)
+        return null;
+    start = start || 0;
+    end = end ?? children.length;
+    // Use Base.splice(), which adjusts #_index for the items above, and
+    // deletes it for the removed items. Calling #_remove() afterwards is
+    // fine, since it only calls Base.splice() if #_index is set.
+    const removed = children.splice(start, end - start);
+    for (var i = removed.length - 1; i >= 0; i--) {
+        // Don't notify parent each time, notify it separately after.
+        removed[i]._remove(true, false);
+    }
+    if (removed.length > 0)
+        this._changed(/*#=*/Change.CHILDREN);
+    return removed;
+  }
+
+  addChildren(items) {
+    const children = this.getChildren()!;
+    return this.insertChildren(children.length, items);
+  }
+
+  getFirstChild(): PathItemBase | null {
+    const children = this.getChildren()!;
+    return children.length > 0 ? children[0] : null;
+  }
+
+  getLastChild(): PathItemBase | null {
+    const children = this.getChildren()!;
+    return children.length > 0 ? children[children.length - 1] : null;
+  }
+
   // スタイル設定
   _style: Style = {
     fillRule: 'nonzero',
@@ -260,7 +299,7 @@ export abstract class PathItemBase implements PathItem {
     return false;
   }
 
-  abstract getChildren(): PathItem[] | null;
+  abstract getChildren(): PathItemBase[] | null;
 
   _changed(flags: ChangeFlag, option?: any) {
     var cacheParent = this._parent;

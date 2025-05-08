@@ -37,71 +37,10 @@ export class CompoundPath extends PathItemBase {
     }
   }
 
-  getChildren(): PathItem[] | null {
+  getChildren(): PathItemBase[] | null {
     return this._children;    
   }
 
-  // paper.jsのBase.each()の代わりに使用する内部メソッド
-  // _initializeは多様な型を受け入れていたが、不要になったので削除
-
-  /**
-   * 子パスを追加
-   * Item.jsから来ている
-   * @param paths 追加するパスの配列
-   */
-  addChildren(paths: Path[]): void {
-    // eslint-disable-next-line no-console
-    for (let i = 0; i < paths.length; i++) {
-      // nullの要素を無視
-      if (paths[i] != null) {
-        // eslint-disable-next-line no-console
-        this.addChild(paths[i]);
-        // eslint-disable-next-line no-console
-        // eslint-disable-next-line no-console
-        const curves = this.getCurves();
-        for (let i = 0; i < curves.length; i++) {
-          const seg1 = curves[i]._segment1.point;
-          const seg2 = curves[i]._segment2.point;
-        }
-      }
-    }
-    // eslint-disable-next-line no-console
-  }
-
-  /**
-   * 子パスを追加
-   * @param path 追加するパス
-   */
-  addChild(path: Path): Path {
-    this._children.push(path);
-    this._changed(Change.GEOMETRY);
-    return path;
-  }
-
-  /**
-   * 子パスを削除
-   * @returns 削除された子パスの配列
-   */
-  removeChildren(): Path[] {
-    const children = this._children;
-    this._children = [];
-    this._changed(Change.GEOMETRY);
-    return children;
-  }
-
-  /**
-   * 最初の子パスを取得
-   */
-  getFirstChild(): Path | null {
-    return this._children.length > 0 ? this._children[0] : null;
-  }
-
-  /**
-   * 最後の子パスを取得
-   */
-  getLastChild(): Path | null {
-    return this._children.length > 0 ? this._children[this._children.length - 1] : null;
-  }
 
   /**
    * パスが閉じているかどうかを取得
