@@ -337,7 +337,7 @@ export class CompoundPath extends PathItemBase {
       // 子パスを取り出し、reorientPathsで処理する
       const originalChildren = children.slice();
       const processed = reorientPaths(
-        this.removeChildren(),
+        this.removeChildren(0) as Path[],
         (w) => {
           // 偶奇ルールと非ゼロルールの処理
           return !!(nonZero ? w : w & 1);
@@ -380,7 +380,7 @@ export class CompoundPath extends PathItemBase {
   moveTo(point: Point): CompoundPath {
     // paper.jsと同様に、現在のパスが空かどうかをチェックして再利用
     const current = this.getLastChild();
-    const path = current && current.isEmpty() ? current : new Path();
+    const path = current && current.isEmpty(false) ? current : new Path();
     if (path !== current) {
       this.addChild(path);
     }

@@ -6,7 +6,7 @@ describe('PathBooleanResolveCrossings debug', () => {
   it('resolveCrossings winding/isValid trace', () => {
     // 失敗したテストのSVGパス
     const svg = 'M100,300l0,-50l50,-50l-50,0l150,0l-150,0l50,0l-50,0l100,0l-100,0l0,-100l200,0l0,200z';
-    const path = Path.fromSVG(svg);
+    const path = Path.fromPathData(svg);
     (path as any).fillRule = 'evenodd';
 
     // resolveCrossings前のセグメント情報

@@ -103,6 +103,11 @@ export abstract class PathItemBase implements PathItem {
     return false;
   }
 
+  addChild(item: PathItemBase) {
+    const children = this.getChildren()!;
+    return this._insertChild(children.length, item);
+  }
+
   _insertChild(index: number, item: PathItemBase) {
     var res = item ? this.insertChildren(index, [item]) : null;
     return res && res[0];
