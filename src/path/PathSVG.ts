@@ -154,6 +154,9 @@ export function fromPathData(svg: string): Path {
         var move = lower === 'm';
         for (var j = 0; j < length; j += 2) {
           path[move ? 'moveTo' : 'lineTo']((current = getPoint(j)));
+          // 🔥DEBUG SVG: move/line
+          // eslint-disable-next-line no-console
+          console.log('🔥SVG', lower, 'seg#', path.getSegments().length, path.getSegments().map(s=>s.toString()));
           if (move) {
             start = current;
             move = false;
@@ -168,6 +171,9 @@ export function fromPathData(svg: string): Path {
         for (var j = 0; j < length; j++) {
           current[coord] = getCoord(j, coord);
           path.lineTo(current);
+          // 🔥DEBUG SVG: h/v
+          // eslint-disable-next-line no-console
+          console.log('🔥SVG', lower, 'seg#', path.getSegments().length, path.getSegments().map(s=>s.toString()));
         }
         control = current;
         break;
@@ -222,6 +228,9 @@ export function fromPathData(svg: string): Path {
         // Merge first and last segment with Numerical.EPSILON tolerance
         // to address imprecisions in relative SVG data.
         path.closePath(/*#=*/ Numerical.EPSILON);
+        // 🔥DEBUG SVG: close
+        // eslint-disable-next-line no-console
+        console.log('🔥SVG', lower, 'seg#', path.getSegments().length, path.getSegments().map(s=>s.toString()));
         // Correctly handle relative m commands, see #1101:
         current = start;
         break;

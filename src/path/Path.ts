@@ -689,9 +689,12 @@ export class Path extends PathItemBase {
    * @param point 移動先の点
    */
   moveTo(point: Point): Path {
-    this._segments.length = 0;
-    this._curves = null;
-    this.add(new Segment(point));
+    if (this._segments.length === 1)
+      this.removeSegment(0);
+    // Let's not be picky about calling moveTo() when not at the
+    // beginning of a path, just bail out:
+    if (!this._segments.length)
+        this._add([ new Segment(point) ]);
     return this;
   }
 
