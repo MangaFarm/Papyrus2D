@@ -15,7 +15,6 @@ import { CollisionDetection } from '../util/CollisionDetection';
 import { preparePath } from './PathBooleanPreparation';
 import { tracePaths } from './PathBooleanTracePaths';
 import { propagateWinding } from './PathBooleanWinding';
-import { getPathMeta } from './PathMeta';
 import { divideLocations } from './PathBooleanIntersections';
 
 // SegmentInfoインターフェースとasSegmentInfo関数はPathBooleanWinding.tsに移動しました
@@ -181,7 +180,7 @@ function traceBoolean(
       curves.push(...path.getCurves());
       // See if all encountered segments in a path are overlaps, to
       // be able to separately handle fully overlapping paths.
-      getPathMeta(path)._overlapsOnly = true;
+      path._analysis._overlapsOnly = true;
     }
   }
 
@@ -233,7 +232,7 @@ function traceBoolean(
         propagateWinding(segment, _path1, _path2, curveCollisionsMap, operator);
       }
       // See if all encountered segments in a path are overlaps.
-      if (!(inter && inter._overlap)) getPathMeta(segment._path!)._overlapsOnly = false;
+      if (!(inter && inter._overlap)) segment._path!._analysis._overlapsOnly = false;
     }
     paths = tracePaths(segments, operator);
   } else {

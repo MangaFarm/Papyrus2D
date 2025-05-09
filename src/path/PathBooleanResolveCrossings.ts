@@ -102,7 +102,9 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     );
     if (clearCurves) clearCurveHandles(clearCurves);
     // Finally resolve self-intersections through tracePaths()
+    console.log(paths.map(path => path.getSegments().map(seg => seg._index)));
     paths = tracePaths(paths.map(path => path.getSegments()).flat(), null);
+    console.log(paths.map(path => path.getSegments().map(seg => seg._index)));
   }
   // Determine how to return the paths: First try to recycle the
   // current path / compound-path, if the amount of paths does not

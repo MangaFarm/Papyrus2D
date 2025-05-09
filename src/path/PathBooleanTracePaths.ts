@@ -7,7 +7,7 @@ import { Path } from './Path';
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { CurveLocation } from './CurveLocation';
-import { getPathMeta } from './PathMeta';
+import { WindingInfo } from './SegmentAnalysis';
 
 type Branch = {
   start: number;
@@ -21,28 +21,21 @@ type Branch = {
  * paper.jsのtracePathsアルゴリズムを忠実に移植
  */
 export function tracePaths(segments: Segment[], operator: Record<string, boolean> | null): Path[] {
+console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && s._index));
   var paths: Path[] = [],
     starts: Segment[];
 
-  function getWinding(seg: Segment) {
-    const metaWinding = seg._analysis._winding;
-    return {
-      winding: metaWinding ? metaWinding.winding : undefined,
-      windingL: metaWinding ? metaWinding.windingL : undefined,
-      windingR: metaWinding ? metaWinding.windingR : undefined,
-    };
-  }
-
-  function isValid(seg: Segment | null): boolean {
-    let winding: {winding: number | undefined, windingL: number | undefined, windingR: number | undefined};
-    if (!seg || seg._analysis._visited) return false;
-    if (!operator) return true;
-    winding = getWinding(seg);
-    if (winding.winding === undefined) return false;
-    if (!operator[winding.winding]) return false;
-    // Unite operations need special handling of segments with a winding contribution of two (part of both areas), which are only valid if they are part of the result's contour, not contained inside another area.
-    if (operator.unite && winding.winding === 2 && winding.windingL && winding.windingR) return false;
-    return true;
+  function isValid(seg) {
+    var winding;
+    return !!(seg && !seg._analysis._visited && (!operator
+            || operator[(winding = seg._analysis._winding || {}).winding]
+                // Unite operations need special handling of segments
+                // with a winding contribution of two (part of both
+                // areas), which are only valid if they are part of the
+                // result's contour, not contained inside another area.
+                && !(operator.unite && winding.winding === 2
+                    // No contour if both windings are non-zero.
+                    && winding.windingL && winding.windingR)));
   }
 
   function isStart(seg: Segment | null): boolean {
@@ -144,7 +137,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       handleIn: Point | null = null;
     // If all encountered segments in a path are overlaps, we may have
     // two fully overlapping paths that need special handling.
-    if (valid && getPathMeta(seg._path!)!._overlapsOnly) {
+    if (valid && seg._path!._analysis._overlapsOnly) {
       // TODO: Don't we also need to check for multiple overlaps?
       const path1: Path = seg._path!,
         path2: Path = seg._analysis._intersection!._segment!._path!;
@@ -173,12 +166,14 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // Clear branch to start a new one with each new path.
         branch = null;
       }
+      console.log("🔥 finished?", i, seg && seg._index, finished);
       if (finished) {
         // If we end up on the first or last segment of an operand,
         // copy over its closed state, to support mixed open/closed
         // scenarios as described in #1036
         if (seg!.isFirst() || seg!.isLast()) closed = seg!._path!._closed;
         seg!._analysis._visited = true;
+        console.log("🔥 while finished, path so far", path && path.getPathData && path.getPathData());
         break;
       }
       if (cross && branch) {
@@ -243,6 +238,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       seg = next || seg!._path!.getFirstSegment() || null;
       handleIn = next && next._handleIn.toPoint();
     }
+    console.log("🔥 after while", i);
     if (finished) {
       if (closed) {
         path!.getFirstSegment()?.setHandleIn(handleIn!);
@@ -250,9 +246,11 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       }
       // Only add finished paths that cover an area to the result.
       if (path!.getArea() !== 0) {
+        console.log("🔥 push path", path && path.getPathData && path.getPathData());
         paths.push(path!);
       }
     }
   }
+  console.log("🔥 tracePaths return paths", paths.length, paths.map(p => p && p.getPathData && p.getPathData()));
   return paths;
 }

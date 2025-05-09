@@ -25,11 +25,14 @@ import { PathConstructors } from './PathConstructors';
 import { smoothPath, splitPathAt } from './PathUtils';
 import { resolveCrossings } from './PathBooleanResolveCrossings';
 
+import { PathAnalysis } from './PathAnalysis';
+
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
 // 強烈に邪悪なことをしているので、それに対応
 type SegmentsWithCurves = Array<Segment> & { _curves?: Curve[] };
 
 export class Path extends PathItemBase {
+    _analysis: PathAnalysis;
   // 静的メソッド
   static get Line() {
     return PathConstructors.Line;
@@ -64,6 +67,7 @@ export class Path extends PathItemBase {
     this._segments = [];
     this._closed = false;
     this._curves = null;
+    this._analysis = new PathAnalysis();
 
     // セグメントがある場合は追加
     if (segments.length > 0) {
