@@ -11,28 +11,28 @@ import { Segment } from './Segment';
 
 export class CurveLocation {
   // Paper.jsと同様のプロパティ
-  _curve: Curve | null;      // 曲線オブジェクト
-  _time: number | null;      // 曲線上のパラメータ
-  _point: Point;             // 交点の座標
-  _overlap: CurveLocation | null; // 重複範囲代表（paper.jsと同じ）
-  _distance?: number;        // 距離（近接判定用）
-  
+  _curve: Curve | null; // 曲線オブジェクト
+  _time: number | null; // 曲線上のパラメータ
+  _point: Point; // 交点の座標
+  _overlap: boolean;
+  _distance?: number; // 距離（近接判定用）
+
   // キャッシュ用プロパティ
-  _offset?: number;          // パス上のオフセット（キャッシュ）
-  _curveOffset?: number;     // 曲線上のオフセット（キャッシュ）
-  _version?: number;         // パスのバージョン（キャッシュ検証用）
-  _path?: Path | null;       // パス参照（キャッシュ用）
-  
+  _offset?: number; // パス上のオフセット（キャッシュ）
+  _curveOffset?: number; // 曲線上のオフセット（キャッシュ）
+  _version?: number; // パスのバージョン（キャッシュ検証用）
+  _path?: Path | null; // パス参照（キャッシュ用）
+
   // セグメント参照用プロパティ
-  _segment?: Segment | null;            // 近接セグメント
-  _segment1?: Segment | null;           // 曲線の最初のセグメント
-  _segment2?: Segment | null;           // 曲線の2番目のセグメント
-  
+  _segment?: Segment | null; // 近接セグメント
+  _segment1?: Segment | null; // 曲線の最初のセグメント
+  _segment2?: Segment | null; // 曲線の2番目のセグメント
+
   // 交点の相互参照用
   _intersection: CurveLocation | null = null; // 対応する交点
-  _next: CurveLocation | null = null;         // 連結リスト用
-  _previous: CurveLocation | null = null;     // 連結リスト用
-  
+  _next: CurveLocation | null = null; // 連結リスト用
+  _previous: CurveLocation | null = null; // 連結リスト用
+
   // getterプロパティは使用せず、直接プロパティにアクセス
 
   /**
@@ -46,22 +46,22 @@ export class CurveLocation {
   constructor(
     curve: Curve | null,
     time: number | null,
-    point?: Point | null,
-    overlap: CurveLocation | null = null,
-    distance?: number
+    point: Point | null,
+    overlap: boolean,
+    distance: number
   ) {
     // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
-    if (time !== null && time >= (1 - Numerical.CURVETIME_EPSILON) && curve) {
+    if (time !== null && time >= 1 - Numerical.CURVETIME_EPSILON && curve) {
       const next = curve.getNext();
       if (next) {
         time = 0;
         curve = next;
       }
     }
-    
+
     this._setCurve(curve);
     this._time = time;
-    
+
     // paper.jsと同様に、pointがnullの場合は自動的に計算
     // _pointは必ずPoint型
     if (point instanceof Point) {
@@ -71,12 +71,12 @@ export class CurveLocation {
     } else {
       this._point = new Point(0, 0);
     }
-    
+
     this._overlap = overlap;
     if (distance !== undefined) {
       this._distance = distance;
     }
-    
+
     // 交点の相互参照用プロパティを初期化
     this._intersection = null;
     this._next = null;
@@ -108,10 +108,12 @@ export class CurveLocation {
       return null;
     }
 
-    return this._curve
-      || trySegment(this._segment)
-      || trySegment(this._segment1)
-      || trySegment(this._segment2 && this._segment2.getPrevious());
+    return (
+      this._curve ||
+      trySegment(this._segment) ||
+      trySegment(this._segment1) ||
+      trySegment(this._segment2 && this._segment2.getPrevious())
+    );
   }
 
   /**
@@ -147,9 +149,7 @@ export class CurveLocation {
   getTime(): number | null {
     const curve = this.getCurve();
     const time = this._time;
-    return curve && time == null
-      ? this._time = curve.getTimeOf(this._point)
-      : time;
+    return curve && time == null ? (this._time = curve.getTimeOf(this._point)) : time;
   }
 
   /**
@@ -182,8 +182,7 @@ export class CurveLocation {
       const index = this.getIndex();
       if (path && index != null) {
         const curves = path.getCurves();
-        for (let i = 0; i < index; i++)
-          offset += curves[i].getLength();
+        for (let i = 0; i < index; i++) offset += curves[i].getLength();
       }
       this._offset = offset += this.getCurveOffset();
     }
@@ -198,7 +197,7 @@ export class CurveLocation {
     const curve = this.getCurve();
     return curve && curve._path ? curve._path : null;
   }
-  
+
   /**
    * この位置が属する曲線のインデックスを取得
    * @returns 曲線のインデックス
@@ -231,9 +230,10 @@ export class CurveLocation {
         segment = curve?._segment2 ?? null;
       } else if (time != null && curve) {
         // 最も近いセグメントを曲線の長さを比較して決定
-        segment = curve.getPartLength(0, time) < curve.getPartLength(time, 1)
-          ? curve._segment1
-          : curve._segment2;
+        segment =
+          curve.getPartLength(0, time) < curve.getPartLength(time, 1)
+            ? curve._segment1
+            : curve._segment2;
       }
       this._segment = segment;
     }
@@ -280,11 +280,10 @@ export class CurveLocation {
    */
   isTouching(): boolean {
     const inter = this._intersection;
-    if (!inter)
-      return false;
+    if (!inter) return false;
     const myTangent = this.getTangent();
     const interTangent = inter.getTangent();
-    
+
     if (myTangent && interTangent && myTangent.isCollinear(interTangent)) {
       // 2つの直線曲線が接触している場合、それらの線が交差しない場合のみ接触と見なす
       const curve1 = this.getCurve();
@@ -374,60 +373,60 @@ export class CurveLocation {
    * @returns 挿入された交点情報
    */
   static insert(locations: CurveLocation[], loc: CurveLocation, merge: boolean): CurveLocation {
-    // パスID、曲線、時間でソートするためのバイナリサーチを行う
-    let length = locations.length;
-    let l = 0;
-    let r = length - 1;
+    // Insert-sort by path-id, curve, time so we can easily merge
+    // duplicates with calls to equals() after.
+    var length = locations.length,
+      l = 0,
+      r = length - 1;
 
-    function search(index: number, dir: number): CurveLocation | null {
-      // リストの始端/終端に達した場合、もう一方の端の位置も比較する
-      for (let i = index + dir; i >= -1 && i <= length; i += dir) {
-        // インデックスを循環させる
-        const loc2 = locations[((i % length) + length) % length];
-        // 点が十分近い場合のみ比較
-        if (!loc.getPoint().isClose(loc2.getPoint(), Numerical.GEOMETRIC_EPSILON))
-          break;
-        if (loc.equals(loc2))
-          return loc2;
+    function search(index, dir) {
+      // If we reach the beginning/end of the list, also compare with the
+      // location at the other end, as paths are circular lists.
+      // NOTE: When merging, the locations array will only contain
+      // locations on the same path, so it is fine that check for the end
+      // to address circularity. See PathItem#getIntersections()
+      for (var i = index + dir; i >= -1 && i <= length; i += dir) {
+        // Wrap the index around, to match the other ends:
+        var loc2 = locations[((i % length) + length) % length];
+        // Once we're outside the spot, we can stop searching.
+        if (!loc.getPoint().isClose(loc2.getPoint(), /*#=*/ Numerical.GEOMETRIC_EPSILON)) break;
+        if (loc.equals(loc2)) return loc2;
       }
       return null;
     }
 
     while (l <= r) {
-      const m = (l + r) >>> 1;
-      const loc2 = locations[m];
-      let found: CurveLocation | null = null;
-      
-      // 2つの位置が実際に同じかどうかを確認し、同じ場合はマージ
-      if (merge && (found = loc.equals(loc2) ? loc2 : (search(m, -1) || search(m, 1)))) {
-        // 重複フラグを伝播
+      var m = (l + r) >>> 1,
+        loc2 = locations[m],
+        found;
+      // See if the two locations are actually the same, and merge if
+      // they are. If they aren't check the other neighbors with search()
+      if (merge && (found = loc.equals(loc2) ? loc2 : search(m, -1) || search(m, 1))) {
+        // We're done, don't insert, merge with the found location
+        // instead, and carry over overlap:
         if (loc._overlap) {
-          found._overlap = found;
-          if (found._intersection) {
-            found._intersection._overlap = found._intersection;
-          }
+          found._overlap = found._intersection._overlap = true;
         }
         return found;
       }
-
-      // パスID、曲線、時間でソート
-      const path1 = loc.getPath();
-      const path2 = loc2.getPath();
-      
-      // パスIDが異なる場合はパスIDでソート
-      // 同じパスの場合はインデックスと時間でソート
-      const diff = path1 !== path2
-        ? ((path1 ? path1._id : 0) - (path2 ? path2._id : 0))
-        : (loc.getIndex() + (loc.getTime() || 0)) - (loc2.getIndex() + (loc2.getTime() || 0));
-      
+      var path1 = loc.getPath(),
+        path2 = loc2.getPath(),
+        // NOTE: equals() takes the intersection location into account,
+        // while this calculation of diff doesn't!
+        diff =
+          path1 !== path2
+            ? // Sort by path id to group all locs on same path.
+              path1!._id - path2!._id
+            : // Sort by both index and time on the same path. The two values
+              // added together provides a convenient sorting index.
+              loc.getIndex() + loc.getTime()! - (loc2.getIndex() + loc2.getTime()!);
       if (diff < 0) {
         r = m - 1;
       } else {
         l = m + 1;
       }
     }
-    
-    // 既存の位置とマージしなかった場合、新しい位置を挿入
+    // We didn't merge with a preexisting location, insert it now.
     locations.splice(l, 0, loc);
     return loc;
   }
@@ -441,24 +440,23 @@ export class CurveLocation {
   static expand(locations: CurveLocation[]): CurveLocation[] {
     // コピーを作成（insertが配列を変更するため）
     const expanded = locations.slice();
-    
+
     // 各交点の_intersectionも配列に追加
     for (let i = locations.length - 1; i >= 0; i--) {
       CurveLocation.insert(expanded, locations[i]._intersection!, false);
     }
-    
+
     return expanded;
   }
 
   split(): Path | null {
     var curve = this.getCurve(),
-        path = curve!._path,
-        res = curve && curve.splitAtTime(this.getTime()!);
+      path = curve!._path,
+      res = curve && curve.splitAtTime(this.getTime()!);
     if (res) {
-        // Set the segment to the end-segment of the path after splitting.
-        this._setSegment(path!.getLastSegment()!);
+      // Set the segment to the end-segment of the path after splitting.
+      this._setSegment(path!.getLastSegment()!);
     }
-    return  res;
+    return res;
   }
-
 }

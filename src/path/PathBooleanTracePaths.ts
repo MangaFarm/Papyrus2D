@@ -21,7 +21,6 @@ type Branch = {
  * paper.jsのtracePathsアルゴリズムを忠実に移植
  */
 export function tracePaths(segments: Segment[], operator: Record<string, boolean> | null): Path[] {
-console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && s.toString()));
   var paths: Path[] = [],
     starts: Segment[];
 
@@ -153,7 +152,6 @@ console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && 
     // Do not start with invalid segments (segments that were already
     // visited, or that are not going to be part of the result).
     while (valid) {
-      console.log("💳️ while start", i);
       // For each segment we encounter, see if there are multiple
       // crossings, and if so, pick the best one:
       const first: boolean = !path;
@@ -173,7 +171,6 @@ console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && 
         // scenarios as described in #1036
         if (seg!.isFirst() || seg!.isLast()) closed = seg!._path!._closed;
         seg!._analysis._visited = true;
-        console.log("💳️ while finished, path so far", path?.getPathData());
         break;
       }
       if (cross && branch) {
@@ -238,7 +235,6 @@ console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && 
       seg = next || seg!._path!.getFirstSegment() || null;
       handleIn = next && next._handleIn.toPoint();
     }
-    console.log("🔥 after while", i);
     if (finished) {
       if (closed) {
         path!.getFirstSegment()?.setHandleIn(handleIn!);
@@ -246,11 +242,9 @@ console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && 
       }
       // Only add finished paths that cover an area to the result.
       if (path!.getArea() !== 0) {
-        console.log("🔥 push path", path && path.getPathData && path.getPathData());
         paths.push(path!);
       }
     }
   }
-  console.log("🔥 tracePaths return paths", paths.length, paths.map(p => p && p.getPathData && p.getPathData()));
   return paths;
 }

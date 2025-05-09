@@ -885,49 +885,6 @@ export class Path extends PathItemBase {
   }
 
   /**
-   * 他のパスとの交点を取得
-   * paper.jsのPathItem.getIntersectionsメソッドに相当
-   * @param path 交点を求める相手のパス（未指定の場合は自己交差を検出）
-   * @param include 交点をフィルタリングするコールバック関数
-   * @param _matrix 内部使用: 相手パスの変換行列をオーバーライド
-   * @param _returnFirst 内部使用: 最初の交点だけを返すフラグ
-   * @returns 交点情報の配列
-   */
-  getIntersections(
-    targetPath: PathItem,
-    include: (loc: CurveLocation) => boolean,
-    _targetMatrix: Matrix | null,
-    _returnFirst: boolean
-  ): CurveLocation[] {
-    const self = this === targetPath; // 自己交差
-    const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
-    const matrix2 = self
-      ? matrix1
-      : _targetMatrix
-        ? _targetMatrix._orNullIfIdentity()
-        : targetPath instanceof Path && targetPath._matrix
-          ? targetPath._matrix._orNullIfIdentity()
-          : null;
-
-    // まずバウンディングボックスで交差判定
-    if (
-      self ||
-      this.getBounds(matrix1, {}).intersects((targetPath as Path).getBounds(matrix2, {}), Numerical.EPSILON)
-    ) {
-      return getIntersections(
-        this.getCurves(),
-        !self && targetPath ? (targetPath as Path).getCurves() : null,
-        include,
-        matrix1,
-        matrix2,
-        _returnFirst
-      );
-    } else {
-      return [];
-    }
-  }
-
-  /**
    * 指定された接線に対して曲線が接する時間パラメータを計算
    * @param tangent 接線ベクトル
    * @returns パス上のオフセット位置の配列

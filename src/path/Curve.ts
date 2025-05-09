@@ -17,6 +17,8 @@ import { CurveLocationUtils } from './CurveLocationUtils';
 import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 import { Path } from './Path';
+import { getSelfIntersection } from './CurveIntersectionBase';
+import { getCurveIntersections } from './CurveIntersectionMain';
 
 export class Curve {
   _segment1: Segment;
@@ -240,11 +242,11 @@ export class Curve {
   }
 
   static getIntersections(
-    curves1: Curve[] | number[],
-    curves2: Curve[] | number[] | null = null,
+    curves1: Curve[],
+    curves2: Curve[] | null = null,
     include: (loc: CurveLocation) => boolean,
-    matrix1?: Matrix | null | undefined,
-    matrix2?: Matrix | null | undefined,
+    matrix1?: Matrix | null,
+    matrix2?: Matrix | null,
     _returnFirst?: boolean
   ): CurveLocation[] {
     // CurveIntersectionMainモジュールの関数を使用
@@ -267,8 +269,8 @@ export class Curve {
     const v1 = this.getValues();
     const v2 = curve && curve !== this && curve.getValues();
     return v2
-      ? Curve.getIntersections([this], [curve], (c) => true, null, null, false)
-      : Curve.getIntersections([this], null, (c) => true, null, null, false);
+      ? getCurveIntersections(v1, v2, this, curve, [], c => true)
+      : getSelfIntersection(v1, this, [], c => true);
   }
 
   static getNearestTime(v: number[], point: Point): number {

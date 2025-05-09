@@ -206,7 +206,7 @@ function traceBoolean(
       curvesValues,
       0,
       true
-    ) as { hor: number[], ver: number[] }[]; // both type
+    );
     var curveCollisionsMap = {};
     for (var i = 0; i < curves.length; i++) {
       var curve = curves[i],

@@ -8,10 +8,11 @@ import type { PathItem, Style, FillRule } from './PathItem';
 import type { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
-import type { Curve } from './Curve';
+import { Curve } from './Curve';
 import type { Segment } from './Segment';
 import type { CurveLocation } from './CurveLocation';
 import { ChangeFlag, Change } from './ChangeFlag';
+import { Numerical } from '../util/Numerical';
 
 // _boundsCacheの型
 export type BoundsCache = {
@@ -243,12 +244,37 @@ export abstract class PathItemBase implements PathItem {
   abstract getPointAt(t: number): Point;
   abstract getTangentAt(t: number): Point;
   abstract contains(point: Point): boolean;
-  abstract getIntersections(
+
+  getIntersections(
     targetPath: PathItem,
     include: (loc: CurveLocation) => boolean,
     _targetMatrix: Matrix | null,
     _returnFirst: boolean
-  ): CurveLocation[];
+  ): CurveLocation[] {
+console.log("🔥PathItemBase.getIntersections");
+    const self = this === targetPath; // 自己交差
+    const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
+    const matrix2 = self ? matrix1
+      : (_targetMatrix ?? targetPath._matrix)._orNullIfIdentity();
+
+    if (!self) {
+      console.log("🔥PathItemBase.getIntersections2", this.getBounds(matrix1, {}).intersects(
+        (targetPath as PathItemBase).getBounds(matrix2, {}), /*#=*/Numerical.EPSILON));
+    } else {
+      console.log("🔥PathItemBase.getIntersections, self");
+    }
+
+    const curves1 = this.getCurves();
+    const curves2 = self ? null : targetPath.getCurves();
+
+    return self || this.getBounds(matrix1, {}).intersects(
+      (targetPath as PathItemBase).getBounds(matrix2, {}), /*#=*/Numerical.EPSILON)
+      ? Curve.getIntersections(
+          curves1, curves2, include,
+          matrix1, matrix2, _returnFirst)
+      : [];
+  }
+
 
   abstract reduce(options?: { simplify?: boolean }): PathItem;
 

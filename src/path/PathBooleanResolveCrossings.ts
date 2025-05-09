@@ -21,6 +21,7 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
   var children = thisPath.getChildren(),
     // Support both path and compound-path items
     paths = children || [thisPath];
+console.log("🔥 [1]", paths.map(path => path.getSegments().map(s => s && s.toString())));
 
   function hasOverlap(seg, path) {
     var inter = seg && seg._intersection;
@@ -40,7 +41,9 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     // We only need to keep track of curves that need clearing
     // outside of divideLocations() if two calls are necessary.
   const clearCurves: any[] | undefined = hasOverlaps && hasCrossings ? [] : undefined;
+console.log("🔥intersections1", intersections.length);
   intersections = CurveLocation.expand(intersections);
+console.log("🔥intersections2", intersections.length);
   if (hasOverlaps) {
     // First divide in all overlaps, and then remove the inside of
     // the resulting overlap ranges.
@@ -51,6 +54,7 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
       },
       clearCurves
     );
+console.log("🔥overlaps", overlaps.length);
     for (var i = overlaps.length - 1; i >= 0; i--) {
       var overlap = overlaps[i],
         path = overlap._path,
@@ -102,9 +106,8 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     );
     if (clearCurves) clearCurveHandles(clearCurves);
     // Finally resolve self-intersections through tracePaths()
-    console.log(paths.map(path => path.getSegments().map(seg => seg._index)));
+console.log("🔥 [2]", paths.map(path => path.getSegments().map(s => s && s.toString())));
     paths = tracePaths(paths.map(path => path.getSegments()).flat(), null);
-    console.log(paths.map(path => path.getSegments().map(seg => seg._index)));
   }
   // Determine how to return the paths: First try to recycle the
   // current path / compound-path, if the amount of paths does not

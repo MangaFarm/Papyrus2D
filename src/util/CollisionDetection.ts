@@ -26,6 +26,20 @@ export class CollisionDetection {
 
     return bounds;
   }
+  
+  static findCurveBoundsCollisions(
+    curves1: number[][],
+    curves2: number[][] | null,
+    tolerance: number,
+    bothAxis: true
+  ): { hor: number[]; ver: number[] }[];
+  
+  static findCurveBoundsCollisions(
+    curves1: number[][],
+    curves2: number[][] | null,
+    tolerance: number,
+    bothAxis: false
+  ): number[][];
 
   static findCurveBoundsCollisions(
     curves1: number[][],

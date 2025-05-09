@@ -22,7 +22,8 @@ export function getSelfIntersection(
 ): CurveLocation[] {
   // paper.jsと同様の実装に修正
   const info = CurveGeometry.classify(v1);
-
+console.log('🔥classify', info.type);
+  
   // ループ型の曲線の場合のみ交点を検出（paper.jsと同様）
   if (info.type === 'loop') {
     // 自己交差の場合はoverlapをfalseに設定
