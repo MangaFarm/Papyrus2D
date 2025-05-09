@@ -4,8 +4,8 @@
  */
 
 import { PathItemBase } from './PathItemBase';
+import { Path } from './Path';
 import { CurveLocation } from './CurveLocation';
-import { Segment } from './Segment';
 import { tracePaths } from './PathBooleanTracePaths';
 import { getMeta } from './SegmentMeta';
 import { CompoundPath } from './CompoundPath';
@@ -105,7 +105,7 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     );
     if (clearCurves) clearCurveHandles(clearCurves);
     // Finally resolve self-intersections through tracePaths()
-    paths = tracePaths([].concat(...paths.map(path => path._segments)), null);
+    paths = tracePaths(paths.map(path => path.getSegments()).flat(), null);
   }
   // Determine how to return the paths: First try to recycle the
   // current path / compound-path, if the amount of paths does not
@@ -116,7 +116,10 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     if (paths !== children) thisPath.setChildren(paths);
     item = thisPath;
   } else if (length === 1 && !children) {
-    if (paths[0] !== thisPath) thisPath.setSegments(paths[0].removeSegments());
+    if (paths[0] !== thisPath) {
+      (thisPath as Path).setSegments(
+        (paths[0] as Path).removeSegments());
+    }
     item = thisPath;
   }
   // Otherwise create a new compound-path and see if we can reduce it,
