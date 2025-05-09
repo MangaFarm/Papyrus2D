@@ -115,7 +115,7 @@ export class Curve {
 
   getLocationAtTime(t: number): CurveLocation {
     // tは0-1範囲で呼ばれる前提
-    return new CurveLocation(this, t, null, false, 0);
+    return new CurveLocation(this, t, null, false, null);
   }
 
   getTimeOf(point: Point): number | null {

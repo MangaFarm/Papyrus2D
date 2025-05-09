@@ -16,11 +16,11 @@ export function addCurveIntersections(
   c1: Curve, c2: Curve,
   locations: CurveLocation[],
   include: (loc: CurveLocation) => boolean,
-  flip?: boolean,
-  recursion: number = 0,
-  calls: number = 0,
-  tMin: number = 0, tMax: number = 1,
-  uMin: number = 0, uMax: number = 1
+  flip: boolean,
+  recursion: number,
+  calls: number,
+  tMin: number, tMax: number,
+  uMin: number, uMax: number
 ): number {
   // Avoid deeper recursion, by counting the total amount of recursions,
   // as well as the total amount of calls, to avoid massive call-trees

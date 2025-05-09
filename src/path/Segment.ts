@@ -225,7 +225,7 @@ export class Segment {
   getLocation(): CurveLocation | null {
     const curve = this.getCurve();
     return curve
-            ? new CurveLocation(curve, this === curve._segment1 ? 0 : 1, null, false, 0)
+            ? new CurveLocation(curve, this === curve._segment1 ? 0 : 1, null, false, null)
             : null;
   }
 

@@ -400,7 +400,7 @@ export class Path extends PathItemBase {
 
     // 誤差により最後の曲線が見逃された場合、offsetが全長以下であれば最後の曲線の終点を返す
     if (curves.length > 0 && offset <= this.getLength()) {
-      return new CurveLocation(curves[length - 1], 1, null, false, 0);
+      return new CurveLocation(curves[length - 1], 1, null, false, null);
     }
 
     return null;

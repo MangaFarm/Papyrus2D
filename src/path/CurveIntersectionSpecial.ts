@@ -9,6 +9,7 @@ import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
 import { Line } from '../basic/Line';
 import { addLocation } from './CurveIntersectionBase';
+import { counter } from './CurveIntersectionMain';
 
 export function getCurveLineIntersections(
   v: number[],
@@ -52,7 +53,9 @@ export function addLineIntersection(
   c1: Curve,
   c2: Curve,
   locations: CurveLocation[],
-  include: (loc: CurveLocation) => boolean
+  include: (loc: CurveLocation) => boolean,
+  _flip: boolean,
+  _d0: number, _d1: number, _d2: number, _d3: number, _d4: number, _d5: number
 ): void {
   // paper.js本家同様、nullチェックせず!で扱う
   const pt = Line.intersect(
@@ -60,6 +63,9 @@ export function addLineIntersection(
     v2[0], v2[1], v2[6], v2[7],
     false, false
   );
+  if (counter == 17) {
+    console.log("🏥addLineIntersection", v1, v2, pt);
+  }
   if (pt) {
     addLocation(
       locations,
@@ -84,7 +90,8 @@ export function addCurveLineIntersections(
   c2: Curve,
   locations: CurveLocation[],
   include: (loc: CurveLocation) => boolean,
-  flip: boolean
+  flip: boolean,
+  _d0: number, _d1: number, _d2: number, _d3: number, _d4: number, _d5: number
 ): CurveLocation[] {
   // addCurveLineIntersections() is called so that v1 is always the curve
   // and v2 the line. flip indicates whether the curves need to be flipped
@@ -111,7 +118,8 @@ export function addCurveLineIntersections(
         flip ? c2 : c1,
         flip ? t2 : t1,
         flip ? c1 : c2,
-        flip ? t1 : t2
+        flip ? t1 : t2,
+        false
       );
     }
   }

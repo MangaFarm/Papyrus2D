@@ -14,7 +14,7 @@ import { addLocation, getSelfIntersection } from './CurveIntersectionBase';
 import { addLineIntersection, addCurveLineIntersections } from './CurveIntersectionSpecial';
 import { addCurveIntersections } from './CurveIntersectionConvexHull';
 
-let counter =0;
+export let counter =0;
 
 /**
  * 曲線同士の交点計算
@@ -29,9 +29,7 @@ export function getCurveIntersections(
   include: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
   counter++;
-  if (counter == 12) {
-    console.log('🔥getCurveIntersections', v1.length, v2.length, locations.length);
-  }
+  console.log('🔥getCurveIntersections', counter, locations.length);
 
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
@@ -50,83 +48,63 @@ export function getCurveIntersections(
     // オーバーラップの検出と処理
     const overlaps = getOverlaps(v1, v2);
     if (overlaps) {
+      if (counter == 13) {
+        console.log('🧊cond', overlaps.length);
+      }
       for (let i = 0; i < overlaps.length; i++) {
         const overlap = overlaps[i];
-        if (counter == 11) {
-          console.log('🧊overlaps');
+        if (counter == 13) {
+          console.log('overlap', overlap);
         }
         addLocation(locations, include, c1, overlap[0], c2, overlap[1], true);
       }
+      if (counter == 13) {
+        console.log('🧊after overlaps', locations.length);
+      }
     } else {
+      // 曲線の直線性を判定
       const straight1 = Curve.isStraight(v1);
       const straight2 = Curve.isStraight(v2);
       const straight = straight1 && straight2;
       const flip = straight1 && !straight2;
       const before = locations.length;
 
-      // 直線か曲線かに基づいて適切な交点計算メソッドを決定
-      if (straight) {
-        if (counter == 11) {
-          console.log('🧊line');
-        }
-        addLineIntersection(
-          flip ? v2 : v1,
-          flip ? v1 : v2,
-          flip ? c2 : c1,
-          flip ? c1 : c2,
-          locations,
-          include
-        );
-      } else if (straight1 || straight2) {
-        if (counter == 11) {
-          console.log('🧊lineCurve');
-        }
-        addCurveLineIntersections(
-          flip ? v2 : v1,
-          flip ? v1 : v2,
-          flip ? c2 : c1,
-          flip ? c1 : c2,
-          locations,
-          include,
-          flip
-        );
-      } else {
-        if (counter == 11) {
-          console.log('🧊curve');
-        }
-        addCurveIntersections(
-          flip ? v2 : v1,
-          flip ? v1 : v2,
-          flip ? c2 : c1,
-          flip ? c1 : c2,
-          locations,
-          include,
-          flip,
-          0,
-          0,
-          0,
-          1,
-          0,
-          1
-        );
-      }
+      // 適切な交点計算メソッドを選択
+      
+      // 両方が直線の場合は直線同士の交点計算
+      // 片方のみ直線の場合は曲線と直線の交点計算
+      // どちらも直線でない場合は曲線同士の交点計算
+      const intersectionFn = straight
+          ? addLineIntersection
+          : (straight1 || straight2)
+              ? addCurveLineIntersections
+              : addCurveIntersections;
+              
+      // 計算に必要なパラメータを設定
+      const args1 = flip ? v2 : v1;
+      const args2 = flip ? v1 : v2;
+      const curve1 = flip ? c2 : c1;
+      const curve2 = flip ? c1 : c2;
+      
+      // 交点計算実行
+      // recursion, calls, tMin, tMax, uMin, uMax のデフォルト値: 0, 0, 0, 1, 0, 1
+      intersectionFn(args1, args2, curve1, curve2, locations, include, flip, 0, 0, 0, 1, 0, 1);
 
-      // 端点が重なる特殊ケースの処理
+      // 曲線の端点同士が重なっている特殊ケースの処理
+      // 直線同士の交点が見つかっていない場合のみチェック
       if (!straight || locations.length === before) {
-        for (let i = 0; i < 4; i++) {
-          const t1 = i >> 1,
-            t2 = i & 1;
-          const i1 = t1 * 6,
-            i2 = t2 * 6;
-          const p1 = new Point(v1[i1], v1[i1 + 1]);
-          const p2 = new Point(v2[i2], v2[i2 + 1]);
-          if (p1.isClose(p2, epsilon)) {
-            if (counter == 11) {
-              console.log('🧊special');
-            }
-            addLocation(locations, include, c1, t1, c2, t2, false);
+          for (let i = 0; i < 4; i++) {
+              const t1 = i >> 1;  // 0, 0, 1, 1
+              const t2 = i & 1;   // 0, 1, 0, 1
+              const i1 = t1 * 6;
+              const i2 = t2 * 6;
+              const p1 = new Point(v1[i1], v1[i1 + 1]);
+              const p2 = new Point(v2[i2], v2[i2 + 1]);
+              
+              if (p1.isClose(p2, epsilon)) {
+                  addLocation(locations, include, c1, t1, c2, t2, false);
+              }
           }
-        }
       }
     }
   }

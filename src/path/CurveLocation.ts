@@ -15,7 +15,7 @@ export class CurveLocation {
   _time: number | null; // 曲線上のパラメータ
   _point: Point; // 交点の座標
   _overlap: boolean;
-  _distance?: number; // 距離（近接判定用）
+  _distance?: number | null; // 距離（近接判定用）
 
   // キャッシュ用プロパティ
   _offset?: number; // パス上のオフセット（キャッシュ）
@@ -48,7 +48,7 @@ export class CurveLocation {
     time: number | null,
     point: Point | null,
     overlap: boolean,
-    distance: number
+    distance: number | null
   ) {
     // Paper.jsと同様に、端点の場合は次の曲線にマージする処理を追加
     if (time !== null && time >= 1 - Numerical.CURVETIME_EPSILON && curve) {
@@ -73,9 +73,7 @@ export class CurveLocation {
     }
 
     this._overlap = overlap;
-    if (distance !== undefined) {
-      this._distance = distance;
-    }
+    this._distance = distance;
 
     // 交点の相互参照用プロパティを初期化
     this._intersection = null;
@@ -262,7 +260,7 @@ export class CurveLocation {
    * 距離を取得
    * @returns 距離
    */
-  getDistance(): number | undefined {
+  getDistance(): number | null | undefined {
     return this._distance;
   }
 
