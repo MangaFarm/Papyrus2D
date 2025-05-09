@@ -115,7 +115,7 @@ export class Curve {
 
   getLocationAtTime(t: number): CurveLocation {
     // tは0-1範囲で呼ばれる前提
-    return new CurveLocation(this, t);
+    return new CurveLocation(this, t, null, false, 0);
   }
 
   getTimeOf(point: Point): number | null {
@@ -257,7 +257,7 @@ export class Curve {
     const values = this.getValues();
     const t = Curve.getNearestTime(values, point);
     const pt = Curve.getPoint(values, t);
-    return new CurveLocation(this, t, pt, null, point.subtract(pt).getLength());
+    return new CurveLocation(this, t, pt, false, point.subtract(pt).getLength());
   }
 
   getNearestPoint(point: Point): Point {

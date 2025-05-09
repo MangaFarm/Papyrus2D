@@ -63,8 +63,8 @@ export function addLocation(
     t2 <= (excludeStart ? tMax : 1)
   ) {
     // CurveLocationを2つ生成し、相互参照
-    const loc1 = new CurveLocation(c1, t1, null, null);
-    const loc2 = new CurveLocation(c2, t2, null, null);
+    const loc1 = new CurveLocation(c1, t1, null, false, 0);
+    const loc2 = new CurveLocation(c2, t2, null, false, 0);
     loc1._intersection = loc2;
     loc2._intersection = loc1;
     // includeコールバックがなければ、または条件を満たせばloc1のみ追加
