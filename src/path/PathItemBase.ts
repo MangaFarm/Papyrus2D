@@ -68,6 +68,17 @@ export abstract class PathItemBase implements PathItem {
     return this._parent === item._parent;
   }
 
+  replaceWith(item: PathItem): PathItem | null {
+    var ok = item && item.insertBelow(this);
+    if (ok)
+        this._remove(true, true);
+    return ok;
+  }
+
+  insertBelow(item: PathItem): PathItem | null {
+    return this._insertAt(item, 0);
+  }
+
   insertAbove(item: PathItem): PathItem | null {
     return this._insertAt(item, 1);
   }

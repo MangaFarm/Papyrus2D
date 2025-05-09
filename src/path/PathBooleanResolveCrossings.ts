@@ -128,8 +128,8 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     item = new CompoundPath();
     item.addChildren(paths);
     item = item.reduce();
-    item.copyAttributes(this);
-    this.replaceWith(item);
+    item.copyAttributes(thisPath);
+    thisPath.replaceWith(item);
   }
   return item;
 }

@@ -51,6 +51,7 @@ export interface PathItem {
   getIndex(): number | null;
   getParent(): PathItem | null;
   isSibling(item: PathItem): boolean
+  insertBelow(path: PathItem): PathItem | null;
   insertAbove(path: PathItem): PathItem | null;
   copyAttributes(path: PathItem, excludeMatrix?: boolean): PathItem;
   transform(matrix: Matrix | null, applyRecursively?: boolean, setApplyMatrix?: boolean): PathItem;
