@@ -20,9 +20,6 @@ describe('Path.curves バグ再現・正常系テスト', () => {
     path.add(new Segment(new Point(100, 100)));
     const segs = path.removeSegments();
     path.setSegments(segs);
-    // 🔥 バグ: getSegmentsは3だがgetCurvesは0
-    console.log("🔥 Path.getSegments().length:", path.getSegments().length);
-    console.log("🔥 Path.getCurves().length:", path.getCurves().length);
     expect(path.getSegments().length).toBe(3);
     expect(path.getCurves().length).toBe(2); // 本来2になるべき
   });

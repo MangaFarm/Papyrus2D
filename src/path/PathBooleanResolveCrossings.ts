@@ -10,8 +10,6 @@ import { tracePaths } from './PathBooleanTracePaths';
 import { CompoundPath } from './CompoundPath';
 import { divideLocations, clearCurveHandles } from './PathBooleanIntersections';
 
-import { propagateWinding } from './PathBooleanWinding';
-import { CollisionDetection } from '../util/CollisionDetection';
 /**
  * パスの交差を解決する
  * paper.jsのresolveCrossings関数を移植
