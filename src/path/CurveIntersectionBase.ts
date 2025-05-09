@@ -22,7 +22,6 @@ export function getSelfIntersection(
 ): CurveLocation[] {
   // paper.jsと同様の実装に修正
   const info = CurveGeometry.classify(v1);
-console.log('🔥classify', info.type);
   
   // ループ型の曲線の場合のみ交点を検出（paper.jsと同様）
   if (info.type === 'loop') {
@@ -63,8 +62,8 @@ export function addLocation(
     t2 <= (excludeStart ? tMax : 1)
   ) {
     // CurveLocationを2つ生成し、相互参照
-    const loc1 = new CurveLocation(c1, t1, null, false, 0);
-    const loc2 = new CurveLocation(c2, t2, null, false, 0);
+    const loc1 = new CurveLocation(c1, t1, null, overlap, 0);
+    const loc2 = new CurveLocation(c2, t2, null, overlap, 0);
     loc1._intersection = loc2;
     loc2._intersection = loc1;
     // includeコールバックがなければ、または条件を満たせばloc1のみ追加

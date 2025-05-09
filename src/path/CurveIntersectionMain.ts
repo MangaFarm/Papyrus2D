@@ -14,6 +14,8 @@ import { addLocation, getSelfIntersection } from './CurveIntersectionBase';
 import { addLineIntersection, addCurveLineIntersections } from './CurveIntersectionSpecial';
 import { addCurveIntersections } from './CurveIntersectionConvexHull';
 
+let counter =0;
+
 /**
  * 曲線同士の交点計算
  * paper.jsのgetCurveIntersections実装を移植
@@ -26,6 +28,11 @@ export function getCurveIntersections(
   locations: CurveLocation[],
   include: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
+  counter++;
+  if (counter == 12) {
+    console.log('🔥getCurveIntersections', v1.length, v2.length, locations.length);
+  }
+
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
   const min = Math.min;
@@ -45,6 +52,9 @@ export function getCurveIntersections(
     if (overlaps) {
       for (let i = 0; i < overlaps.length; i++) {
         const overlap = overlaps[i];
+        if (counter == 11) {
+          console.log('🧊overlaps');
+        }
         addLocation(locations, include, c1, overlap[0], c2, overlap[1], true);
       }
     } else {
@@ -56,6 +66,9 @@ export function getCurveIntersections(
 
       // 直線か曲線かに基づいて適切な交点計算メソッドを決定
       if (straight) {
+        if (counter == 11) {
+          console.log('🧊line');
+        }
         addLineIntersection(
           flip ? v2 : v1,
           flip ? v1 : v2,
@@ -65,6 +78,9 @@ export function getCurveIntersections(
           include
         );
       } else if (straight1 || straight2) {
+        if (counter == 11) {
+          console.log('🧊lineCurve');
+        }
         addCurveLineIntersections(
           flip ? v2 : v1,
           flip ? v1 : v2,
@@ -75,6 +91,9 @@ export function getCurveIntersections(
           flip
         );
       } else {
+        if (counter == 11) {
+          console.log('🧊curve');
+        }
         addCurveIntersections(
           flip ? v2 : v1,
           flip ? v1 : v2,
@@ -102,6 +121,9 @@ export function getCurveIntersections(
           const p1 = new Point(v1[i1], v1[i1 + 1]);
           const p2 = new Point(v2[i2], v2[i2 + 1]);
           if (p1.isClose(p2, epsilon)) {
+            if (counter == 11) {
+              console.log('🧊special');
+            }
             addLocation(locations, include, c1, t1, c2, t2, false);
           }
         }
@@ -285,5 +307,6 @@ console.log('🔥boundsCollisions', boundsCollisions);
       }
     }
   }
+console.log('🔥getIntersections result', locations.length);
   return locations;
 }
