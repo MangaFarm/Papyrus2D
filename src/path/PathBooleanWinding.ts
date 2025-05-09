@@ -9,7 +9,6 @@ import { Point } from '../basic/Point';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveSubdivision } from './CurveSubdivision';
-import { getMeta } from './SegmentMeta';
 import { CompoundPath } from './CompoundPath';
 
 /**
@@ -44,7 +43,7 @@ export function propagateWinding(
       chain.push({ segment: seg, curve: null, length: 0 });
     }
     seg = seg ? seg.getNext() : null;
-  } while (seg && !getMeta(seg)._intersection && seg !== segment);
+  } while (seg && !seg._analysis._intersection && seg !== segment);
 
   
   // Determine winding at three points in the chain. If a winding with
@@ -131,8 +130,7 @@ export function propagateWinding(
   // 端点overlapなセグメントにもwindingをセット
   // paper.jsと同じ: chain内の全セグメントにwindingをセット
   for (let j = chain.length - 1; j >= 0; j--) {
-    const meta = getMeta(chain[j].segment);
-    meta._winding = windingResult;
+    chain[j].segment._analysis._winding = windingResult;
   }
 }
 

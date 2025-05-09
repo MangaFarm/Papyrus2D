@@ -8,7 +8,6 @@ import { Segment } from './Segment';
 import { Curve } from './Curve';
 import { Numerical } from '../util/Numerical';
 import { CurveLocation } from './CurveLocation';
-import { getMeta } from './SegmentMeta';
 
 /**
  * 交差点と重なりを区別するフィルター関数
@@ -112,7 +111,7 @@ export function divideLocations(
       }
     }
     loc._setSegment(segment!);
-    const inter = getMeta(segment!)._intersection;
+    const inter = segment!._analysis._intersection;
     const dest = loc._intersection;
     if (inter && dest) {
       linkIntersections(inter, dest);
@@ -122,7 +121,7 @@ export function divideLocations(
         other = other._next;
       }
     } else if (dest) {
-      getMeta(segment!)._intersection = dest;
+      segment!._analysis._intersection = dest;
     }
   }
   if (!clearLater) clearCurveHandles(clearCurves);

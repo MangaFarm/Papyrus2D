@@ -3,7 +3,6 @@ import { Path } from '../src/path/Path';
 import { Point } from '../src/basic/Point';
 import { Segment } from '../src/path/Segment';
 import { tracePaths } from '../src/path/PathBooleanTracePaths';
-import { getMeta } from '../src/path/SegmentMeta';
 
 describe('🔥 PathBooleanTracePaths debug', () => {
   it('🔥 should debug isValid for open path with resolve', () => {

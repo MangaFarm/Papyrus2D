@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { Path } from '../src/path/Path';
-import { getMeta } from '../src/path/SegmentMeta';
 
 describe('PathBooleanResolveCrossings debug', () => {
   it('resolveCrossings winding/isValid trace', () => {
@@ -29,7 +28,7 @@ describe('PathBooleanResolveCrossings debug', () => {
     // winding値デバッグ
     for (let i = 0; i < segs2.length; i++) {
       // Papyrus2DではwindingはgetMetaで管理
-      const winding = getMeta(segs2[i])._winding || {};
+      const winding = segs2[i]._analysis._winding || {};
     }
 
     // 期待値（paper.jsと同じ）

@@ -6,7 +6,6 @@
 import { Path } from './Path';
 import { PathItem } from './PathItem';
 import { Numerical } from '../util/Numerical';
-import { getMeta } from './SegmentMeta';
 import { Point } from '../basic/Point';
 
 /**
@@ -19,8 +18,7 @@ function setWindingInfoForPath(path: Path) {
     // ここでは単純に winding=1, windingL=0, windingR=0 をセット（open pathの単純ケース）
     // 本来はpaper.jsの_winding計算に合わせる必要があるが、まずはテスト用
     // 必要に応じてPathBooleanWinding等のロジックを使う
-    const meta = getMeta(seg);
-    meta._winding = { winding: 1, windingL: 0, windingR: 0 };
+    seg._analysis._winding = { winding: 1, windingL: 0, windingR: 0 };
   }
 }
 /**

@@ -15,7 +15,6 @@ import { CollisionDetection } from '../util/CollisionDetection';
 import { preparePath } from './PathBooleanPreparation';
 import { tracePaths } from './PathBooleanTracePaths';
 import { propagateWinding } from './PathBooleanWinding';
-import { getMeta } from './SegmentMeta';
 import { getPathMeta } from './PathMeta';
 import { divideLocations } from './PathBooleanIntersections';
 
@@ -229,8 +228,8 @@ function traceBoolean(
     }
     for (var i = 0, l = segments.length; i < l; i++) {
       var segment = segments[i],
-        inter = getMeta(segment)._intersection;
-      if (!getMeta(segment)._winding) {
+        inter = segment._analysis._intersection;
+      if (!segment._analysis._winding) {
         propagateWinding(segment, _path1, _path2, curveCollisionsMap, operator);
       }
       // See if all encountered segments in a path are overlaps.

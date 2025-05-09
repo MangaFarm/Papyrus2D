@@ -6,7 +6,6 @@
 import { Path } from './Path';
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
-import { getMeta } from './SegmentMeta';
 import { CurveLocation } from './CurveLocation';
 import { getPathMeta } from './PathMeta';
 
@@ -26,8 +25,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     starts: Segment[];
 
   function getWinding(seg: Segment) {
-    const meta = getMeta(seg);
-    const metaWinding = meta._winding!;
+    const metaWinding = seg._analysis._winding!;
     const winding = {
       winding: metaWinding?.winding ?? 0,
       windingL: metaWinding?.windingL ?? 0,
@@ -38,7 +36,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
 
   function isValid(seg: Segment | null): boolean {
     let winding: {winding: number, windingL: number, windingR: number};
-    return !!(seg && !getMeta(seg)._visited && (!operator
+    return !!(seg && !seg._analysis._visited && (!operator
             || operator[(winding = getWinding(seg)).winding]
                 // Unite operations need special handling of segments
                 // with a winding contribution of two (part of both
@@ -61,7 +59,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
   function visitPath(path: Path): void {
     var segments = path._segments;
     for (var i = 0, l = segments.length; i < l; i++) {
-      getMeta(segments[i])._visited = true;
+      segments[i]._analysis._visited = true;
     }
   }
 
@@ -69,7 +67,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
   // either connecting back to start or are not visited yet, and will be
   // part of the boolean result:
   function getCrossingSegments(segment: Segment, collectStarts: boolean): Segment[] {
-    var inter = getMeta(segment)._intersection!,
+    var inter = segment._analysis._intersection!,
       start = inter,
       crossings: Segment[] = [];
     if (collectStarts) starts = [segment];
@@ -80,7 +78,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
           path = other._path!;
         if (path) {
           var next = other.getNext() || path.getFirstSegment(),
-            nextInter = getMeta(next!)._intersection!;
+            nextInter = next!._analysis._intersection!;
           if (
             other !== segment &&
             (isStart(other) ||
@@ -109,8 +107,8 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
   // starting points when tracing: prefer segments with no intersections
   // over intersections, and process intersections with overlaps last:
   segments.sort(function (seg1: Segment, seg2: Segment): number {
-    var inter1 = getMeta(seg1)._intersection!,
-      inter2 = getMeta(seg2)._intersection!,
+    var inter1 = seg1._analysis._intersection!,
+      inter2 = seg2._analysis._intersection!,
       over1 = !!(inter1 && inter1._overlap),
       over2 = !!(inter2 && inter2._overlap),
       path1 = seg1._path!,
@@ -151,7 +149,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     if (valid && getPathMeta(seg._path!)!._overlapsOnly) {
       // TODO: Don't we also need to check for multiple overlaps?
       const path1: Path = seg._path!,
-        path2: Path = getMeta(seg)._intersection!._segment!._path!;
+        path2: Path = seg._analysis._intersection!._segment!._path!;
       if (path1.compare(path2)) {
         // Only add the path to the result if it has an area.
         if (path1.getArea()) paths.push(path1.clone(false));
@@ -182,7 +180,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // copy over its closed state, to support mixed open/closed
         // scenarios as described in #1036
         if (seg!.isFirst() || seg!.isLast()) closed = seg!._path!._closed;
-        getMeta(seg!)._visited = true;
+        seg!._analysis._visited = true;
         break;
       }
       if (cross && branch) {
@@ -211,7 +209,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
         // visited so they become available again as options.
         path!.removeSegments(branch.start);
         for (let j: number = 0, k: number = visited!.length; j < k; j++) {
-          getMeta(visited![j])._visited = false;
+          visited![j]._analysis._visited = false;
         }
         visited!.length = 0;
         // Go back to the branch's root segment where the crossing
@@ -242,7 +240,7 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
       const newSeg: Segment = new Segment(seg!._point.toPoint(), handleIn,
         next && seg!._handleOut.toPoint());
       path!.add(newSeg);
-      getMeta(seg!)._visited = true;
+      seg!._analysis._visited = true;
       visited!.push(seg!);
       seg = next || seg!._path!.getFirstSegment() || null;
       handleIn = next && next._handleIn.toPoint();

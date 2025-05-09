@@ -11,16 +11,19 @@ import { CurveLocation } from './CurveLocation';
 import { ChangeFlag, Change } from './ChangeFlag';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
-import { getMeta } from './SegmentMeta';
+import { SegmentAnalysis } from './SegmentAnalysis';
 
 export class Segment {
   _point: SegmentPoint;
   _handleIn: SegmentPoint;
   _handleOut: SegmentPoint;
-  
+
   // パスとの関連付け
   _path: Path | null;
   _index: number | null;
+
+  // SegmentAnalysis埋め込み
+  _analysis: SegmentAnalysis;
 
   // paper.jsとの互換性のためのゲッター
   get point(): Point {
@@ -56,6 +59,9 @@ export class Segment {
     this._point = new SegmentPoint(toArr(point), this);
     this._handleIn = new SegmentPoint(toArr(handleIn), this);
     this._handleOut = new SegmentPoint(toArr(handleOut), this);
+
+    // SegmentAnalysis初期化
+    this._analysis = {};
   }
 
   /**
@@ -135,12 +141,7 @@ export class Segment {
       this.getHandleIn(),
       this.getHandleOut()
     );
-    // メタ情報もコピー（winding, _intersection など）
-    const srcMeta = getMeta(this);
-    const dstMeta = getMeta(cloned);
-    if (srcMeta._winding !== undefined) dstMeta._winding = JSON.parse(JSON.stringify(srcMeta._winding));
-    if (srcMeta._intersection !== undefined) dstMeta._intersection = srcMeta._intersection;
-    if (srcMeta._path !== undefined) dstMeta._path = srcMeta._path;
+    // paper.js同様、clone時は_analysisを何もセットしない（constructorでのみ初期化）
     return cloned;
   }
 

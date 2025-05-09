@@ -7,7 +7,6 @@ import { PathItemBase } from './PathItemBase';
 import { Path } from './Path';
 import { CurveLocation } from './CurveLocation';
 import { tracePaths } from './PathBooleanTracePaths';
-import { getMeta } from './SegmentMeta';
 import { CompoundPath } from './CompoundPath';
 import { divideLocations, clearCurveHandles } from './PathBooleanIntersections';
 
@@ -97,8 +96,8 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
           if (curve1 && curve2 && curve1._path && curve2._path) return true;
           // Remove all intersections that were involved in the
           // handling of overlaps, to not confuse tracePaths().
-          if (seg1) getMeta(seg1)._intersection = null;
-          if (seg2) getMeta(seg2)._intersection = null;
+          if (seg1) seg1._analysis._intersection = null;
+          if (seg2) seg2._analysis._intersection = null;
           return false;
         } : undefined,
       clearCurves
