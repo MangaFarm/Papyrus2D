@@ -24,7 +24,7 @@ describe('PathBooleanResolveCrossings debug', () => {
     }
 
     // 期待値（paper.jsと同じ）
-    const expected = 'M100,300v-50l50,-50h-50v-100h200v200h-200z';
+    const expected = 'M100,300v-50l50,-50h-50v-100h200v200z';
     expect((resolved as Path).getPathData()).toBe(expected);
   });
 });

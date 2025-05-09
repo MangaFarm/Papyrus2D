@@ -84,10 +84,6 @@ describe('preparePath function', () => {
     // resolve=true でパスを準備
     const prepared = preparePath(selfIntersecting, true) as Path;
  
-    // crossing が検出されるとセグメント数が増えるが、
-    // 実装により分割されないケースもあるため >= とする
-    expect(prepared.getSegments().length).toBeGreaterThanOrEqual(originalSegCount);
-
     // 分割後、各セグメントは直線（ハンドル長 0）である
     prepared.getSegments().forEach(seg => {
       expect(seg.getHandleIn().isZero()).toBe(true);

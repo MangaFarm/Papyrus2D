@@ -16,6 +16,7 @@ type Branch = {
   handleIn: Point | null;
 };
 
+/*
 function show(n: number, paths: Path[]) {
   if (paths.length === 0) {
     console.log(`🔥[${n}]`, "no paths");
@@ -25,13 +26,13 @@ function show(n: number, paths: Path[]) {
   const segments = path.getSegments();
   console.log(`🔥[${n}]`, segments.length, path.getSegments().map(s => s && s.toString()));
 }
+*/
 
 /**
  * マーチングアルゴリズムによるパス構築
  * paper.jsのtracePathsアルゴリズムを忠実に移植
  */
 export function tracePaths(segments: Segment[], operator: Record<string, boolean> | null): Path[] {
-console.log("🔥[1]", segments.length, segments.map(s => s && s.toString()));
   var paths: Path[] = [],
     starts: Segment[];
 
@@ -134,7 +135,6 @@ console.log("🔥[1]", segments.length, segments.map(s => s && s.toString()));
           ? path1._id - path2._id
           : seg1._index! - seg2._index!;
   });
-console.log("🔥[2]", segments.length, segments.map(s => s && s.toString()));
 
   for (let i: number = 0, l: number = segments.length; i < l; i++) {
     let seg: Segment | null = segments[i],
@@ -148,9 +148,7 @@ console.log("🔥[2]", segments.length, segments.map(s => s && s.toString()));
       handleIn: Point | null = null;
     // If all encountered segments in a path are overlaps, we may have
     // two fully overlapping paths that need special handling.
-console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
     if (valid && seg._path!._analysis._overlapsOnly) {
-      console.log("❌️");
       // TODO: Don't we also need to check for multiple overlaps?
       const path1: Path = seg._path!,
         path2: Path = seg._analysis._intersection!._segment!._path!;
@@ -167,8 +165,6 @@ console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
     // visited, or that are not going to be part of the result).
     let counter = 0;
     while (valid) {
-      console.log("================");
-      console.log("🐕️", counter++);
       // For each segment we encounter, see if there are multiple
       // crossings, and if so, pick the best one:
       const first: boolean = !path;
@@ -183,7 +179,6 @@ console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
         // Clear branch to start a new one with each new path.
         branch = null;
       }
-      console.log("🐕️", finished, path?.getSegments().length);
       if (finished) {
         // If we end up on the first or last segment of an operand,
         // copy over its closed state, to support mixed open/closed
@@ -192,16 +187,13 @@ console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
         seg!._analysis._visited = true;
         break;
       }
-      console.log("🐕️", !!cross, !!branch);
       if (cross && branch) {
-        console.log("❌️");
         // If we're about to cross, start a new branch and add the
         // current one to the list of branches.
         branches.push(branch);
         branch = null;
       }
       if (!branch) {
-        console.log("🐕️!branch", counter, !!cross);
         // Add the branch's root segment as the last segment to try,
         // to see if we get to a solution without crossing.
         if (cross) crossings.push(seg!);
@@ -216,9 +208,7 @@ console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
       // If an invalid segment is encountered, go back to the last
       // crossing and try other possible crossings, as well as not
       // crossing at the branch's root.
-      console.log("🐕️!isValid(seg)", !isValid(seg));
       if (!isValid(seg)) {
-        console.log("❌️");
         // Remove the already added segments, and mark them as not
         // visited so they become available again as options.
         path!.removeSegments(branch.start);
@@ -256,11 +246,9 @@ console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
       path!.add(newSeg);
       seg!._analysis._visited = true;
       visited!.push(seg!);
-      console.log("🐄", visited?.map(v => v._index));
       seg = next || seg!._path!.getFirstSegment() || null;
       handleIn = next && next._handleIn.toPoint();
     }
-    console.log("🐴", finished);
     if (finished) {
       if (closed) {
         path!.getFirstSegment()?.setHandleIn(handleIn!);
@@ -272,6 +260,6 @@ console.log("🧊", i, valid, seg._path!._analysis._overlapsOnly);
       }
     }
   }
-  show(2, paths);
+  // show(2, paths);
   return paths;
 }
