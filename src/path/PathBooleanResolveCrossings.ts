@@ -57,7 +57,7 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
         seg = overlap._segment!,
         prev = seg.getPrevious()!,
         next = seg.getNext()!;
-      if (hasOverlap(prev, thisPath) && hasOverlap(next, thisPath)) {
+      if (hasOverlap(prev, path) && !hasOverlap(next, path)) {
         seg.remove();
         prev._handleOut._set(0, 0);
         next._handleIn._set(0, 0);
