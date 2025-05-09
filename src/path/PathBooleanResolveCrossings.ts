@@ -5,6 +5,7 @@
 
 import { PathItemBase } from './PathItemBase';
 import { Path } from './Path';
+import { Segment } from './Segment';
 import { CurveLocation } from './CurveLocation';
 import { tracePaths } from './PathBooleanTracePaths';
 import { CompoundPath } from './CompoundPath';
@@ -23,8 +24,8 @@ export function resolveCrossings(thisPath: PathItemBase): PathItemBase {
     paths = children || [thisPath];
 console.log("🔥 [1]", paths.map(path => path.getSegments().map(s => s && s.toString())));
 
-  function hasOverlap(seg, path) {
-    var inter = seg && seg._intersection;
+  function hasOverlap(seg: Segment | null, path: Path | null) {
+    var inter = seg && seg._analysis._intersection;
     return inter && inter._overlap && inter._path === path;
   }
 
@@ -47,6 +48,7 @@ console.log("🔥intersections2", intersections.length);
   if (hasOverlaps) {
     // First divide in all overlaps, and then remove the inside of
     // the resulting overlap ranges.
+console.log("🔥 [2]", paths[0].getSegments().length, paths.map(path => path.getSegments().map(s => s && s.toString())));
     var overlaps = divideLocations(
       intersections,
       function (inter) {
@@ -54,28 +56,35 @@ console.log("🔥intersections2", intersections.length);
       },
       clearCurves
     );
-console.log("🔥overlaps", overlaps.length);
+console.log("🔥 [3]", paths[0].getSegments().length, paths.map(path => path.getSegments().map(s => s && s.toString())));
     for (var i = overlaps.length - 1; i >= 0; i--) {
       var overlap = overlaps[i],
         path = overlap._path,
         seg = overlap._segment!,
-        prev = seg.getPrevious()!,
-        next = seg.getNext()!;
+        prev = seg.getPrevious(),
+        next = seg.getNext();
+console.log("🔥overlap", i, overlap._point, (seg && seg._index), (prev && prev._index), (next && next._index));
       if (hasOverlap(prev, path) && !hasOverlap(next, path)) {
+        console.log("ℹ️remove0", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
         seg.remove();
-        prev._handleOut._set(0, 0);
-        next._handleIn._set(0, 0);
+        console.log("ℹ️remove1", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
+        prev!._handleOut._set(0, 0);
+        next!._handleIn._set(0, 0);
         // If the curve that is left has no length, remove it
         // altogether. Check for paths with only one segment
         // before removal, since `prev.getCurve() == null`.
-        if (prev !== seg && !prev.getCurve()!.hasLength()) {
+        if (prev !== seg && !prev!.getCurve()!.hasLength()) {
           // Transfer handleIn when removing segment:
-          next._handleIn.setPoint(prev._handleIn.toPoint());
-          prev.remove();
+          next!._handleIn.setPoint(prev!._handleIn.toPoint());
+          prev!.remove();
+          console.log("ℹ️remove2", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
         }
+      } else {
+        console.log("ℹ️overlap3");
       }
     }
   }
+console.log("🔥 [4]", paths[0].getSegments().length, paths.map(path => path.getSegments().map(s => s && s.toString())));
   if (hasCrossings) {
     // Divide any remaining intersections that are still part of
     // valid paths after the removal of overlaps.
@@ -106,7 +115,6 @@ console.log("🔥overlaps", overlaps.length);
     );
     if (clearCurves) clearCurveHandles(clearCurves);
     // Finally resolve self-intersections through tracePaths()
-console.log("🔥 [2]", paths.map(path => path.getSegments().map(s => s && s.toString())));
     paths = tracePaths(paths.map(path => path.getSegments()).flat(), null);
   }
   // Determine how to return the paths: First try to recycle the

@@ -21,7 +21,7 @@ export class CurveLocation {
   _offset?: number; // パス上のオフセット（キャッシュ）
   _curveOffset?: number; // 曲線上のオフセット（キャッシュ）
   _version?: number; // パスのバージョン（キャッシュ検証用）
-  _path?: Path | null; // パス参照（キャッシュ用）
+  _path: Path | null; // パス参照（キャッシュ用）
 
   // セグメント参照用プロパティ
   _segment?: Segment | null; // 近接セグメント
