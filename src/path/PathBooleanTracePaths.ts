@@ -21,7 +21,7 @@ type Branch = {
  * paper.jsのtracePathsアルゴリズムを忠実に移植
  */
 export function tracePaths(segments: Segment[], operator: Record<string, boolean> | null): Path[] {
-console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && s._index));
+console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && s.toString()));
   var paths: Path[] = [],
     starts: Segment[];
 
@@ -153,6 +153,7 @@ console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && 
     // Do not start with invalid segments (segments that were already
     // visited, or that are not going to be part of the result).
     while (valid) {
+      console.log("💳️ while start", i);
       // For each segment we encounter, see if there are multiple
       // crossings, and if so, pick the best one:
       const first: boolean = !path;
@@ -166,14 +167,13 @@ console.log("🔥 tracePaths segments", segments.length, segments.map(s => s && 
         // Clear branch to start a new one with each new path.
         branch = null;
       }
-      console.log("🔥 finished?", i, seg && seg._index, finished);
       if (finished) {
         // If we end up on the first or last segment of an operand,
         // copy over its closed state, to support mixed open/closed
         // scenarios as described in #1036
         if (seg!.isFirst() || seg!.isLast()) closed = seg!._path!._closed;
         seg!._analysis._visited = true;
-        console.log("🔥 while finished, path so far", path && path.getPathData && path.getPathData());
+        console.log("💳️ while finished, path so far", path?.getPathData());
         break;
       }
       if (cross && branch) {

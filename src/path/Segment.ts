@@ -167,12 +167,6 @@ export class Segment {
     );
   }
 
-  /**
-   * デバッグ用の文字列表現を返す。
-   * SegmentPoint#toString() を直接呼ぶと util.inspect などの状況によっては
-   * Segment#toString() が再帰的に呼ばれるケースがあるため、各座標を
-   * プリミティブ値として展開し、確実に再帰が生じない安全な実装とする。
-   */
   toString(): string {
     const p = this._point;
     const parts: string[] = [`point: { x: ${p._x}, y: ${p._y} }`];
