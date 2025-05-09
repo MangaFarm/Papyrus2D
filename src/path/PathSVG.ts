@@ -125,8 +125,6 @@ export function fromPathData(svg: string): Path {
     current = new Point(),
     start = new Point();
 
-  console.log('parts', parts);
-
   function getCoord(index, coord) {
     var val = +coords[index];
     if (relative) val += current[coord];
@@ -137,17 +135,12 @@ export function fromPathData(svg: string): Path {
     return new Point(getCoord(index, 'x'), getCoord(index + 1, 'y'));
   }
 
-  function show(label: string) {
-    console.log(label, path.getSegments().map(s => s && s.toString()));
-  }
-
   // First clear the previous content
   const l = parts ? parts.length : 0;
   for (let i = 0; i < l; i++) {
     var part = parts![i],
       command = part[0],
       lower = command.toLowerCase();
-    console.log('part', part, lower);
     // Match all coordinate values
     coords = part.match(/[+-]?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?/g);
     var length = coords && coords.length;
@@ -166,7 +159,6 @@ export function fromPathData(svg: string): Path {
           } else {
             path.lineTo(current);
           }
-          show(lower);
           if (move) {
             start = current;
             move = false;
@@ -181,7 +173,6 @@ export function fromPathData(svg: string): Path {
         for (var j = 0; j < length; j++) {
           current[coord] = getCoord(j, coord);
           path.lineTo(current);
-          show(lower);
         }
         control = current;
         break;
