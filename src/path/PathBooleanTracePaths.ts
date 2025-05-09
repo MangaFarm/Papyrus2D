@@ -25,14 +25,11 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     starts: Segment[];
 
   function getWinding(seg: Segment) {
-    const metaWinding = seg._analysis && seg._analysis._winding;
-    if (!metaWinding) {
-      return { winding: undefined, windingL: undefined, windingR: undefined };
-    }
+    const metaWinding = seg._analysis._winding;
     return {
-      winding: metaWinding.winding,
-      windingL: metaWinding.windingL,
-      windingR: metaWinding.windingR,
+      winding: metaWinding ? metaWinding.winding : undefined,
+      windingL: metaWinding ? metaWinding.windingL : undefined,
+      windingR: metaWinding ? metaWinding.windingR : undefined,
     };
   }
 

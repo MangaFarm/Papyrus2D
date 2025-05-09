@@ -60,8 +60,8 @@ export class Segment {
     this._handleIn = new SegmentPoint(toArr(handleIn), this);
     this._handleOut = new SegmentPoint(toArr(handleOut), this);
 
-    // _analysisは初期化しない（paper.jsと同様、必要時にセット）
-    // this._analysis = {};
+    // Papyrus2Dでは_analysisは必ず空オブジェクトで初期化する（winding等は必要時にセット）
+    this._analysis = {};
   }
 
   /**
