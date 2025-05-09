@@ -60,8 +60,8 @@ export class Segment {
     this._handleIn = new SegmentPoint(toArr(handleIn), this);
     this._handleOut = new SegmentPoint(toArr(handleOut), this);
 
-    // SegmentAnalysis初期化
-    this._analysis = {};
+    // _analysisは初期化しない（paper.jsと同様、必要時にセット）
+    // this._analysis = {};
   }
 
   /**

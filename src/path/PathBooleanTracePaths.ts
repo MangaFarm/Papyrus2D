@@ -25,26 +25,27 @@ export function tracePaths(segments: Segment[], operator: Record<string, boolean
     starts: Segment[];
 
   function getWinding(seg: Segment) {
-    const metaWinding = seg._analysis._winding!;
-    const winding = {
-      winding: metaWinding?.winding ?? 0,
-      windingL: metaWinding?.windingL ?? 0,
-      windingR: metaWinding?.windingR ?? 0,
+    const metaWinding = seg._analysis && seg._analysis._winding;
+    if (!metaWinding) {
+      return { winding: undefined, windingL: undefined, windingR: undefined };
+    }
+    return {
+      winding: metaWinding.winding,
+      windingL: metaWinding.windingL,
+      windingR: metaWinding.windingR,
     };
-    return winding;
   }
 
   function isValid(seg: Segment | null): boolean {
-    let winding: {winding: number, windingL: number, windingR: number};
-    return !!(seg && !seg._analysis._visited && (!operator
-            || operator[(winding = getWinding(seg)).winding]
-                // Unite operations need special handling of segments
-                // with a winding contribution of two (part of both
-                // areas), which are only valid if they are part of the
-                // result's contour, not contained inside another area.
-                && !(operator.unite && winding.winding === 2
-                    // No contour if both windings are non-zero.
-                    && winding.windingL && winding.windingR)));
+    let winding: {winding: number | undefined, windingL: number | undefined, windingR: number | undefined};
+    if (!seg || seg._analysis._visited) return false;
+    if (!operator) return true;
+    winding = getWinding(seg);
+    if (winding.winding === undefined) return false;
+    if (!operator[winding.winding]) return false;
+    // Unite operations need special handling of segments with a winding contribution of two (part of both areas), which are only valid if they are part of the result's contour, not contained inside another area.
+    if (operator.unite && winding.winding === 2 && winding.windingL && winding.windingR) return false;
+    return true;
   }
 
   function isStart(seg: Segment | null): boolean {
