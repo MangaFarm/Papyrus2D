@@ -136,6 +136,13 @@ export class SegmentPoint {
   }
 
   /**
+   * 指定された点がこの点と等しいかどうかを判定
+   */
+  isClose(point: SegmentPoint, tolelance: number): boolean {
+    return this.getDistance(point) <= tolelance;
+  }
+
+  /**
    * 指定された点との距離を計算
    */
   getDistance(point: SegmentPoint): number {

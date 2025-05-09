@@ -789,28 +789,52 @@ export class Path extends PathItemBase {
    * パスを閉じる（paper.js互換）
    * @param tolerance 許容誤差
    */
-  closePath(tolerance: number = 0): Path {
-    // 最初と最後のセグメントの距離が許容誤差以内なら、そのまま閉じる
-    // そうでなければ、最初のセグメントへの線を追加してから閉じる
-    const firstSegment = this.getFirstSegment();
-    const lastSegment = this.getLastSegment();
+  closePath(tolerance: number): void {
+    this.setClosed(true);
+    this.join(this, tolerance);
+  }
 
-    if (firstSegment && lastSegment && !this._closed) {
-      const firstPoint = firstSegment.point;
-      const lastPoint = lastSegment.point;
-
-      if (firstPoint && lastPoint && !firstPoint.isClose(lastPoint, tolerance)) {
-        // 距離が許容誤差より大きい場合は線を追加
-        if (firstPoint.getDistance(lastPoint) > tolerance) {
-          // paper.js互換: 最初のセグメントのcloneを末尾に追加
-          this.add(firstSegment.clone());
+  join(path: Path, tolerance: number) {
+    var epsilon = tolerance || 0;
+    if (path && path !== this) {
+        var segments = path._segments,
+            last1 = this.getLastSegment(),
+            last2 = path.getLastSegment();
+        if (!last2) // an empty path?
+            return this;
+        if (last1 && last1._point.isClose(last2._point, epsilon))
+            path.reverse();
+        var first2 = path.getFirstSegment();
+        if (last1 && last1._point.isClose(first2!._point, epsilon)) {
+            last1.setHandleOut(first2!._handleOut.toPoint());
+            this._add(segments.slice(1));
+        } else {
+            var first1 = this.getFirstSegment();
+            if (first1 && first1._point.isClose(first2!._point, epsilon))
+                path.reverse();
+            last2 = path.getLastSegment();
+            if (first1 && first1._point.isClose(last2!._point, epsilon)) {
+                first1.setHandleIn(last2!._handleIn.toPoint());
+                // Prepend all segments from path except the last one.
+                this._add(segments.slice(0, segments.length - 1), 0);
+            } else {
+                this._add(segments.slice());
+            }
         }
-      }
-
-      this._closed = true;
-      this._changed(Change.SEGMENTS);
+        if (path._closed)
+            this._add([segments[0]]);
+        path._remove(true, true);
     }
-
+    // If the first and last segment touch, close the resulting path and
+    // merge the end segments. Also do this if no path argument was provided
+    // in which cases the path is joined with itself only if its ends touch.
+    var first = this.getFirstSegment(),
+        last = this.getLastSegment();
+    if (first !== last && first!._point.isClose(last!._point, epsilon)) {
+        first!.setHandleIn(last!._handleIn.toPoint());
+        last!.remove();
+        this.setClosed(true);
+    }
     return this;
   }
 

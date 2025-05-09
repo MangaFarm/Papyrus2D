@@ -125,6 +125,8 @@ export function fromPathData(svg: string): Path {
     current = new Point(),
     start = new Point();
 
+  console.log('parts', parts);
+
   function getCoord(index, coord) {
     var val = +coords[index];
     if (relative) val += current[coord];
@@ -135,12 +137,17 @@ export function fromPathData(svg: string): Path {
     return new Point(getCoord(index, 'x'), getCoord(index + 1, 'y'));
   }
 
+  function show(label: string) {
+    console.log(label, path.getSegments().map(s => s && s.toString()));
+  }
+
   // First clear the previous content
   const l = parts ? parts.length : 0;
   for (let i = 0; i < l; i++) {
     var part = parts![i],
       command = part[0],
       lower = command.toLowerCase();
+    console.log('part', part, lower);
     // Match all coordinate values
     coords = part.match(/[+-]?(?:\d*\.\d+|\d+\.?)(?:[eE][+-]?\d+)?/g);
     var length = coords && coords.length;
@@ -153,10 +160,13 @@ export function fromPathData(svg: string): Path {
       case 'l':
         var move = lower === 'm';
         for (var j = 0; j < length; j += 2) {
-          path[move ? 'moveTo' : 'lineTo']((current = getPoint(j)));
-          // 🔥DEBUG SVG: move/line
-          // eslint-disable-next-line no-console
-          console.log('🔥SVG', lower, 'seg#', path.getSegments().length, path.getSegments().map(s=>s.toString()));
+          current = getPoint(j);
+          if (move) {
+            path.moveTo(current);
+          } else {
+            path.lineTo(current);
+          }
+          show(lower);
           if (move) {
             start = current;
             move = false;
@@ -171,9 +181,7 @@ export function fromPathData(svg: string): Path {
         for (var j = 0; j < length; j++) {
           current[coord] = getCoord(j, coord);
           path.lineTo(current);
-          // 🔥DEBUG SVG: h/v
-          // eslint-disable-next-line no-console
-          console.log('🔥SVG', lower, 'seg#', path.getSegments().length, path.getSegments().map(s=>s.toString()));
+          show(lower);
         }
         control = current;
         break;
@@ -228,9 +236,6 @@ export function fromPathData(svg: string): Path {
         // Merge first and last segment with Numerical.EPSILON tolerance
         // to address imprecisions in relative SVG data.
         path.closePath(/*#=*/ Numerical.EPSILON);
-        // 🔥DEBUG SVG: close
-        // eslint-disable-next-line no-console
-        console.log('🔥SVG', lower, 'seg#', path.getSegments().length, path.getSegments().map(s=>s.toString()));
         // Correctly handle relative m commands, see #1101:
         current = start;
         break;
