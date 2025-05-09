@@ -26,6 +26,7 @@ console.log("🔥 [1]", paths.map(path => path.getSegments().map(s => s && s.toS
 
   function hasOverlap(seg: Segment | null, path: Path | null) {
     var inter = seg && seg._analysis._intersection;
+console.log("🐕️", (inter && inter._point), (inter && inter._overlap), (inter && inter._path && inter._path._id), (path && path._id), (inter && inter._path === path), (inter && inter._overlap && inter._path === path));
     return inter && inter._overlap && inter._path === path;
   }
 
@@ -64,10 +65,10 @@ console.log("🔥 [3]", paths[0].getSegments().length, paths.map(path => path.ge
         prev = seg.getPrevious(),
         next = seg.getNext();
 console.log("🔥overlap", i, overlap._point, (seg && seg._index), (prev && prev._index), (next && next._index));
-      if (hasOverlap(prev, path) && !hasOverlap(next, path)) {
-        console.log("ℹ️remove0", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
+      if (hasOverlap(prev, path) && hasOverlap(next, path)) {
+console.log("ℹ️remove0", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
         seg.remove();
-        console.log("ℹ️remove1", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
+console.log("ℹ️remove1", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
         prev!._handleOut._set(0, 0);
         next!._handleIn._set(0, 0);
         // If the curve that is left has no length, remove it
@@ -77,10 +78,10 @@ console.log("🔥overlap", i, overlap._point, (seg && seg._index), (prev && prev
           // Transfer handleIn when removing segment:
           next!._handleIn.setPoint(prev!._handleIn.toPoint());
           prev!.remove();
-          console.log("ℹ️remove2", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
+console.log("ℹ️remove2", i, (seg.getPrevious() && seg.getPrevious()!._index), (seg.getNext() && seg.getNext()!._index));
         }
       } else {
-        console.log("ℹ️overlap3");
+console.log("ℹ️overlap3");
       }
     }
   }
