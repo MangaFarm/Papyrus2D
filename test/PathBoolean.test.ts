@@ -1,34 +1,26 @@
 // vitest形式への変換: PathBoolean.test.ts (Papyrus2D正式API対応)
 import { describe, it, expect } from 'vitest';
 import { Path } from '../src/path/Path';
+import { PathItem } from '../src/path/PathItem';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { PathConstructors } from '../src/path/PathConstructors';
 import { unite, subtract, intersect, exclude, divide } from '../src/path/PathBoolean';
 
 // QUnitのcompareBoolean/equals/testをvitest形式に変換
-function compareBoolean(actualFn: () => any, expected: any, message?: string, options?: any) {
-  const actual = typeof actualFn === 'function' ? actualFn() : actualFn;
-  if (expected && typeof expected === 'object' && 'segments' in expected) {
-    expect(actual.segments).toEqual(expected.segments);
-  } else {
-    // 常にSVGパスデータで比較
-    const actualPathData = (actual && typeof actual.getPathData === 'function')
-      ? actual.getPathData()
-      : ((actual as any).pathData ?? (actual + ''));
-    expect(actualPathData).toBe(expected + '');
-  }
+function compareBoolean(f: () => PathItem, expected: string, message?: string) {
+  expect((f() as Path).getPathData(), message).toBe(expected);
 }
 
 describe('Path Boolean Operations', () => {
   function testOperations(path1: any, path2: any, results: string[]) {
-    compareBoolean(() => unite(path1, path2), results[0]);
-    compareBoolean(() => unite(path2, path1), results[0]);
-    compareBoolean(() => subtract(path1, path2), results[1]);
-    compareBoolean(() => subtract(path2, path1), results[2]);
-    compareBoolean(() => intersect(path1, path2), results[3]);
-    compareBoolean(() => intersect(path2, path1), results[3]);
-    compareBoolean(() => exclude(path1, path2), results[4]);
-    compareBoolean(() => exclude(path2, path1), results[4]);
+    compareBoolean(() => unite(path1, path2), results[0], 'unite1');
+    compareBoolean(() => unite(path2, path1), results[0], 'unite2');
+    compareBoolean(() => subtract(path1, path2), results[1], 'subtract1');
+    compareBoolean(() => subtract(path2, path1), results[2], 'subtract2');
+    compareBoolean(() => intersect(path1, path2), results[3], 'intersect1');
+    compareBoolean(() => intersect(path2, path1), results[3], 'intersect2');
+    compareBoolean(() => exclude(path1, path2), results[4], 'exclude1');
+    compareBoolean(() => exclude(path2, path1), results[4], 'exclude2');
   }
 
   it('Boolean operations without crossings', () => {
@@ -62,7 +54,7 @@ describe('Path Boolean Operations', () => {
     ]);
   });
 
-  it.skip('frame.intersect(rect)', () => {
+  it('frame.intersect(rect)', () => {
     const frame = new CompoundPath();
     frame.addChild(PathConstructors.Rectangle({ point: { x: 140, y: 10 }, size: { width: 100, height: 300 } }));
     frame.addChild(PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } }));
@@ -71,7 +63,7 @@ describe('Path Boolean Operations', () => {
     compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');
   });
 
-  it.skip('PathItem#resolveCrossings()', () => {
+  it('PathItem#resolveCrossings()', () => {
     const paths = [
       'M100,300l0,-50l50,-50l-50,0l150,0l-150,0l50,0l-50,0l100,0l-100,0l0,-100l200,0l0,200z',
       'M50,300l0,-150l50,25l0,-75l200,0l0,200z M100,200l50,0l-50,-25z',
@@ -88,11 +80,9 @@ describe('Path Boolean Operations', () => {
     ];
     for (let i = 0; i < paths.length; i++) {
       const path = Path.fromPathData(paths[i]);
-      const result = Path.fromPathData(results[i]);
-      (path as any).fillRule = 'evenodd';
-      const resolved = (path as any).resolveCrossings();
-      if (resolved.getSegments) {
-      }
+      const result = results[i];
+      path._style.fillRule = 'evenodd';
+      const resolved = path.resolveCrossings();
       compareBoolean(
         () => resolved,
         result,

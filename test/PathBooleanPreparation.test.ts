@@ -79,10 +79,8 @@ describe('preparePath function', () => {
     selfIntersecting.lineTo(new Point(0, 150));
     selfIntersecting.close();
 
-    const originalSegCount = selfIntersecting.getSegments().length;
-
     // resolve=true でパスを準備
-    const prepared = preparePath(selfIntersecting, true) as Path;
+    const prepared = preparePath(selfIntersecting, true);
  
     // 分割後、各セグメントは直線（ハンドル長 0）である
     prepared.getSegments().forEach(seg => {
