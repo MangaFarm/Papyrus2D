@@ -14,8 +14,6 @@ import { addLocation, getSelfIntersection } from './CurveIntersectionBase';
 import { addLineIntersection, addCurveLineIntersections } from './CurveIntersectionSpecial';
 import { addCurveIntersections } from './CurveIntersectionConvexHull';
 
-export let counter =0;
-
 /**
  * 曲線同士の交点計算
  * paper.jsのgetCurveIntersections実装を移植
@@ -28,9 +26,6 @@ export function getCurveIntersections(
   locations: CurveLocation[],
   include: (loc: CurveLocation) => boolean
 ): CurveLocation[] {
-  counter++;
-  console.log('🔥getCurveIntersections', counter, locations.length);
-
   // 境界ボックスが完全に外れている場合はチェックしない
   const epsilon = Numerical.GEOMETRIC_EPSILON;
   const min = Math.min;
@@ -48,18 +43,9 @@ export function getCurveIntersections(
     // オーバーラップの検出と処理
     const overlaps = getOverlaps(v1, v2);
     if (overlaps) {
-      if (counter == 13) {
-        console.log('🧊cond', overlaps.length);
-      }
       for (let i = 0; i < overlaps.length; i++) {
         const overlap = overlaps[i];
-        if (counter == 13) {
-          console.log('overlap', overlap);
-        }
         addLocation(locations, include, c1, overlap[0], c2, overlap[1], true);
-      }
-      if (counter == 13) {
-        console.log('🧊after overlaps', locations.length);
       }
     } else {
       // 曲線の直線性を判定
@@ -242,7 +228,6 @@ export function getIntersections(
   matrix2?: Matrix | null,
   _returnFirst?: boolean
 ): CurveLocation[] {
-console.log('🔥Curve.getIntersections');
   var epsilon = /*#=*/ Numerical.GEOMETRIC_EPSILON,
     self = !curves2;
   if (self) curves2 = curves1;
@@ -261,7 +246,6 @@ console.log('🔥Curve.getIntersections');
     }
   }
   var boundsCollisions = CollisionDetection.findCurveBoundsCollisions(values1, values2, epsilon, false);
-console.log('🔥boundsCollisions', boundsCollisions);
   for (var index1 = 0; index1 < length1; index1++) {
     var curve1 = curves1[index1],
       v1 = values1[index1];
@@ -285,6 +269,5 @@ console.log('🔥boundsCollisions', boundsCollisions);
       }
     }
   }
-console.log('🔥getIntersections result', locations.length);
   return locations;
 }

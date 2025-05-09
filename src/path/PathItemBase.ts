@@ -251,18 +251,10 @@ export abstract class PathItemBase implements PathItem {
     _targetMatrix: Matrix | null,
     _returnFirst: boolean
   ): CurveLocation[] {
-console.log("🔥PathItemBase.getIntersections");
     const self = this === targetPath; // 自己交差
     const matrix1 = this._matrix ? this._matrix._orNullIfIdentity() : null;
     const matrix2 = self ? matrix1
       : (_targetMatrix ?? targetPath._matrix)._orNullIfIdentity();
-
-    if (!self) {
-      console.log("🔥PathItemBase.getIntersections2", this.getBounds(matrix1, {}).intersects(
-        (targetPath as PathItemBase).getBounds(matrix2, {}), /*#=*/Numerical.EPSILON));
-    } else {
-      console.log("🔥PathItemBase.getIntersections, self");
-    }
 
     const curves1 = this.getCurves();
     const curves2 = self ? null : targetPath.getCurves();
