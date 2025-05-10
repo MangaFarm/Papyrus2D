@@ -1,4 +1,5 @@
 import { Resvg } from '@resvg/resvg-js';
+import fs from 'fs';
 
 /**
  * 2つのSVG pathDataをピクセル単位で比較するユーティリティ
@@ -54,8 +55,7 @@ export async function saveAsPng(pathData: string, filename: string): Promise<voi
     });
     const rendered = resvg.render();
     const buffer = rendered.asPng();
-    const fs = require('fs');
-    fs.writeFileSync(filename, buffer);
+    fs.writeFileSync("output/" + filename, buffer);
 }   
 
 export async function saveAsPng2(pathData1: string, pathData2: string, filename: string): Promise<void> {
@@ -69,8 +69,7 @@ export async function saveAsPng2(pathData1: string, pathData2: string, filename:
     });
     const rendered = resvg.render();
     const buffer = rendered.asPng();
-    const fs = require('fs');
-    fs.writeFileSync(filename, buffer);
+    fs.writeFileSync("output/" + filename, buffer);
 }
 
 /**
