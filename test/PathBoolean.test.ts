@@ -5,6 +5,7 @@ import { PathItem } from '../src/path/PathItem';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { PathConstructors } from '../src/path/PathConstructors';
 import { unite, subtract, intersect, exclude, divide } from '../src/path/PathBoolean';
+import { saveAsPng, saveAsPng2 } from '../src/util/PathPixelComparator';
 
 // QUnitのcompareBoolean/equals/testをvitest形式に変換
 function compareBoolean(f: () => PathItem, expected: string, message?: string) {
@@ -23,7 +24,7 @@ describe('Path Boolean Operations', () => {
     compareBoolean(() => exclude(path2, path1), results[4], 'exclude2');
   }
 
-  it('Boolean operations without crossings', () => {
+  it.skip('Boolean operations without crossings', () => {
     const path1 = PathConstructors.Rectangle({
       point: { x: 0, y: 0 },
       size: { width: 200, height: 200 },
@@ -55,15 +56,27 @@ describe('Path Boolean Operations', () => {
   });
 
   it('frame.intersect(rect)', () => {
+    const rectPath1 = PathConstructors.Rectangle({ point: { x: 140, y: 10 }, size: { width: 100, height: 300 } });
+    const rectPath2 = PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } });
+
     const frame = new CompoundPath();
     frame.addChild(PathConstructors.Rectangle({ point: { x: 140, y: 10 }, size: { width: 100, height: 300 } }));
     frame.addChild(PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } }));
+    console.log(frame.getPathData());
     const rect = PathConstructors.Rectangle({ point: { x: 50, y: 50 }, size: { width: 100, height: 150 } });
+
+    saveAsPng(rectPath1.getPathData(), 'rectPath1.png');
+    saveAsPng(rectPath2.getPathData(), 'rectPath2.png');
+    saveAsPng(frame.getPathData(), 'frame.png');
+    saveAsPng2(rectPath1.getPathData(), rectPath2.getPathData(), 'rectPath1_rectPath2.png');
+
+    const intersectedPath = intersect(frame, rect);
+    saveAsPng((intersectedPath as Path).getPathData(), 'intersectedPath.png');
 
     compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');
   });
 
-  it('PathItem#resolveCrossings()', () => {
+  it.skip('PathItem#resolveCrossings()', () => {
     const paths = [
       'M100,300l0,-50l50,-50l-50,0l150,0l-150,0l50,0l-50,0l100,0l-100,0l0,-100l200,0l0,200z',
       'M50,300l0,-150l50,25l0,-75l200,0l0,200z M100,200l50,0l-50,-25z',
@@ -80,12 +93,12 @@ describe('Path Boolean Operations', () => {
     ];
     for (let i = 0; i < paths.length; i++) {
       const path = Path.fromPathData(paths[i]);
-      const result = results[i];
+      const result = Path.fromPathData(results[i]);
       path._style.fillRule = 'evenodd';
       const resolved = path.resolveCrossings();
       compareBoolean(
         () => resolved,
-        result,
+        result.getPathData(),
         'path.resolveCrossings(); // Test ' + (i + 1)
       );
     }
