@@ -13,7 +13,6 @@ import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { SegmentPoint } from './SegmentPoint';
 import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBase';
-import { PathArc } from './PathArc';
 import { ChangeFlag, Change } from './ChangeFlag';
 import { PathConstructors } from './PathConstructors';
 import { PathAnalysis } from './PathAnalysis';
@@ -25,6 +24,7 @@ import * as PathBooleanResolveCrossings from './PathBooleanResolveCrossings';
 import * as PathBoolean from './PathBoolean';
 import * as PathComponents from './PathComponents';
 import * as PathTransform from './PathTransform';
+import * as PathArc from './PathArc';
 
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
 // 強烈に邪悪なことをしているので、それに対応
