@@ -24,6 +24,7 @@ import { resolveCrossings } from './PathBooleanResolveCrossings';
 import { join } from './PathBoolean';
 import { PathAnalysis } from './PathAnalysis';
 import { insertSegments, removeSegments } from './PathComponents';
+import * as PathTransform from './PathTransform';
 
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
 // 強烈に邪悪なことをしているので、それに対応
@@ -273,78 +274,19 @@ export class Path extends PathItemBase {
   }
 
   transform(matrix: Matrix): Path {
-    this._matrix = matrix;
-    this._matrixDirty = true;
-    this._length = this._area = undefined;
-    this._bounds = undefined;
-    return this;
+    return PathTransform.transform(this, matrix);
   }
 
   translate(dx: number, dy: number): Path {
-    if (!this._matrix) {
-      this._matrix = Matrix.identity();
-    }
-    this._matrix = this._matrix.translate(dx, dy);
-    this._matrixDirty = true;
-    this._length = this._area = undefined;
-    this._bounds = undefined;
-    return this;
+    return PathTransform.translate(this, dx, dy);
   }
 
   rotate(angle: number, center?: Point): Path {
-    if (!this._matrix) {
-      this._matrix = Matrix.identity();
-    }
-    this._matrix = this._matrix.rotate(angle, center);
-    this._matrixDirty = true;
-    this._length = this._area = undefined;
-    this._bounds = undefined;
-    return this;
+    return PathTransform.rotate(this, angle, center);
   }
 
   scale(sx: number, sy?: number, center?: Point): Path {
-    if (!this._matrix) {
-      this._matrix = Matrix.identity();
-    }
-    this._matrix = this._matrix.scale(sx, sy, center);
-    this._matrixDirty = true;
-    this._length = this._area = undefined;
-    this._bounds = undefined;
-
-    // カーブのキャッシュもクリア
-    if (this._curves) {
-      for (let i = 0, l = this._curves.length; i < l; i++) {
-        this._curves[i]._changed();
-      }
-    }
-
-    // セグメントを直接変換して、カーブの長さを正しく更新
-    const segments = this._segments;
-    const actualSy = sy === undefined ? sx : sy;
-    const centerPoint = center || new Point(0, 0);
-
-    for (let i = 0, l = segments.length; i < l; i++) {
-      const segment = segments[i];
-
-      // SegmentPointオブジェクトを直接操作
-      const point = segment._point;
-      const handleIn = segment._handleIn;
-      const handleOut = segment._handleOut;
-
-      // 点を変換
-      const px = point._x;
-      const py = point._y;
-      point._set(
-        centerPoint.x + (px - centerPoint.x) * sx,
-        centerPoint.y + (py - centerPoint.y) * actualSy
-      );
-
-      // ハンドルを変換（ハンドルは相対座標なので中心点は考慮しない）
-      handleIn._set(handleIn._x * sx, handleIn._y * actualSy);
-      handleOut._set(handleOut._x * sx, handleOut._y * actualSy);
-    }
-
-    return this;
+    return PathTransform.scale(this, sx, sy, center);
   }
 
   _countCurves(): number {
