@@ -6,7 +6,6 @@
  */
 
 import { Point } from '../basic/Point';
-import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
 import { Curve } from './Curve';
 import { Segment } from './Segment';
