@@ -18,22 +18,22 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
   if (segments.length === 0) {
     return new Rectangle(0, 0, 0, 0);
   }
-  
+
   // Paper.jsと同じアプローチを使用
   const first = segments[0];
   // 空のパスの場合は空の矩形を返す
   if (!first) {
     return new Rectangle(0, 0, 0, 0);
   }
-  
+
   let coords = new Array(6);
   // 最初のセグメントの座標を取得
   let prevCoords = new Array(6);
   first._transformCoordinates(null, prevCoords, true);
-  
+
   const min = prevCoords.slice(0, 2); // 最初の点の値で初期化
   const max = min.slice(); // クローン
-  
+
   const roots = new Array(2);
 
   // 各セグメントを処理する関数
@@ -43,10 +43,10 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
     for (let i = 0; i < 2; i++) {
       // Paper.jsのCurve._addBoundsと同じロジック
       addBezierBounds(
-        prevCoords[i],      // prev.point
-        prevCoords[i + 4],  // prev.handleOut
-        coords[i + 2],      // segment.handleIn
-        coords[i],          // segment.point
+        prevCoords[i], // prev.point
+        prevCoords[i + 4], // prev.handleOut
+        coords[i + 2], // segment.handleIn
+        coords[i], // segment.point
         i,
         Array.isArray(padding) ? padding[i] : padding,
         min,
@@ -65,54 +65,59 @@ export function computeBounds(segments: Segment[], closed: boolean, padding: num
   for (let i = 1, l = segments.length; i < l; i++) {
     processSegment(segments[i]);
   }
-  
+
   // 閉じたパスの場合、最初のセグメントも処理
   if (closed) {
     processSegment(first);
   }
-  
+
   const result = new Rectangle(min[0], min[1], max[0] - min[0], max[1] - min[1]);
   return result;
 }
 
 // Paper.jsのCurve._addBoundsと同等の関数
 function addBezierBounds(
-  v0: number, v1: number, v2: number, v3: number,
-  coord: number, padding: number,
-  min: number[], max: number[],
+  v0: number,
+  v1: number,
+  v2: number,
+  v3: number,
+  coord: number,
+  padding: number,
+  min: number[],
+  max: number[],
   roots: number[]
 ) {
   // 制御点の最小値と最大値を計算
   let minV = Math.min(v0, v3);
   let maxV = Math.max(v0, v3);
-  
+
   // ハンドルを考慮して境界を拡張
   if (v1 < minV) minV = v1;
   if (v1 > maxV) maxV = v1;
   if (v2 < minV) minV = v2;
   if (v2 > maxV) maxV = v2;
-  
+
   // パディングを適用
   min[coord] = Math.min(min[coord], minV - padding);
   max[coord] = Math.max(max[coord], maxV + padding);
-  
+
   // 極値を計算して境界を拡張
   // 1次導関数の係数
   const a = 3 * (v1 - v2) - v0 + v3;
   const b = 2 * (v0 - 2 * v1 + v2);
   const c = v1 - v0;
-  
+
   // 2次方程式を解いて極値を求める
   let count = 0;
   if (Math.abs(a) > Numerical.EPSILON) {
     // 2次方程式
     const discriminant = b * b - 4 * a * c;
-    
+
     if (discriminant >= 0) {
       const sqrtDisc = Math.sqrt(discriminant);
       const t1 = (-b + sqrtDisc) / (2 * a);
       const t2 = (-b - sqrtDisc) / (2 * a);
-      
+
       // 0から1の範囲内の解のみを考慮
       if (t1 >= 0 && t1 <= 1) {
         roots[count++] = t1;
@@ -124,18 +129,18 @@ function addBezierBounds(
   } else if (Math.abs(b) > Numerical.EPSILON) {
     // 1次方程式
     const t = -c / b;
-    
+
     if (t >= 0 && t <= 1) {
       roots[count++] = t;
     }
   }
-  
+
   // 極値での座標を計算して境界を拡張
   for (let i = 0; i < count; i++) {
     const t = roots[i];
     const u = 1 - t;
     const bezierValue = u * u * u * v0 + 3 * u * u * t * v1 + 3 * u * t * t * v2 + t * t * t * v3;
-    
+
     min[coord] = Math.min(min[coord], bezierValue - padding);
     max[coord] = Math.max(max[coord], bezierValue + padding);
   }
@@ -156,7 +161,7 @@ export function isOnPath(
   epsilon = Numerical.GEOMETRIC_EPSILON
 ): boolean {
   // Paper.jsと同じアプローチを使用
-  
+
   // 頂点判定
   for (let i = 0, l = segments.length; i < l; i++) {
     const seg = segments[i];
@@ -168,10 +173,10 @@ export function isOnPath(
   // 辺上判定
   for (let i = 0, l = curves.length; i < l; i++) {
     const curve = curves[i];
-    
+
     // 曲線の値を取得
     const v = curve.getValues();
-    
+
     // 直線の場合は簡易判定
     if (Curve.isStraight(v)) {
       const p1 = curve._segment1.point;
@@ -221,29 +226,30 @@ export function getIntersections(
 ): CurveLocation[] {
   // 自己交差判定
   const self = curves1 === curves2 || !curves2;
-  
+
   // 行列変換処理
   let matrix1Null: Matrix | null = null;
-  
+
   if (matrix1) {
     matrix1Null = matrix1._orNullIfIdentity ? matrix1._orNullIfIdentity() : matrix1;
   }
-  
+
   let matrix2Null: Matrix | null = null;
   if (self) {
     matrix2Null = matrix1Null;
   } else if (matrix2) {
     matrix2Null = matrix2._orNullIfIdentity ? matrix2._orNullIfIdentity() : matrix2;
   }
-  
+
   // 境界ボックスチェックはPath.getIntersectionsで行うため、ここでは行わない
   return Curve.getIntersections(
-          curves1,
-          !self && curves2 || null,
-          include,
-          matrix1Null,
-          matrix2Null,
-          _returnFirst);
+    curves1,
+    (!self && curves2) || null,
+    include,
+    matrix1Null,
+    matrix2Null,
+    _returnFirst
+  );
 }
 
 /**
@@ -265,15 +271,29 @@ export function contains(
   }
 ): boolean {
   // Paper.jsと同じアプローチを使用
-  
+
   // デフォルトはeven-oddルール
   const rule = options?.rule || 'evenodd';
-  
+
   // winding numberを計算
   const wind = getWinding(point, curves);
-  
+
   // Paper.jsと同じ判定ロジック
-  return wind.onPath || !!(rule === 'evenodd'
-    ? wind.windingL & 1 || wind.windingR & 1
-    : wind.winding);
+  return (
+    wind.onPath || !!(rule === 'evenodd' ? wind.windingL & 1 || wind.windingR & 1 : wind.winding)
+  );
+}
+
+export function getArea(segments: Segment[], closed: boolean): number {
+  let area = 0;
+
+  for (let i = 0, l = segments.length; i < l; i++) {
+    const last = i + 1 === l;
+
+    area += Curve.getArea(
+      Curve.getValues(segments[i], segments[last ? 0 : i + 1], null, last && !closed)
+    );
+  }
+
+  return area;
 }

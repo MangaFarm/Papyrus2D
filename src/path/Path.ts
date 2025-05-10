@@ -12,11 +12,10 @@ import { Curve } from './Curve';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
 import { SegmentPoint } from './SegmentPoint';
-import { Numerical } from '../util/Numerical';
 import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag, Change } from './ChangeFlag';
-import { computeBounds, getIntersections, contains } from './PathGeometry';
+import { computeBounds, contains, getArea } from './PathGeometry';
 import { PathFlattener } from './PathFlattener';
 import { PathFitter } from './PathFitter';
 import { toPathData, fromPathData } from './PathSVG';
@@ -33,7 +32,7 @@ type SegmentsWithCurves = Array<Segment> & { _curves?: Curve[] };
 
 export class Path extends PathItemBase {
     _analysis: PathAnalysis;
-  // 静的メソッド
+
   static get Line() {
     return PathConstructors.Line;
   }
@@ -55,7 +54,7 @@ export class Path extends PathItemBase {
   static get Star() {
     return PathConstructors.Star;
   }
-  // PathItemBaseから継承したプロパティ以外のプロパティ
+
   _segments: Segment[];
   _closed: boolean;
   _curves: Curve[] | null;
@@ -65,39 +64,23 @@ export class Path extends PathItemBase {
   constructor(segments: Segment[] = [], closed: boolean = false) {
     super();
     this._segments = [];
-    this._closed = false;
+    this._closed = closed;
     this._curves = null;
     this._analysis = new PathAnalysis();
 
-    // セグメントがある場合は追加
     if (segments.length > 0) {
       this.setSegments(segments);
     }
-
-    // 閉じたパスの場合は設定
-    if (closed) {
-      this._closed = closed;
-    }
   }
 
-  /**
-   * セグメントの数を取得
-   */
   get segmentCount(): number {
     return this._segments.length;
   }
 
-  /**
-   * セグメント配列を取得
-   */
   getSegments(): Segment[] {
     return this._segments;
   }
 
-  /**
-   * セグメント配列を設定
-   * @param segments 新しいセグメント配列
-   */
   setSegments(segments: Segment[]): void {
     this._curves = null;
     this._segments.length = 0;
@@ -107,10 +90,6 @@ export class Path extends PathItemBase {
     }
   }
 
-  /**
-   * 複数のセグメントを追加
-   * @param segments 追加するセグメント配列
-   */
   _add(segs: SegmentsWithCurves, index?: number): Segment[] {
     // Local short-cuts:
     var segments = this._segments,
@@ -163,9 +142,6 @@ export class Path extends PathItemBase {
     return segs;
   }
 
-  /**
-   * カーブのセグメントを調整する内部メソッド
-   */
   _adjustCurves(start: number, end: number): void {
     var segments = this._segments,
       curves = this._curves!,
@@ -190,38 +166,22 @@ export class Path extends PathItemBase {
     }
   }
 
-  /**
-   * 複数のセグメントを追加
-   * @param segments 追加するセグメント配列
-   */
   addSegments(segments: Segment[]): Segment[] {
     return this._add(segments);
   }
 
-  /**
-   * 最初のセグメントを取得
-   */
   getFirstSegment(): Segment | undefined {
     return this._segments[0];
   }
 
-  /**
-   * 最後のセグメントを取得
-   */
   getLastSegment(): Segment | undefined {
     return this._segments[this._segments.length - 1];
   }
 
-  /**
-   * パスが閉じているかどうかを取得
-   */
   isClosed(): boolean {
     return this._closed;
   }
 
-  /**
-   * パスを閉じるかどうかを設定
-   */
   setClosed(closed: boolean): void {
     if (this._closed != (closed = !!closed)) {
       this._closed = closed;
@@ -237,9 +197,6 @@ export class Path extends PathItemBase {
     }
   }
 
-  /**
-   * PathItemインターフェースの実装のためのgetter
-   */
   get closed(): boolean {
     return this._closed;
   }
@@ -256,38 +213,14 @@ export class Path extends PathItemBase {
     return this._length!;
   }
 
-  /**
-   * パスの面積を計算します。自己交差するパスの場合、
-   * 互いに打ち消し合うサブエリアが含まれる場合があります。
-   *
-   * @return {number} パスの面積
-   */
   getArea(): number {
     if (this._area == null) {
-      const segments = this._segments;
-      const closed = this._closed;
-      let area = 0;
-
-      for (let i = 0, l = segments.length; i < l; i++) {
-        const last = i + 1 === l;
-
-        // Paper.jsと完全に同じ処理
-        area += Curve.getArea(
-          Curve.getValues(segments[i], segments[last ? 0 : i + 1], null, last && !closed)
-        );
-      }
-
-      this._area = area; // 符号を保持する（時計回り判定に使用）
+      this._area = getArea(this._segments, this._closed);
     }
 
     return this._area!;
   }
 
-  /**
-   * パスが時計回りかどうかを判定
-   * paper.jsのisClockwise()メソッドを移植
-   * @returns 時計回りならtrue
-   */
   isClockwise(): boolean {
     return this.getArea() >= 0;
   }
@@ -296,11 +229,6 @@ export class Path extends PathItemBase {
       return { rect: this.getBounds(matrix, options) };
   }
 
-  /**
-   * パスの境界ボックスを取得
-   * @param matrix 変換行列（オプション）
-   * @returns 境界ボックス
-   */
   getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
     let bounds = this._computeBounds(0);
     if (matrix) {
@@ -309,11 +237,6 @@ export class Path extends PathItemBase {
     return bounds;
   }
 
-  /**
-   * ストローク境界計算
-   * @param strokeWidth 線幅
-   * @param matrix 変換行列（オプション）
-   */
   getStrokeBounds(strokeWidth: number, matrix?: Matrix | null): Rectangle {
     // strokeWidth/2をpaddingとしてAABB拡張
     let bounds = this._computeBounds(strokeWidth / 2);
@@ -326,28 +249,15 @@ export class Path extends PathItemBase {
     return bounds;
   }
 
-  /**
-   * 内部: paddingを加味したAABB計算
-   */
   private _computeBounds(padding: number): Rectangle {
     return computeBounds(this._segments, this._closed, padding);
   }
 
-  /**
-   * 指定されたパラメータ位置のパス上の点を取得
-   * @param t パラメータ位置（0〜1）
-   * @returns パス上の点
-   */
   getPointAt(t: number): Point {
     const loc = this.getLocationAt(t);
     return loc ? loc.getPoint() : new Point(0, 0);
   }
 
-  /**
-   * 指定された点がパス上にある場合、その位置情報を取得
-   * @param point パス上の点
-   * @returns 曲線位置情報
-   */
   getLocationOf(point: Point): CurveLocation | null {
     const curves = this.getCurves();
     for (let i = 0, l = curves.length; i < l; i++) {
@@ -359,21 +269,11 @@ export class Path extends PathItemBase {
     return null;
   }
 
-  /**
-   * 指定された点までのパスの長さを取得
-   * @param point パス上の点
-   * @returns パスの長さ
-   */
   getOffsetOf(point: Point): number | null {
     const loc = this.getLocationOf(point);
     return loc ? loc.getOffset() : null;
   }
 
-  /**
-   * 指定されたオフセット位置のパス上の位置情報を取得
-   * @param offset オフセット位置（0〜getLength()）
-   * @returns 曲線位置情報
-   */
   getLocationAt(offset: number): CurveLocation | null {
     const curves = this.getCurves();
     const length = curves.length;
@@ -406,11 +306,6 @@ export class Path extends PathItemBase {
     return null;
   }
 
-  /**
-   * 指定されたパラメータ位置のパス上の接線ベクトルを取得
-   * @param offset オフセット位置（0〜getLength()）
-   * @returns 接線ベクトル
-   */
   getTangentAt(offset: number): Point {
     const loc = this.getLocationAt(offset);
     if (loc) {
@@ -422,13 +317,6 @@ export class Path extends PathItemBase {
     return new Point(0,0);
   }
 
-  /**
-   * 点がパス内部にあるかどうかを判定（paper.js完全版）
-   * @param point 判定する点
-   * @param options オプション
-   * @param options.rule 判定ルール（'evenodd'または'nonzero'）
-   * @returns 内部ならtrue、外部またはパス上ならfalse
-   */
   contains(
     point: Point,
     options?: {
@@ -438,66 +326,42 @@ export class Path extends PathItemBase {
     return contains(this._segments, this._closed, this.getCurves(), point, options);
   }
 
-  /**
-   * 変換行列を設定
-   * @param matrix 変換行列
-   */
   transform(matrix: Matrix): Path {
     this._matrix = matrix;
     this._matrixDirty = true;
-    // ジオメトリが変更されたことを記録
     this._length = this._area = undefined;
     this._bounds = undefined;
     return this;
   }
 
-  /**
-   * 平行移動
-   * @param dx x方向の移動量
-   * @param dy y方向の移動量
-   */
   translate(dx: number, dy: number): Path {
     if (!this._matrix) {
       this._matrix = Matrix.identity();
     }
     this._matrix = this._matrix.translate(dx, dy);
     this._matrixDirty = true;
-    // ジオメトリが変更されたことを記録
     this._length = this._area = undefined;
     this._bounds = undefined;
     return this;
   }
 
-  /**
-   * 回転
-   * @param angle 回転角度（度）
-   * @param center 回転中心
-   */
   rotate(angle: number, center?: Point): Path {
     if (!this._matrix) {
       this._matrix = Matrix.identity();
     }
     this._matrix = this._matrix.rotate(angle, center);
     this._matrixDirty = true;
-    // ジオメトリが変更されたことを記録
     this._length = this._area = undefined;
     this._bounds = undefined;
     return this;
   }
 
-  /**
-   * スケーリング
-   * @param sx x方向のスケール
-   * @param sy y方向のスケール
-   * @param center スケーリングの中心
-   */
   scale(sx: number, sy?: number, center?: Point): Path {
     if (!this._matrix) {
       this._matrix = Matrix.identity();
     }
     this._matrix = this._matrix.scale(sx, sy, center);
     this._matrixDirty = true;
-    // ジオメトリが変更されたことを記録
     this._length = this._area = undefined;
     this._bounds = undefined;
 
@@ -537,10 +401,6 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * パスのカーブの数を計算する
-   * セグメント数と閉じているかどうかに基づいて計算
-   */
   private _countCurves(): number {
     const length = this._segments.length;
     // 開いたパスの場合は長さを1減らす
@@ -564,30 +424,16 @@ export class Path extends PathItemBase {
     return curves;
   }
 
-  /**
-   * パスの最初の曲線を取得
-   * @returns 最初の曲線
-   */
   getFirstCurve(): Curve | undefined {
     const curves = this.getCurves();
     return curves.length > 0 ? curves[0] : undefined;
   }
 
-  /**
-   * パスの最後の曲線を取得
-   * @returns 最後の曲線
-   */
   getLastCurve(): Curve | undefined {
     const curves = this.getCurves();
     return curves.length > 0 ? curves[curves.length - 1] : undefined;
   }
 
-  // --- セグメント操作（ミュータブル: thisを返す） ---
-
-  /**
-   * セグメントを追加
-   * @param segment 追加するセグメント
-   */
   add(...segments: Segment[]): Segment | Segment[] {
     if (segments.length > 1) {
       // 複数Segmentを追加
@@ -598,11 +444,6 @@ export class Path extends PathItemBase {
     }
   }
 
-  /**
-   * 指定位置にセグメントを挿入
-   * @param index 挿入位置
-   * @param segment 挿入するセグメント
-   */
   insert(index: number, ...segments: Segment[]): Segment[] {
     if (segments.length > 1) {
       // 複数Segmentを挿入
@@ -621,19 +462,10 @@ export class Path extends PathItemBase {
     return this._add([segment], index)[0];
   }
 
-  /**
-   * セグメントを削除
-   * @param index 削除するセグメントのインデックス
-   */
   removeSegment(index: number): Segment | null {
     return this.removeSegments(index, index + 1)[0] || null;
   }
 
-  /**
-   * 複数のセグメントを削除
-   * @param from 開始インデックス
-   * @param to 終了インデックス（省略時は最後まで）
-   */
   removeSegments(start: number = 0, end?: number, _includeCurves?: boolean): SegmentsWithCurves {
     start = start || 0;
     end = end !== undefined ? end : this._segments.length;
@@ -674,20 +506,11 @@ export class Path extends PathItemBase {
     return removed;
   }
 
-  /**
-   * すべてのセグメントを削除
-   */
   clear(): void {
     this._curves = null;
     this.removeSegments();
   }
 
-  // --- サブパス操作 ---
-
-  /**
-   * 新しい位置にパスを移動（既存のセグメントをクリアして新しいセグメントを追加）
-   * @param point 移動先の点
-   */
   moveTo(point: Point): Path {
     if (this._segments.length === 1)
       this.removeSegment(0);
@@ -698,10 +521,6 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * 直線セグメントを追加
-   * @param point 線の終点
-   */
   lineTo(point: Point): Path {
     this.add(new Segment(point));
     return this;
@@ -714,21 +533,6 @@ export class Path extends PathItemBase {
     return segments[segments.length - 1];
   }
 
-  /**
-   * cubicCurveTo: smoothHandles/selfClosing対応
-   * @param handle1
-   * @param handle2
-   * @param to
-   * @param options.smoothHandles: 連続ノードのハンドルを平滑化
-   * @param options.selfClosing: 始点と終点が一致していれば自動的にclose
-   */
-  /**
-   * 3次ベジェ曲線セグメントを追加
-   * @param handle1 制御点1
-   * @param handle2 制御点2
-   * @param to 終点
-   * @param options オプション
-   */
   cubicCurveTo(
     handle1: Point,
     handle2: Point,
@@ -758,15 +562,6 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * パスのセグメントを滑らかにします。
-   *
-   * @param options スムージングのオプション
-   * @param options.type スムージングのタイプ: 'continuous'（連続的）または'asymmetric'（非対称）
-   * @param options.from スムージングを開始するセグメントのインデックスまたはセグメント
-   * @param options.to スムージングを終了するセグメントのインデックスまたはセグメント
-   * @returns このパスオブジェクト（メソッドチェーン用）
-   */
   smooth(options?: {
     type?: 'asymmetric' | 'continuous';
     from?: number | Segment;
@@ -776,19 +571,12 @@ export class Path extends PathItemBase {
     return smoothPath(this, options);
   }
 
-  /**
-   * パスを閉じる
-   */
   close(): Path {
     this._closed = true;
     this._changed(Change.SEGMENTS);
     return this;
   }
 
-  /**
-   * パスを閉じる（paper.js互換）
-   * @param tolerance 許容誤差
-   */
   closePath(tolerance: number): void {
     this.setClosed(true);
     this.join(this, tolerance);
@@ -838,26 +626,11 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * 円弧を描画する
-   * arcTo(through, to) - 現在の点から、指定された中間点を通って、指定された終点までの円弧を描画
-   * @returns 円弧が追加されたパス（this）
-   */
-  /**
-   * 円弧を描画する
-   * @param through
-   * @param to 終点
-   * @returns 円弧が追加されたパス（this）
-   */
   arcTo(through: Point, to: Point): Path {
     PathArc.arcTo(this, through, to);
     return this;
   }
 
-  /**
-   * パスのセグメントにハンドルが設定されているかどうかを確認
-   * @returns ハンドルが設定されていればtrue
-   */
   hasHandles(): boolean {
     const segments = this._segments;
     for (let i = 0, l = segments.length; i < l; i++) {
@@ -868,13 +641,6 @@ export class Path extends PathItemBase {
     return false;
   }
 
-  /**
-   * パスのすべてのハンドルをクリア
-   * @returns 新しいパス
-   */
-  /**
-   * パスのすべてのハンドルをクリア
-   */
   clearHandles(): Path {
     const segments = this._segments;
     for (let i = 0, l = segments.length; i < l; i++) {
@@ -884,11 +650,6 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * 指定された接線に対して曲線が接する時間パラメータを計算
-   * @param tangent 接線ベクトル
-   * @returns パス上のオフセット位置の配列
-   */
   getOffsetsWithTangent(tangent: Point): number[] {
     if (tangent.isZero()) {
       return [];
@@ -919,10 +680,6 @@ export class Path extends PathItemBase {
     return offsets;
   }
 
-  /**
-   * パスが直線かどうかを判定
-   * @returns 直線ならtrue
-   */
   isStraight(): boolean {
     if (this._segments.length !== 2) {
       return false;
@@ -930,11 +687,6 @@ export class Path extends PathItemBase {
     return !this.hasHandles();
   }
 
-  /**
-   * 指定された位置でパスを分割
-   * @param location 分割位置（オフセットまたはCurveLocation）
-   * @returns 分割後の新しいパス（後半部分）
-   */
   splitAt(location: CurveLocation): Path | null {
     this._curves = null;
     const result = splitPathAt(this, location);
@@ -942,11 +694,6 @@ export class Path extends PathItemBase {
     return result;
   }
 
-  /**
-   * 2つのパスが等しいかどうかを判定
-   * @param path 比較するパス
-   * @returns 等しければtrue
-   */
   equals(path: Path): boolean {
     if (!path || path._segments.length !== this._segments.length) {
       return false;
@@ -961,13 +708,6 @@ export class Path extends PathItemBase {
     return true;
   }
 
-  /**
-   * パスのクローンを作成する
-   * paper.jsのclone関数を移植
-   *
-   * @param deep 深いクローンを作成するかどうか
-   * @returns クローンされたパス
-   */
   clone(deep: boolean = false): Path {
     // 新しいパスを作成
     const segments = this.getSegments().map((segment) => segment.clone());
@@ -979,12 +719,6 @@ export class Path extends PathItemBase {
     return clonedPath;
   }
 
-  /**
-   * パスを平坦化（フラット化）します。
-   * 曲線を直線セグメントに変換し、ハンドルを持たないパスにします。
-   * @param flatness 許容される最大誤差（デフォルト: 0.25）
-   * @returns このパスオブジェクト（メソッドチェーン用）
-   */
   flatten(flatness: number = 0.25): Path {
     // PathFlattenerを使用して曲線を直線セグメントに分割
     const flattener = new PathFlattener(this, flatness || 0.25, 256, true);
@@ -1007,15 +741,6 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * パスを単純化します。
-   * Philip J. Schneiderのアルゴリズムを使用して、パスのセグメント数を減らしながら
-   * 元の形状を近似します。
-   *
-   * @param tolerance 許容誤差（デフォルト: 2.5）- 値が小さいほど元の形状に近くなり、
-   *                  値が大きいほどセグメント数が少なくなります
-   * @returns 単純化が成功した場合はtrue、失敗した場合はfalse
-   */
   simplify(tolerance?: number): boolean {
     // PathFitterを使用してパスを単純化
     const segments = new PathFitter(this).fit(tolerance || 2.5);
@@ -1028,21 +753,11 @@ export class Path extends PathItemBase {
     return !!segments;
   }
 
-  /**
-   * パスが空かどうかを判定
-   * paper.jsのPath.isEmpty()を移植
-   * @returns 空ならtrue
-   */
   isEmpty(): boolean {
     // セグメントがない場合は空
     return this._segments.length === 0;
   }
 
-  /**
-   * パスの内部点を取得する
-   * paper.jsのgetInteriorPoint()メソッドを移植
-   * @returns パス内部の点
-   */
   getInteriorPoint(): Point {
     const bounds = this.getBounds(null, {});
     const point = new Point(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
@@ -1059,22 +774,10 @@ export class Path extends PathItemBase {
     return point;
   }
 
-  /**
-   * パスを簡略化する
-   * 単一のPathに変換できる場合は変換する
-   * paper.jsのPath.reduce()を移植
-   * @param options 簡略化オプション
-   * @returns 簡略化されたPathItemオブジェクト
-   */
   reduce(options?: { simplify?: boolean }): PathItem {
     return reducePath(this, options);
   }
 
-  /**
-   * パスの向きを反転させる
-   * paper.jsのPath.reverse()を移植
-   * @returns このパス
-   */
   reverse(): Path {
     this._segments.reverse();
     // ハンドルを反転
@@ -1091,33 +794,14 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  /**
-   * パスの配列を取得する
-   * Pathの場合は自身を含む配列を返す
-   * paper.jsのgetPaths関数を移植
-   * @returns パスの配列
-   */
   getPaths(): Path[] {
     return [this];
   }
 
-  /**
-   * 交差を解決する
-   * paper.jsのPathItem.resolveCrossings()を移植
-   * @returns 交差が解決されたパス
-   */
-  // PathBooleanResolveCrossings.tsの関数を利用
   resolveCrossings(): PathItem {
     return resolveCrossings(this);
   }
 
-  /**
-   * パスの向きを再設定する
-   * paper.jsのPathItem.reorient()を移植
-   * @param nonZero 非ゼロ塗りつぶしルールを適用するかどうか
-   * @param clockwise 時計回りにするかどうか
-   * @returns このパス
-   */
   reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
     if (clockwise !== undefined) {
       this.setClockwise(clockwise);
@@ -1125,26 +809,12 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  // setClockwiseメソッドは基底クラスから継承
-
-  /**
-   * SVGパスデータ（paper.jsのgetPathData相当）を返す
-   * 直線のみ対応（ハンドルがあればL→Cに拡張すること）
-   */
   getPathData(): string {
     // PathSVG.tsに外注
     return toPathData(this, Matrix.identity(), 5);
   }
 
-  /**
-   * 他のパスと幾何学的に等しいか/重なり合うかを判定（paper.js互換）
-   * @param path 比較対象のパス
-   * @returns 等しければtrue
-   */
   compare(path: Path): boolean {
-    // null/型チェック
-    if (!path || !(path instanceof Path)) return false;
-
     // 境界ボックスの一致判定
     const bounds1 = this.getBounds(null, {});
     const bounds2 = path.getBounds(null, {});
@@ -1170,10 +840,6 @@ export class Path extends PathItemBase {
     return true;
   }
 
-  /**
-   * 指定したセグメントを始点にする（paper.js互換）
-   * @param seg 始点にしたいSegment
-   */
   setFirstSegment(seg: Segment): void {
     const segments = this.getSegments();
     const idx = segments.indexOf(seg);
@@ -1183,7 +849,6 @@ export class Path extends PathItemBase {
     }
   }
 
-  // --- SVGパスデータ getter/setter・staticメソッド ---
   get pathData(): string {
     return toPathData(this, Matrix.identity(), 5);
   }
@@ -1198,9 +863,6 @@ export class Path extends PathItemBase {
     return fromPathData(val);
   }
 
-  /**
-   * toString() でSVGパスデータを返す（paper.js互換）
-   */
   toString(): string {
     return this.getPathData();
   }
@@ -1227,6 +889,4 @@ export class Path extends PathItemBase {
         this._bounds = undefined;
     }
   }
-
-
 }
