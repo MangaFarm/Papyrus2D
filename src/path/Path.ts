@@ -15,15 +15,15 @@ import { SegmentPoint } from './SegmentPoint';
 import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag, Change } from './ChangeFlag';
-import { computeBounds, contains, getPathArea, getPathLength } from './PathGeometry';
-import { toPathData, fromPathData } from './PathSVG';
-import { reducePath } from './PathReduce';
 import { PathConstructors } from './PathConstructors';
-import { smoothPath, splitPathAt, flattenPath, simplifyPath, reversePath, comparePath, equalPath } from './PathUtils';
-import { resolveCrossings } from './PathBooleanResolveCrossings';
-import { join } from './PathBoolean';
 import { PathAnalysis } from './PathAnalysis';
-import { insertSegments, removeSegments } from './PathComponents';
+import * as PathGeometry from './PathGeometry';
+import * as PathSVG from './PathSVG';
+import * as PathReduce from './PathReduce';
+import * as PathUtils from './PathUtils';
+import * as PathBooleanResolveCrossings from './PathBooleanResolveCrossings';
+import * as PathBoolean from './PathBoolean';
+import * as PathComponents from './PathComponents';
 import * as PathTransform from './PathTransform';
 
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
@@ -91,7 +91,7 @@ export class Path extends PathItemBase {
   }
 
   _add(segs: SegmentsWithCurves, index?: number): Segment[] {
-    return insertSegments(this, segs, index); 
+    return PathComponents.insertSegments(this, segs, index);
   }
 
   _adjustCurves(start: number, end: number): void {
@@ -155,14 +155,14 @@ export class Path extends PathItemBase {
 
   getLength(): number {
     if (this._length == null) {
-      this._length = getPathLength(this.getCurves());
+      this._length = PathGeometry.getPathLength(this.getCurves());
     }
     return this._length!;
   }
 
   getArea(): number {
     if (this._area == null) {
-      this._area = getPathArea(this._segments, this._closed);
+      this._area = PathGeometry.getPathArea(this._segments, this._closed);
     }
 
     return this._area!;
@@ -197,7 +197,7 @@ export class Path extends PathItemBase {
   }
 
   private _computeBounds(padding: number): Rectangle {
-    return computeBounds(this._segments, this._closed, padding);
+    return PathGeometry.computeBounds(this._segments, this._closed, padding);
   }
 
   getPointAt(t: number): Point {
@@ -270,7 +270,7 @@ export class Path extends PathItemBase {
       rule?: 'evenodd' | 'nonzero';
     }
   ): boolean {
-    return contains(this._segments, this._closed, this.getCurves(), point, options);
+    return PathGeometry.contains(this._segments, this._closed, this.getCurves(), point, options);
   }
 
   transform(matrix: Matrix): Path {
@@ -355,7 +355,7 @@ export class Path extends PathItemBase {
   }
 
   removeSegments(start: number = 0, end?: number, _includeCurves?: boolean): SegmentsWithCurves {
-    return removeSegments(this, start, end, _includeCurves);
+    return PathComponents.removeSegments(this, start, end, _includeCurves);
   }
 
   clear(): void {
@@ -420,7 +420,7 @@ export class Path extends PathItemBase {
     to?: number | Segment;
   }): Path {
     // PathUtils.ts に切り出した smoothPath を呼び出す
-    return smoothPath(this, options);
+    return PathUtils.smoothPath(this, options);
   }
 
   close(): Path {
@@ -435,7 +435,7 @@ export class Path extends PathItemBase {
   }
 
   join(path: Path, tolerance: number) {
-    join(this, path, tolerance);
+    PathBoolean.join(this, path, tolerance);
     return this;
   }
 
@@ -502,13 +502,13 @@ export class Path extends PathItemBase {
 
   splitAt(location: CurveLocation): Path | null {
     this._curves = null;
-    const result = splitPathAt(this, location);
+    const result = PathUtils.splitPathAt(this, location);
     this._changed(Change.GEOMETRY);
     return result;
   }
 
   equals(path: Path): boolean {
-    return equalPath(this, path);
+    return PathUtils.equalPath(this, path);
   }
 
   clone(deep: boolean = false): Path {
@@ -523,11 +523,11 @@ export class Path extends PathItemBase {
   }
 
   flatten(flatness: number = 0.25): Path {
-    return flattenPath(this, flatness);
+    return PathUtils.flattenPath(this, flatness);
   }
 
   simplify(tolerance: number = 2.5): boolean {
-    return simplifyPath(this, tolerance);
+    return PathUtils.simplifyPath(this, tolerance);
   }
 
   isEmpty(): boolean {
@@ -552,11 +552,11 @@ export class Path extends PathItemBase {
   }
 
   reduce(options?: { simplify?: boolean }): PathItem {
-    return reducePath(this, options);
+    return PathReduce.reducePath(this, options);
   }
 
   reverse(): Path {
-    return reversePath(this);
+    return PathUtils.reversePath(this);
   }
 
   getPaths(): Path[] {
@@ -564,7 +564,7 @@ export class Path extends PathItemBase {
   }
 
   resolveCrossings(): PathItem {
-    return resolveCrossings(this);
+    return PathBooleanResolveCrossings.resolveCrossings(this);
   }
 
   reorient(_nonZero?: boolean, clockwise?: boolean): PathItem {
@@ -577,11 +577,11 @@ export class Path extends PathItemBase {
 
   getPathData(): string {
     // PathSVG.tsに外注
-    return toPathData(this, Matrix.identity(), 5);
+    return PathSVG.toPathData(this, Matrix.identity(), 5);
   }
 
   compare(path: Path): boolean {
-    return comparePath(this, path);
+    return PathUtils.comparePath(this, path);
   }
 
   setFirstSegment(seg: Segment): void {
@@ -594,17 +594,17 @@ export class Path extends PathItemBase {
   }
 
   get pathData(): string {
-    return toPathData(this, Matrix.identity(), 5);
+    return PathSVG.toPathData(this, Matrix.identity(), 5);
   }
 
   set pathData(val: string) {
-    const path = fromPathData(val);
+    const path = PathSVG.fromPathData(val);
     this.setSegments(path.getSegments());
     this.setClosed(path.closed);
   }
 
   static fromPathData(val: string): Path {
-    return fromPathData(val);
+    return PathSVG.fromPathData(val);
   }
 
   toString(): string {
