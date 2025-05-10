@@ -15,13 +15,13 @@ import { SegmentPoint } from './SegmentPoint';
 import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBase';
 import { PathArc } from './PathArc';
 import { ChangeFlag, Change } from './ChangeFlag';
-import { computeBounds, contains, getArea } from './PathGeometry';
+import { computeBounds, contains, getPathArea, getPathLength } from './PathGeometry';
 import { toPathData, fromPathData } from './PathSVG';
 import { reducePath } from './PathReduce';
 import { PathConstructors } from './PathConstructors';
 import { smoothPath, splitPathAt, flattenPath, simplifyPath, reversePath, comparePath, equalPath } from './PathUtils';
 import { resolveCrossings } from './PathBooleanResolveCrossings';
-
+import { join } from './PathBoolean';
 import { PathAnalysis } from './PathAnalysis';
 
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
@@ -201,19 +201,14 @@ export class Path extends PathItemBase {
 
   getLength(): number {
     if (this._length == null) {
-      const curves = this.getCurves();
-      let length = 0;
-      for (let i = 0, l = curves.length; i < l; i++) {
-        length += curves[i].getLength();
-      }
-      this._length = length;
+      this._length = getPathLength(this.getCurves());
     }
     return this._length!;
   }
 
   getArea(): number {
     if (this._area == null) {
-      this._area = getArea(this._segments, this._closed);
+      this._area = getPathArea(this._segments, this._closed);
     }
 
     return this._area!;
@@ -581,46 +576,7 @@ export class Path extends PathItemBase {
   }
 
   join(path: Path, tolerance: number) {
-    var epsilon = tolerance || 0;
-    if (path && path !== this) {
-        var segments = path._segments,
-            last1 = this.getLastSegment(),
-            last2 = path.getLastSegment();
-        if (!last2) // an empty path?
-            return this;
-        if (last1 && last1._point.isClose(last2._point, epsilon))
-            path.reverse();
-        var first2 = path.getFirstSegment();
-        if (last1 && last1._point.isClose(first2!._point, epsilon)) {
-            last1.setHandleOut(first2!._handleOut.toPoint());
-            this._add(segments.slice(1));
-        } else {
-            var first1 = this.getFirstSegment();
-            if (first1 && first1._point.isClose(first2!._point, epsilon))
-                path.reverse();
-            last2 = path.getLastSegment();
-            if (first1 && first1._point.isClose(last2!._point, epsilon)) {
-                first1.setHandleIn(last2!._handleIn.toPoint());
-                // Prepend all segments from path except the last one.
-                this._add(segments.slice(0, segments.length - 1), 0);
-            } else {
-                this._add(segments.slice());
-            }
-        }
-        if (path._closed)
-            this._add([segments[0]]);
-        path._remove(true, true);
-    }
-    // If the first and last segment touch, close the resulting path and
-    // merge the end segments. Also do this if no path argument was provided
-    // in which cases the path is joined with itself only if its ends touch.
-    var first = this.getFirstSegment(),
-        last = this.getLastSegment();
-    if (first !== last && first!._point.isClose(last!._point, epsilon)) {
-        first!.setHandleIn(last!._handleIn.toPoint());
-        last!.remove();
-        this.setClosed(true);
-    }
+    join(this, path, tolerance);
     return this;
   }
 
@@ -752,7 +708,8 @@ export class Path extends PathItemBase {
     return resolveCrossings(this);
   }
 
-  reorient(nonZero?: boolean, clockwise?: boolean): PathItem {
+  reorient(_nonZero?: boolean, clockwise?: boolean): PathItem {
+    // paper.jsだとCompoundPathと一緒だったので分離
     if (clockwise !== undefined) {
       this.setClockwise(clockwise);
     }

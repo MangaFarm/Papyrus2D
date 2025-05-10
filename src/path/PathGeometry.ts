@@ -284,7 +284,7 @@ export function contains(
   );
 }
 
-export function getArea(segments: Segment[], closed: boolean): number {
+export function getPathArea(segments: Segment[], closed: boolean): number {
   let area = 0;
 
   for (let i = 0, l = segments.length; i < l; i++) {
@@ -296,4 +296,12 @@ export function getArea(segments: Segment[], closed: boolean): number {
   }
 
   return area;
+}
+
+export function getPathLength(curves: Curve[]): number {
+  let length = 0;
+  for (let i = 0, l = curves.length; i < l; i++) {
+    length += curves[i].getLength();
+  }
+  return length;  
 }

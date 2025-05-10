@@ -17,49 +17,6 @@ import { tracePaths } from './PathBooleanTracePaths';
 import { propagateWinding } from './PathBooleanWinding';
 import { divideLocations } from './PathBooleanIntersections';
 
-// SegmentInfoインターフェースとasSegmentInfo関数はPathBooleanWinding.tsに移動しました
-
-/**
- * 交点がない場合のパス処理
- */
-function handleNoIntersections(
-  path1: Path,
-  path2: Path,
-  operation: 'unite' | 'intersect' | 'subtract' | 'exclude' | 'divide'
-): Path[] {
-  // 演算子に応じたフィルタ関数を定義
-  const operators: Record<string, Record<string, boolean>> = {
-    unite: { '1': true, '2': true },
-    intersect: { '2': true },
-    subtract: { '1': true },
-    exclude: { '1': true, '-1': true },
-  };
-
-  // 現在の演算に対応するフィルタ関数
-  const operator = operators[operation];
-
-  // paper.jsと同様に、operatorにoperationプロパティを追加
-  operator[operation] = true;
-
-  // path2の処理
-  if (path1 === path2) {
-    return [path1];
-  }
-
-  // reorientPathsを使用して結果を決定
-  const result = reorientPaths(path2 ? [path1, path2] : [path1], (w: number) => !!operator[w]);
-  for (const p of result) {
-    if (!p) continue;
-    // @ts-ignore
-    const pathData = p.getPathData ? p.getPathData() : '';
-  }
-  return result;
-}
-
-/**
- * 結果Path構築と重複統合
- * paper.jsのcreateResult関数を忠実に移植
- */
 function createResult(
   paths: Path[],
   simplify: boolean,
@@ -117,10 +74,6 @@ function createResult(
   return simplified;
 }
 
-/**
- * Boolean演算の実行
- * paper.jsの関数を移植
- */
 function traceBoolean(
   path1: PathItem,
   path2: PathItem,
@@ -300,38 +253,67 @@ function filterIntersection(inter) {
   return inter.hasOverlap() || inter.isCrossing();
 }
 
-/**
- * パスの合成（unite）
- */
 export function unite(path1: PathItem, path2: PathItem): PathItem {
   return traceBoolean(path1, path2, 'unite');
 }
 
-/**
- * パスの交差（intersect）
- */
 export function intersect(path1: PathItem, path2: PathItem): PathItem {
   const result = traceBoolean(path1, path2, 'intersect');
   return result;
 }
 
-/**
- * パスの差分（subtract）
- */
 export function subtract(path1: PathItem, path2: PathItem): PathItem {
   return traceBoolean(path1, path2, 'subtract');
 }
 
-/**
- * パスの排他的論理和（exclude）
- */
 export function exclude(path1: PathItem, path2: PathItem): PathItem {
   return traceBoolean(path1, path2, 'exclude');
 }
 
-/**
- * パスの分割（divide）
- */
 export function divide(path1: PathItem, path2: PathItem): PathItem {
   return traceBoolean(path1, path2, 'divide');
+}
+
+export function join(path1: Path, path2: Path, tolerance: number) {
+  var epsilon = tolerance || 0;
+  if (path2 && path2 !== path1) {
+      var segments = path2._segments,
+          last1 = path1.getLastSegment(),
+          last2 = path2.getLastSegment();
+      if (!last2) // an empty path?
+          return path1;
+      if (last1 && last1._point.isClose(last2._point, epsilon))
+          path2.reverse();
+      var first2 = path2.getFirstSegment();
+      if (last1 && last1._point.isClose(first2!._point, epsilon)) {
+          last1.setHandleOut(first2!._handleOut.toPoint());
+          path1._add(segments.slice(1));
+      } else {
+          var first1 = path1.getFirstSegment();
+          if (first1 && first1._point.isClose(first2!._point, epsilon))
+              path2.reverse();
+          last2 = path2.getLastSegment();
+          if (first1 && first1._point.isClose(last2!._point, epsilon)) {
+              first1.setHandleIn(last2!._handleIn.toPoint());
+              // Prepend all segments from path except the last one.
+              path1._add(segments.slice(0, segments.length - 1), 0);
+          } else {
+              path1._add(segments.slice());
+          }
+      }
+      if (path2._closed)
+          path1._add([segments[0]]);
+      path2._remove(true, true);
+  }
+  // If the first and last segment touch, close the resulting path and
+  // merge the end segments. Also do this if no path argument was provided
+  // in which cases the path is joined with itself only if its ends touch.
+  var first = path1.getFirstSegment(),
+      last = path1.getLastSegment();
+  if (first !== last && first!._point.isClose(last!._point, epsilon)) {
+      first!.setHandleIn(last!._handleIn.toPoint());
+      last!.remove();
+      path1.setClosed(true);
+  }
+  return path1;
 }
