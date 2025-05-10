@@ -16,12 +16,10 @@ import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBa
 import { PathArc } from './PathArc';
 import { ChangeFlag, Change } from './ChangeFlag';
 import { computeBounds, contains, getArea } from './PathGeometry';
-import { PathFlattener } from './PathFlattener';
-import { PathFitter } from './PathFitter';
 import { toPathData, fromPathData } from './PathSVG';
 import { reducePath } from './PathReduce';
 import { PathConstructors } from './PathConstructors';
-import { smoothPath, splitPathAt } from './PathUtils';
+import { smoothPath, splitPathAt, flattenPath, simplifyPath, reversePath, comparePath, equalPath } from './PathUtils';
 import { resolveCrossings } from './PathBooleanResolveCrossings';
 
 import { PathAnalysis } from './PathAnalysis';
@@ -695,17 +693,7 @@ export class Path extends PathItemBase {
   }
 
   equals(path: Path): boolean {
-    if (!path || path._segments.length !== this._segments.length) {
-      return false;
-    }
-
-    for (let i = 0, l = this._segments.length; i < l; i++) {
-      if (!this._segments[i].equals(path._segments[i])) {
-        return false;
-      }
-    }
-
-    return true;
+    return equalPath(this, path);
   }
 
   clone(deep: boolean = false): Path {
@@ -720,37 +708,11 @@ export class Path extends PathItemBase {
   }
 
   flatten(flatness: number = 0.25): Path {
-    // PathFlattenerを使用して曲線を直線セグメントに分割
-    const flattener = new PathFlattener(this, flatness || 0.25, 256, true);
-    const parts = flattener.parts;
-    const length = parts.length;
-    const segments: Segment[] = [];
-
-    // 各部分から新しいセグメントを作成
-    for (let i = 0; i < length; i++) {
-      segments.push(new Segment(new Point(parts[i].curve[0], parts[i].curve[1])));
-    }
-
-    // 開いたパスで長さが0より大きい場合、最後の曲線の終点を追加
-    if (!this._closed && length > 0) {
-      segments.push(new Segment(new Point(parts[length - 1].curve[6], parts[length - 1].curve[7])));
-    }
-
-    // 新しいセグメントでパスを更新
-    this.setSegments(segments);
-    return this;
+    return flattenPath(this, flatness);
   }
 
-  simplify(tolerance?: number): boolean {
-    // PathFitterを使用してパスを単純化
-    const segments = new PathFitter(this).fit(tolerance || 2.5);
-
-    // 単純化に成功した場合、新しいセグメントをパスに設定
-    if (segments) {
-      this.setSegments(segments);
-    }
-
-    return !!segments;
+  simplify(tolerance: number = 2.5): boolean {
+    return simplifyPath(this, tolerance);
   }
 
   isEmpty(): boolean {
@@ -779,19 +741,7 @@ export class Path extends PathItemBase {
   }
 
   reverse(): Path {
-    this._segments.reverse();
-    // ハンドルを反転
-    for (let i = 0, l = this._segments.length; i < l; i++) {
-      const segment = this._segments[i];
-      const handleIn = segment._handleIn;
-      segment._handleIn = segment._handleOut;
-      segment._handleOut = handleIn;
-      segment._index = i;
-    }
-    // カーブのキャッシュをクリア
-    this._curves = null;
-    this._changed(Change.GEOMETRY);
-    return this;
+    return reversePath(this);
   }
 
   getPaths(): Path[] {
@@ -815,29 +765,7 @@ export class Path extends PathItemBase {
   }
 
   compare(path: Path): boolean {
-    // 境界ボックスの一致判定
-    const bounds1 = this.getBounds(null, {});
-    const bounds2 = path.getBounds(null, {});
-    if (!bounds1.equals(bounds2)) return false;
-
-    // セグメント数の一致
-    if (this._segments.length !== path._segments.length) return false;
-
-    // セグメント座標・ハンドルの一致
-    for (let i = 0; i < this._segments.length; i++) {
-      if (!this._segments[i].equals(path._segments[i])) {
-        return false;
-      }
-    }
-
-    // パスの方向（isClockwise）の一致
-    if (this.isClockwise() !== path.isClockwise()) return false;
-
-    // 面積の一致（符号も含めて）
-    if (this.getArea() !== path.getArea()) return false;
-
-    // ここまで一致すれば幾何学的に等しいとみなす
-    return true;
+    return comparePath(this, path);
   }
 
   setFirstSegment(seg: Segment): void {

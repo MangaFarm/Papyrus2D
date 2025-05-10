@@ -3,6 +3,9 @@ import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
+import { PathFlattener } from './PathFlattener';
+import { PathFitter } from './PathFitter';
+import { Change } from './ChangeFlag';
 
 /**
  * Pathのセグメントを滑らかにする関数（Path.smoothのロジックを移植）
@@ -144,7 +147,7 @@ export function smoothPath(
  * Pathの分割ロジック（Path.splitAtのロジックを移植）
  */
 export function splitPathAt(path: Path, location: CurveLocation): Path | null {
- // NOTE: getLocationAt() handles both offset and location:
+  // NOTE: getLocationAt() handles both offset and location:
   var loc = location,
     index = loc && loc.getIndex(),
     time = loc && loc.getTime()!,
@@ -183,4 +186,94 @@ export function splitPathAt(path: Path, location: CurveLocation): Path | null {
     return resultPath;
   }
   return null;
+}
+
+export function flattenPath(path: Path, flatness: number = 0.25): Path {
+  // PathFlattenerを使用して曲線を直線セグメントに分割
+  const flattener = new PathFlattener(path, flatness || 0.25, 256, true);
+  const parts = flattener.parts;
+  const length = parts.length;
+  const segments: Segment[] = [];
+
+  // 各部分から新しいセグメントを作成
+  for (let i = 0; i < length; i++) {
+    segments.push(new Segment(new Point(parts[i].curve[0], parts[i].curve[1])));
+  }
+
+  // 開いたパスで長さが0より大きい場合、最後の曲線の終点を追加
+  if (!path._closed && length > 0) {
+    segments.push(new Segment(new Point(parts[length - 1].curve[6], parts[length - 1].curve[7])));
+  }
+
+  // 新しいセグメントでパスを更新
+  path.setSegments(segments);
+  return path;
+}
+
+export function simplifyPath(path: Path, tolerance: number): boolean {
+  // PathFitterを使用してパスを単純化
+  const segments = new PathFitter(path).fit(tolerance);
+
+  // 単純化に成功した場合、新しいセグメントをパスに設定
+  if (segments) {
+    path.setSegments(segments);
+  }
+
+  return !!segments;
+}
+
+export function reversePath(path: Path): Path {
+  path._segments.reverse();
+  // ハンドルを反転
+  for (let i = 0, l = path._segments.length; i < l; i++) {
+    const segment = path._segments[i];
+    const handleIn = segment._handleIn;
+    segment._handleIn = segment._handleOut;
+    segment._handleOut = handleIn;
+    segment._index = i;
+  }
+  // カーブのキャッシュをクリア
+  path._curves = null;
+  path._changed(Change.GEOMETRY);
+  return path;
+}
+
+export function comparePath(path1: Path, path2: Path): boolean {
+  // 境界ボックスの一致判定
+  const bounds1 = path1.getBounds(null, {});
+  const bounds2 = path2.getBounds(null, {});
+  if (!bounds1.equals(bounds2)) return false;
+
+  // セグメント数の一致
+  if (path1._segments.length !== path2._segments.length) return false;
+
+  // セグメント座標・ハンドルの一致
+  for (let i = 0; i < path1._segments.length; i++) {
+    if (!path1._segments[i].equals(path2._segments[i])) {
+      return false;
+    }
+  }
+
+  // パスの方向（isClockwise）の一致
+  if (path1.isClockwise() !== path2.isClockwise()) return false;
+
+  // 面積の一致（符号も含めて）
+  if (path1.getArea() !== path2.getArea()) return false;
+
+  // ここまで一致すれば幾何学的に等しいとみなす
+  return true;
+}
+
+export function equalPath(path1: Path, path2: Path): boolean {
+  if (!path2 || path2._segments.length !== path1._segments.length) {
+    return false;
+  }
+
+  for (let i = 0, l = path1._segments.length; i < l; i++) {
+    if (!path1._segments[i].equals(path2._segments[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
