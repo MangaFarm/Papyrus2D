@@ -222,6 +222,7 @@ export class Path extends PathItemBase {
   }
 
   getLocationAt(offset: number): CurveLocation | null {
+    // NOTICE: 外だしして挙動を完全に一致させるのは困難と判断(offsets, getLengthあたり)
     const curves = this.getCurves();
     const length = curves.length;
     if (!length) {

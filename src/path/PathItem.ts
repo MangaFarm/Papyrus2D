@@ -11,15 +11,7 @@ import { Curve } from './Curve';
 import { Segment } from './Segment';
 import type { CurveLocation } from './CurveLocation';
 import type { Path } from './Path';
-
-/**
- * Style型
- * 単純な描画スタイル定義。fillRuleのみをサポート。
- */
-export type FillRule = 'nonzero' | 'evenodd';
-export type Style = {
-  fillRule: FillRule;
-};
+import { Style } from './Style';
 
 export interface PathItem {
   _matrix: Matrix;

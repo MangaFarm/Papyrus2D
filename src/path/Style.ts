@@ -55,4 +55,16 @@ export class Style {
   getFillRule(): FillRule {
     return this.fillRule;
   }
+
+  clone(): Style {
+    return new Style({
+      strokeColor: this.strokeColor,
+      strokeWidth: this.strokeWidth,
+      strokeJoin: this.strokeJoin,
+      strokeCap: this.strokeCap,
+      strokeScaling: this.strokeScaling,
+      miterLimit: this.miterLimit,
+      fillRule: this.fillRule,
+    });
+  }
 }

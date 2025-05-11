@@ -4,7 +4,7 @@
  * Path と CompoundPath の共通機能を提供する。
  */
 
-import type { PathItem, Style, FillRule } from './PathItem';
+import type { PathItem } from './PathItem';
 import type { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
@@ -13,6 +13,7 @@ import type { Segment } from './Segment';
 import type { CurveLocation } from './CurveLocation';
 import { ChangeFlag, Change } from './ChangeFlag';
 import { Numerical } from '../util/Numerical';
+import { Style, FillRule } from './Style';
 
 // _boundsCacheの型
 export type BoundsCache = {
@@ -48,9 +49,11 @@ export abstract class PathItemBase implements PathItem {
   _id: number;
   _index: number | null;
   _parent: PathItemBase | null = null;
+  _style: Style;
 
   constructor() {
     this._matrix = Matrix.identity();
+    this._style = new Style();
     this._id = ++PathItemBase._idCount;
   }
 
@@ -201,11 +204,6 @@ export abstract class PathItemBase implements PathItem {
     return children.length > 0 ? children[children.length - 1] : null;
   }
 
-  // スタイル設定
-  _style: Style = {
-    fillRule: 'nonzero',
-  };
-
   // 抽象プロパティ
   abstract get closed(): boolean;
   abstract get segmentCount(): number;
@@ -274,7 +272,7 @@ export abstract class PathItemBase implements PathItem {
     if (!excludeMatrix && path._matrix) {
       this._matrix = path._matrix.clone();
     }
-    this._style = { ...path._style };
+    this._style = path._style.clone();
     return this;
   }
 
