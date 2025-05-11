@@ -175,19 +175,17 @@ export class Path extends PathItemBase {
   }
 
   _getBounds(matrix: Matrix | null, options: BoundsOptions): BoundsEntry {
-    return { rect: this.getBounds(matrix, options) };
-  }
-
-  getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
-    let bounds = this._computeBounds(0);
-    if (matrix) {
-      bounds = bounds.transform(matrix);
+    if (options.handle) {
+      throw new Error('Path#getBounds: handle option is not supported');
+    } else if (options.stroke) {
+      return {
+        rect: Path.getStrokeBounds(this._segments, this._closed, this, matrix, options)
+      };
+    } else {
+      return {
+        rect: Path.getBounds(this._segments, this._closed, this, matrix, options)
+      };
     }
-    return bounds;
-  }
-
-  private _computeBounds(padding: number): Rectangle {
-    return PathGeometry.computeBounds(this._segments, this._closed, padding);
   }
 
   getPointAt(t: number): Point {
@@ -641,7 +639,7 @@ export class Path extends PathItemBase {
     ];
   }
 
-  getStrokeBounds(
+  static getStrokeBounds(
     segments: Segment[],
     closed: boolean,
     path: Path,

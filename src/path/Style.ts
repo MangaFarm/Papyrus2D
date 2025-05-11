@@ -35,25 +35,43 @@ export class Style {
   getStrokeWidth(): number {
     return this.strokeWidth;
   }
-
   getStrokeJoin(): StrokeJoin {
     return this.strokeJoin;
   }
-
   getStrokeCap(): StrokeCap {
     return this.strokeCap;
   }
-
   getMiterLimit(): number {
     return this.miterLimit;
   }
-
   getStrokeScaling(): boolean {
     return this.strokeScaling;
   }
-
   getFillRule(): FillRule {
     return this.fillRule;
+  }
+
+  setStrokeWidth(width: number): void {
+    this.strokeWidth = width;
+  }
+  setStrokeJoin(join: StrokeJoin): void {
+    this.strokeJoin = join;
+  }
+  setStrokeCap(cap: StrokeCap): void {
+    this.strokeCap = cap;
+  }
+  setMiterLimit(limit: number): void {
+    this.miterLimit = limit;
+  }
+  setStrokeScaling(scaling: boolean): void {
+    this.strokeScaling = scaling;
+  }
+  setFillRule(rule: FillRule): void {
+    this.fillRule = rule;
+  }
+
+  StrokeColor(color: { alpha: number } | null): void {
+    this.strokeColor = color;
   }
 
   clone(): Style {

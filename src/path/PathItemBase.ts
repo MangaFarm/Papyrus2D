@@ -396,13 +396,39 @@ export abstract class PathItemBase implements PathItem {
     }
   }
 
-  getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
-    matrix ??= this._matrix;
+  getBoundsOptions(): BoundsOptions {
+    return {};
+  }
 
-    // キャッシュ取得・計算
-    const entry = this._getCachedBounds(matrix, options, false);
-    // 常にrectを返す（ラッパーは省略）
-    return entry.rect;
+  // paper.jsの実装がとてもわかりづらいが、要するに
+  // 1.getBounds(options)の形で呼び出し可能
+  // 2.this._boundsOptionsがある場合はそれを優先
+  // ということのようである。なので現代的に書き直す。
+  // なお、_boundsOptionsはサブクラスごとに決まるそうで、
+  // PathやCompoundPathでは{}と決まっているようなので、一旦{}を返す関数としておく。
+  // LinkedRectangleは操作できるようになるものらしい。完全に削除。
+  getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
+    const opts = {...options, ...this.getBoundsOptions()};
+    
+    // We can only cache the bounds if the path uses stroke-scaling, or if
+    // no stroke is involved in the calculation of the bounds.
+    // When strokeScaling is false, the bounds are affected by the zoom
+    // level of the view, hence we can't cache.
+    // TODO: Look more into handling of stroke-scaling, e.g. on groups with
+    // some children that have strokeScaling, as well as SymbolItem with
+    // SymbolDefinition that have strokeScaling!
+    // TODO: Once that is resolved, we should be able to turn off
+    // opts.stroke if a resolved item definition does not have a stroke,
+    // allowing the code to share caches between #strokeBounds and #bounds.
+    if (!opts.stroke || this.getStrokeScaling())
+        opts.cacheItem = this;
+    // If we're caching bounds, pass on this item as cacheItem, so
+    // the children can setup _boundsCache structures for it.
+    var rect = this._getCachedBounds(matrix, opts, false).rect;
+    // If we're returning '#bounds', create a LinkedRectangle that uses
+    // the setBounds() setter to update the Item whenever the bounds are
+    // changed:
+    return rect;  
   }
 
   _getCachedBounds(matrix: Matrix | null, options: BoundsOptions, noInternal: boolean): BoundsEntry {
