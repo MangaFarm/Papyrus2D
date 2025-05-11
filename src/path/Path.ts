@@ -8,6 +8,7 @@ import type { PathItem } from './PathItem';
 import { Point } from '../basic/Point';
 import { Rectangle } from '../basic/Rectangle';
 import { Matrix } from '../basic/Matrix';
+import { Line } from '../basic/Line';
 import { Curve } from './Curve';
 import { CurveLocation } from './CurveLocation';
 import { Segment } from './Segment';
@@ -16,6 +17,7 @@ import { PathItemBase, type BoundsEntry, type BoundsOptions } from './PathItemBa
 import { ChangeFlag, Change } from './ChangeFlag';
 import { PathConstructors } from './PathConstructors';
 import { PathAnalysis } from './PathAnalysis';
+import type { StrokeJoin, StrokeCap } from './Style';
 import * as PathGeometry from './PathGeometry';
 import * as PathSVG from './PathSVG';
 import * as PathReduce from './PathReduce';
@@ -31,7 +33,7 @@ import * as PathArc from './PathArc';
 type SegmentsWithCurves = Array<Segment> & { _curves?: Curve[] };
 
 export class Path extends PathItemBase {
-    _analysis: PathAnalysis;
+  _analysis: PathAnalysis;
 
   static get Line() {
     return PathConstructors.Line;
@@ -173,7 +175,7 @@ export class Path extends PathItemBase {
   }
 
   _getBounds(matrix: Matrix | null, options: BoundsOptions): BoundsEntry {
-      return { rect: this.getBounds(matrix, options) };
+    return { rect: this.getBounds(matrix, options) };
   }
 
   getBounds(matrix: Matrix | null, options: BoundsOptions): Rectangle {
@@ -181,18 +183,6 @@ export class Path extends PathItemBase {
     if (matrix) {
       bounds = bounds.transform(matrix);
     }
-    return bounds;
-  }
-
-  getStrokeBounds(strokeWidth: number, matrix?: Matrix | null): Rectangle {
-    // strokeWidth/2をpaddingとしてAABB拡張
-    let bounds = this._computeBounds(strokeWidth / 2);
-
-    // 行列変換がある場合は適用
-    if (matrix) {
-      bounds = bounds.transform(matrix);
-    }
-
     return bounds;
   }
 
@@ -262,7 +252,7 @@ export class Path extends PathItemBase {
         return curve.getTangentAtTime(loc.getTime()!);
       }
     }
-    return new Point(0,0);
+    return new Point(0, 0);
   }
 
   contains(
@@ -365,12 +355,10 @@ export class Path extends PathItemBase {
   }
 
   moveTo(point: Point): Path {
-    if (this._segments.length === 1)
-      this.removeSegment(0);
+    if (this._segments.length === 1) this.removeSegment(0);
     // Let's not be picky about calling moveTo() when not at the
     // beginning of a path, just bail out:
-    if (!this._segments.length)
-        this._add([ new Segment(point) ]);
+    if (!this._segments.length) this._add([new Segment(point)]);
     return this;
   }
 
@@ -381,16 +369,11 @@ export class Path extends PathItemBase {
 
   getCurrentSegment() {
     var segments = this._segments;
-    if (!segments.length)
-        throw new Error('Use a moveTo() command first');
+    if (!segments.length) throw new Error('Use a moveTo() command first');
     return segments[segments.length - 1];
   }
 
-  cubicCurveTo(
-    handle1: Point,
-    handle2: Point,
-    to: Point
-  ): Path {
+  cubicCurveTo(handle1: Point, handle2: Point, to: Point): Path {
     // First modify the current segment:
     const current = this.getCurrentSegment();
     // Convert to relative values:
@@ -618,43 +601,219 @@ export class Path extends PathItemBase {
 
   _changed(flags) {
     super._changed(flags);
-    if (flags & /*#=*/ChangeFlag.GEOMETRY) {
-        this._length = this._area = undefined;
-        if (flags & /*#=*/ChangeFlag.SEGMENTS) {
-            this._version++; // See CurveLocation
-        } else if (this._curves) {
-            // Only notify all curves if we're not told that only segments
-            // have changed and took already care of notifications.
-           for (var i = 0, l = this._curves.length; i < l; i++)
-                this._curves[i]._changed();
-        }
-    } else if (flags & /*#=*/ChangeFlag.STROKE) {
-        // TODO: We could preserve the purely geometric bounds that are not
-        // affected by stroke: _bounds.bounds and _bounds.handleBounds
-        this._bounds = undefined;
+    if (flags & /*#=*/ ChangeFlag.GEOMETRY) {
+      this._length = this._area = undefined;
+      if (flags & /*#=*/ ChangeFlag.SEGMENTS) {
+        this._version++; // See CurveLocation
+      } else if (this._curves) {
+        // Only notify all curves if we're not told that only segments
+        // have changed and took already care of notifications.
+        for (var i = 0, l = this._curves.length; i < l; i++) this._curves[i]._changed();
+      }
+    } else if (flags & /*#=*/ ChangeFlag.STROKE) {
+      // TODO: We could preserve the purely geometric bounds that are not
+      // affected by stroke: _bounds.bounds and _bounds.handleBounds
+      this._bounds = undefined;
     }
   }
 
-  _getStrokePadding(radius: number, matrix: Matrix | null) {
-    if (!matrix)
-        return [radius, radius];
-      
+  static _getStrokePadding(radius: number, matrix: Matrix | null) {
+    if (!matrix) return [radius, radius];
+
     // If a matrix is provided, we need to rotate the stroke circle
     // and calculate the bounding box of the resulting rotated ellipse:
     // Get rotated hor and ver vectors, and determine rotation angle
     // and ellipse values from them:
     var hor = new Point(radius, 0).transform(matrix),
-        ver = new Point(0, radius).transform(matrix),
-        phi = hor.getAngleInRadians(),
-        a = hor.getLength(),
-        b = ver.getLength();
+      ver = new Point(0, radius).transform(matrix),
+      phi = hor.getAngleInRadians(),
+      a = hor.getLength(),
+      b = ver.getLength();
     var sin = Math.sin(phi),
-        cos = Math.cos(phi),
-        tan = Math.tan(phi),
-        tx = Math.atan2(b * tan, a),
-        ty = Math.atan2(b, tan * a);
+      cos = Math.cos(phi),
+      tan = Math.tan(phi),
+      tx = Math.atan2(b * tan, a),
+      ty = Math.atan2(b, tan * a);
     // Due to symmetry, we don't need to cycle through pi * n solutions:
-    return [Math.abs(a * Math.cos(tx) * cos + b * Math.sin(tx) * sin),
-            Math.abs(b * Math.sin(ty) * cos + a * Math.cos(ty) * sin)];
+    return [
+      Math.abs(a * Math.cos(tx) * cos + b * Math.sin(tx) * sin),
+      Math.abs(b * Math.sin(ty) * cos + a * Math.cos(ty) * sin),
+    ];
+  }
+
+  getStrokeBounds(
+    segments: Segment[],
+    closed: boolean,
+    path: Path,
+    matrix: Matrix | null,
+    options: BoundsOptions
+  ) {
+    var style = path.getStyle(),
+      stroke = style.hasStroke(),
+      strokeWidth = style.getStrokeWidth(),
+      strokeMatrix: Matrix | null = stroke ? path._getStrokeMatrix(matrix, options) : null,
+      strokePadding = stroke ? Path._getStrokePadding(strokeWidth, strokeMatrix) : undefined,
+      // Start with normal path bounds with added stroke padding. Then we
+      // only need to look at each segment and handle join / cap / miter.
+      bounds = Path.getBounds(segments, closed, path, matrix, options, strokePadding);
+    if (!stroke) return bounds;
+    var strokeRadius = strokeWidth / 2,
+      join = style.getStrokeJoin(),
+      cap = style.getStrokeCap(),
+      miterLimit = style.getMiterLimit(),
+      // Create a rectangle of padding size, used for union with bounds
+      // further down
+      joinBounds = new Rectangle(0, 0, strokePadding![0], strokePadding![1]);
+
+    // helper function that is passed to _addBevelJoin() and _addSquareCap()
+    // to handle the point transformations.
+    function addPoint(point: Point) {
+      bounds = bounds.include(point);
+    }
+
+    function addRound(segment: Segment) {
+      joinBounds = joinBounds.moveCenter(segment._point.toPoint().transform(matrix));
+      bounds = bounds.unite(joinBounds);
+    }
+
+    function addJoin(segment: Segment, join: StrokeJoin) {
+      // When both handles are set in a segment and they are collinear,
+      // the join setting is ignored and round is always used.
+      if (join === 'round' || segment.isSmooth()) {
+        addRound(segment);
+      } else {
+        // _addBevelJoin() handles both 'bevel' and 'miter' joins.
+        Path._addBevelJoin(segment, join, strokeRadius, miterLimit, matrix, strokeMatrix, addPoint, false);
+      }
+    }
+
+    function addCap(segment, cap) {
+      if (cap === 'round') {
+        addRound(segment);
+      } else {
+        // _addSquareCap() handles both 'square' and 'butt' caps.
+        Path._addSquareCap(segment, cap, strokeRadius, matrix, strokeMatrix, addPoint, false);
+      }
+    }
+
+    var length = segments.length - (closed ? 0 : 1);
+    if (length > 0) {
+      for (var i = 1; i < length; i++) {
+        addJoin(segments[i], join);
+      }
+      if (closed) {
+        // Go back to the beginning
+        addJoin(segments[0], join);
+      } else {
+        // Handle caps on open paths
+        addCap(segments[0], cap);
+        addCap(segments[segments.length - 1], cap);
+      }
+    }
+    return bounds;
+  }
+
+  static _addBevelJoin(segment: Segment, join: StrokeJoin, radius: number, miterLimit: number, matrix: Matrix | null, strokeMatrix: Matrix | null, addPoint: (point: Point) => void, isArea: boolean) {
+    // Handles both 'bevel' and 'miter' joins, as they share a lot of code,
+    // using different matrices to transform segment points and stroke
+    // vectors to support Style#strokeScaling.
+    var curve2 = segment.getCurve()!,
+      curve1 = curve2.getPrevious()!,
+      point = curve2.getPoint1().transform(matrix),
+      normal1 = curve1.getNormalAtTime(1).multiply(radius).transform(strokeMatrix),
+      normal2 = curve2.getNormalAtTime(0).multiply(radius).transform(strokeMatrix),
+      angle = normal1.getDirectedAngle(normal2);
+    if (angle < 0 || angle >= 180) {
+      normal1 = normal1.negate();
+      normal2 = normal2.negate();
+    }
+    if (isArea) addPoint(point);
+    addPoint(point.add(normal1));
+    if (join === 'miter') {
+      // Intersect the two lines
+      var corner = new Line(point.add(normal1), new Point(-normal1.y, normal1.x), true).intersect(
+        new Line(point.add(normal2), new Point(-normal2.y, normal2.x), true),
+        true
+      );
+      // See if we actually get a bevel point and if its distance is below
+      // the miterLimit. If not, make a normal bevel.
+      if (corner && point.getDistance(corner) <= miterLimit * radius) {
+        addPoint(corner);
+      }
+    }
+    // Produce a normal bevel
+    addPoint(point.add(normal2));
+  }
+
+  static _addSquareCap(segment: Segment, cap: StrokeCap, radius: number, matrix: Matrix | null, strokeMatrix: Matrix | null, addPoint: (point: Point) => void, isArea: boolean) {
+    // Handles both 'square' and 'butt' caps, as they share a lot of code.
+    // Calculate the corner points of butt and square caps, using different
+    // matrices to transform segment points and stroke vectors to support
+    // Style#strokeScaling.
+    var point = segment._point.toPoint().transform(matrix),
+      loc = segment.getLocation()!,
+      // Checking loc.getTime() for 0 is to see whether this is the first
+      // or the last segment of the open path, in order to determine in
+      // which direction to flip the normal.
+      normal = loc
+        .getNormal()!
+        .multiply(loc.getTime() === 0 ? radius : -radius)
+        .transform(strokeMatrix);
+    // For square caps, we need to step away from point in the direction of
+    // the tangent, which is the rotated normal.
+    if (cap === 'square') {
+      if (isArea) {
+        addPoint(point.subtract(normal));
+        addPoint(point.add(normal));
+      }
+      point = point.add(normal.rotate(-90));
+    }
+    addPoint(point.add(normal));
+    addPoint(point.subtract(normal));
+  }
+
+  static getBounds(
+    segments: Segment[],
+    closed: boolean,
+    path: Path,
+    matrix: Matrix | null,
+    options?: any,
+    strokePadding?: number[]
+  ): Rectangle {
+    var first = segments[0];
+    // If there are no segments, return "empty" rectangle, just like groups,
+    // since #bounds is assumed to never return null.
+    if (!first) return new Rectangle(0, 0, 0, 0);
+    var coords: number[] = new Array(6),
+      // Make coordinates for first segment available in prevCoords.
+      prevCoords: number[] = first._transformCoordinates(matrix, new Array(6), false),
+      min: number[] = prevCoords.slice(0, 2), // Start with values of first point
+      max: number[] = min.slice(), // clone
+      roots: number[] = new Array(2);
+
+    function processSegment(segment) {
+      segment._transformCoordinates(matrix, coords);
+      for (var i = 0; i < 2; i++) {
+        Curve._addBounds(
+          prevCoords[i], // prev.point
+          prevCoords[i + 4], // prev.handleOut
+          coords[i + 2], // segment.handleIn
+          coords[i], // segment.point,
+          i,
+          strokePadding ? strokePadding[i] : 0,
+          min,
+          max,
+          roots
+        );
+      }
+      // Swap coordinate buffers.
+      var tmp = prevCoords;
+      prevCoords = coords;
+      coords = tmp;
+    }
+
+    for (var i = 1, l = segments.length; i < l; i++) processSegment(segments[i]);
+    if (closed) processSegment(first);
+    return new Rectangle(min[0], min[1], max[0] - min[0], max[1] - min[1]);
   }
 }

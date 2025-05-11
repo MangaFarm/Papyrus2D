@@ -22,7 +22,12 @@ export class Rectangle {
     arg2?: number,
     arg3?: number
   ) {
-    if (typeof arg0 === 'number' && typeof arg1 === 'number' && typeof arg2 === 'number' && typeof arg3 === 'number') {
+    if (
+      typeof arg0 === 'number' &&
+      typeof arg1 === 'number' &&
+      typeof arg2 === 'number' &&
+      typeof arg3 === 'number'
+    ) {
       this.x = arg0;
       this.y = arg1;
       this.width = arg2;
@@ -33,7 +38,10 @@ export class Rectangle {
       this.width = arg1.width;
       this.height = arg1.height;
     } else if (arg0 instanceof Point && arg1 instanceof Point) {
-      const x1 = arg0.x, y1 = arg0.y, x2 = arg1.x, y2 = arg1.y;
+      const x1 = arg0.x,
+        y1 = arg0.y,
+        x2 = arg1.x,
+        y2 = arg1.y;
       this.x = Math.min(x1, x2);
       this.y = Math.min(y1, y2);
       this.width = Math.abs(x2 - x1);
@@ -145,11 +153,13 @@ export class Rectangle {
   intersects(rect: Rectangle | null | undefined, epsilon: number = 0): boolean {
     // rectがnullまたはundefinedの場合は常にfalseを返す
     if (!rect) return false;
-    
-    return rect.x + rect.width > this.x - epsilon
-        && rect.y + rect.height > this.y - epsilon
-        && rect.x < this.x + this.width + epsilon
-        && rect.y < this.y + this.height + epsilon;
+
+    return (
+      rect.x + rect.width > this.x - epsilon &&
+      rect.y + rect.height > this.y - epsilon &&
+      rect.x < this.x + this.width + epsilon &&
+      rect.y < this.y + this.height + epsilon
+    );
   }
 
   /**
@@ -197,13 +207,13 @@ export class Rectangle {
     const topRight = matrix.transform(new Point(this.x + this.width, this.y));
     const bottomLeft = matrix.transform(new Point(this.x, this.y + this.height));
     const bottomRight = matrix.transform(this.bottomRight);
-    
+
     // 変換後の4点から最小と最大の座標を求める
     const x1 = Math.min(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
     const y1 = Math.min(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
     const x2 = Math.max(topLeft.x, topRight.x, bottomLeft.x, bottomRight.x);
     const y2 = Math.max(topLeft.y, topRight.y, bottomLeft.y, bottomRight.y);
-    
+
     // 新しい矩形を作成して返す
     return new Rectangle(x1, y1, x2 - x1, y2 - y1);
   }
@@ -219,22 +229,19 @@ export class Rectangle {
       hor = amount.width;
       ver = amount.height;
     }
-    return new Rectangle(
-      this.x - hor / 2,
-      this.y - ver / 2,
-      this.width + hor,
-      this.height + ver
-    );
+    return new Rectangle(this.x - hor / 2, this.y - ver / 2, this.width + hor, this.height + ver);
   }
 
   /**
    * 中心から指定した量だけスケーリングした新しい矩形を返す
    */
   scale(hor: number, ver?: number): Rectangle {
-    return this.expand(new Size(
-      this.width * hor - this.width,
-      this.height * (ver === undefined ? hor : ver) - this.height
-    ));
+    return this.expand(
+      new Size(
+        this.width * hor - this.width,
+        this.height * (ver === undefined ? hor : ver) - this.height
+      )
+    );
   }
 
   /**
@@ -249,5 +256,12 @@ export class Rectangle {
    */
   isEmpty(): boolean {
     return this.width === 0 || this.height === 0;
+  }
+
+  // centerを移動した新しい矩形を返す
+  moveCenter(center: Point): Rectangle {
+    const dx = center.x - this.center.x;
+    const dy = center.y - this.center.y;
+    return new Rectangle(this.x + dx, this.y + dy, this.width, this.height);
   }
 }

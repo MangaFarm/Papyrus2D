@@ -24,7 +24,6 @@ export type BoundsCache = {
 // _boundsの型
 export type BoundsEntry = {
   rect: Rectangle;
-  internal?: boolean;
 };
 
 export type Bounds = {
@@ -32,7 +31,7 @@ export type Bounds = {
 };
 
 export type BoundsOptions = { 
-  internal?: boolean, 
+  // internal?: boolean,  // viewMatrix, globalMatrixがないので無意味
   cacheItem?: PathItemBase ,
   stroke?: boolean,
   handle?: boolean,
@@ -282,6 +281,10 @@ export abstract class PathItemBase implements PathItem {
 
   abstract reorient(nonZero?: boolean, clockwise?: boolean): PathItem;
 
+  getStyle(): Style {
+    return this._style;
+  }
+
   getFillRule(): string {
     return this._style.fillRule;
   }
@@ -403,34 +406,26 @@ export abstract class PathItemBase implements PathItem {
   }
 
   _getCachedBounds(matrix: Matrix | null, options: BoundsOptions, noInternal: boolean): BoundsEntry {
-    // See if we can cache these bounds. We only cache the bounds
-    // transformed with the internally stored _matrix, (the default if no
-    // matrix is passed).
-    matrix = matrix && matrix._orNullIfIdentity();
-    // Do not transform by the internal matrix for internal, untransformed
-    // bounds.
-    var internal = options.internal && !noInternal,
-      cacheItem = options.cacheItem,
-     _matrix = internal ? null : this._matrix._orNullIfIdentity(),
-    // Create a key for caching, reflecting all bounds options.
-    cacheKey =
+    // options.internalは常にtrueとして最適化
+    // したがってinternalは常にtrue
+    const cacheItem = options.cacheItem;
+    const _matrix = this._matrix._orNullIfIdentity();
+    const cacheKey =
       cacheItem &&
       (!matrix || matrix.equals(_matrix!)) &&
-      this._getBoundsCacheKey(options, !!internal),
-    bounds = this._bounds;
+      this._getBoundsCacheKey(options, true);
+    let bounds = this._bounds;
     // NOTE: This needs to happen before returning cached values, since even
     // then, _boundsCache needs to be kept up-to-date.
     this._parent?._updateBoundsCache(cacheItem ?? null);
     if (cacheKey && bounds && cacheKey in bounds) {
-      var cached = bounds[cacheKey];
+      const cached = bounds[cacheKey];
       return {
         rect: cached.rect.clone(),
       };
     }
-    var res = this._getBounds(matrix || _matrix, options),
-      // Support two versions of _getBounds(): One that directly returns a
-      // Rectangle, and one that returns a bounds object with nonscaling.
-      rect = res.rect || res;
+    const res = this._getBounds(matrix || _matrix, options);
+    const rect = res.rect || res;
     // If we can cache the result, update the _bounds cache structure
     // before returning
     if (cacheKey) {
@@ -439,8 +434,6 @@ export abstract class PathItemBase implements PathItem {
       }
       bounds[cacheKey] = {
         rect: rect.clone(),
-        // Mark as internal, so Item#transform() won't transform it
-        internal: internal,
       };
     }
     return {
@@ -519,4 +512,15 @@ export abstract class PathItemBase implements PathItem {
     };
   }
 
+  _getStrokeMatrix(matrix: Matrix | null, options: BoundsOptions) {
+    // globalMatrix, viewMatrixがないのでシンプル
+    if (this.getStrokeScaling()) {
+        return matrix;
+    } else {
+        return Matrix.identity();
+    }
+}
+  getStrokeScaling(): boolean {
+    return this._style.getStrokeScaling();
+  }
 }
