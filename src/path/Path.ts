@@ -634,4 +634,27 @@ export class Path extends PathItemBase {
         this._bounds = undefined;
     }
   }
+
+  _getStrokePadding(radius: number, matrix: Matrix | null) {
+    if (!matrix)
+        return [radius, radius];
+      
+    // If a matrix is provided, we need to rotate the stroke circle
+    // and calculate the bounding box of the resulting rotated ellipse:
+    // Get rotated hor and ver vectors, and determine rotation angle
+    // and ellipse values from them:
+    var hor = new Point(radius, 0).transform(matrix),
+        ver = new Point(0, radius).transform(matrix),
+        phi = hor.getAngleInRadians(),
+        a = hor.getLength(),
+        b = ver.getLength();
+    var sin = Math.sin(phi),
+        cos = Math.cos(phi),
+        tan = Math.tan(phi),
+        tx = Math.atan2(b * tan, a),
+        ty = Math.atan2(b, tan * a);
+    // Due to symmetry, we don't need to cycle through pi * n solutions:
+    return [Math.abs(a * Math.cos(tx) * cos + b * Math.sin(tx) * sin),
+            Math.abs(b * Math.sin(ty) * cos + a * Math.cos(ty) * sin)];
+  }
 }
