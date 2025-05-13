@@ -557,9 +557,9 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  getPathData(): string {
+  getPathData(matrix: Matrix = Matrix.identity(), precision: number = 5): string {
     // PathSVG.tsに外注
-    return PathSVG.toPathData(this, Matrix.identity(), 5);
+    return PathSVG.toPathData(this, matrix, precision);
   }
 
   compare(path: Path): boolean {
@@ -593,7 +593,7 @@ export class Path extends PathItemBase {
     return this.getPathData();
   }
 
-  getChildren(): PathItemBase[] | null {
+  getChildren(): null {
     return null;
   }
 

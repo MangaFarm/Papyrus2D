@@ -37,7 +37,7 @@ export class CompoundPath extends PathItemBase {
     }
   }
 
-  getChildren(): PathItemBase[] | null {
+  getChildren(): Path[] | null {
     return this._children;    
   }
 

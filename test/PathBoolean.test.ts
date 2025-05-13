@@ -65,13 +65,12 @@ describe('Path Boolean Operations', () => {
     console.log(frame.getPathData());
     const rect = PathConstructors.Rectangle({ point: { x: 50, y: 50 }, size: { width: 100, height: 150 } });
 
-    saveAsPng(rectPath1.getPathData(), 'rectPath1.png');
-    saveAsPng(rectPath2.getPathData(), 'rectPath2.png');
-    saveAsPng(frame.getPathData(), 'frame.png');
-    saveAsPng2(rectPath1.getPathData(), rectPath2.getPathData(), 'rectPath1_rectPath2.png');
+    saveAsPng(rectPath1, 'rectPath1.png');
+    saveAsPng(rectPath2, 'rectPath2.png');
+    saveAsPng(frame, 'frame.png');
 
     const intersectedPath = intersect(frame, rect);
-    saveAsPng((intersectedPath as Path).getPathData(), 'intersectedPath.png');
+    // saveAsPng((intersectedPath as Path).getPathData(), 'intersectedPath.png');
 
     compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');
   });
