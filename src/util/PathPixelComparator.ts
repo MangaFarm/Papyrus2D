@@ -6,14 +6,6 @@ import { Path } from '../path/Path';
 import { CompoundPath } from '../path/CompoundPath';
 import { Matrix } from '../basic/Matrix';
 
-/**
- * 2つのSVG pathDataをピクセル単位で比較するユーティリティ
- *
- * - キャンバスサイズは固定（例: 200x200）
- * - SVG pathDataは中央に配置
- * - 完全一致で比較（将来的に許容誤差も対応可能）
- */
-
 const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 256;
 
@@ -26,19 +18,16 @@ const colors = [
   '#00FFFF', // cyan
 ];
 
-function createSVG(paths: Path[]): string {
-  // 全体のbounding boxを計算
-  const boundsArray: Rectangle[] = [];
-  for (const path of paths) {
-    const bounds = path.getBounds(null, { stroke: true });
-    boundsArray.push(bounds);
+function calculateBounds(paths: Path[]): Rectangle {
+  let bounds = paths[0].getBounds(null, { stroke: true });
+  for (let i = 1; i < paths.length; i++) {
+    const pathBounds = paths[i].getBounds(null, { stroke: true });
+    bounds = bounds.unite(pathBounds);
   }
+  return bounds;
+}
 
-  let bounds = boundsArray[0];
-  for (let i = 1; i < boundsArray.length; i++) {
-    bounds = bounds.unite(boundsArray[i]);
-  }
-
+function createSVG(paths: Path[], bounds: Rectangle): string {
   // 通常bounding box, stroke bounding boxを計算
   let combinedPathData = '';
   let colorIndex = 0;
@@ -72,7 +61,8 @@ async function renderToBuffer(svg: string): Promise<Uint8Array> {
 }
 
 export async function saveAsPng(pathItem: PathItem, filename: string): Promise<void> {
-  const svg = createSVG(pathItem.getPaths());
+  const bounds = calculateBounds(pathItem.getPaths());
+  const svg = createSVG(pathItem.getPaths(), bounds);
   const resvg = new Resvg(svg, {
     fitTo: {
       mode: 'original',
@@ -91,8 +81,9 @@ export async function saveAsPng(pathItem: PathItem, filename: string): Promise<v
  * @returns 完全一致ならtrue、そうでなければfalse
  */
 export async function comparePaths(path1: Path, path2: Path): Promise<boolean> {
-  const svg1 = createSVG(path1);
-  const svg2 = createSVG(path2);
+  const bounds = calculateBounds([path1, path2]);
+  const svg1 = createSVG([path1], bounds);
+  const svg2 = createSVG([path2], bounds);
 
   const [buf1, buf2] = await Promise.all([renderToBuffer(svg1), renderToBuffer(svg2)]);
 
