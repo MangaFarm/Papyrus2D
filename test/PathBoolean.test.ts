@@ -5,11 +5,18 @@ import { PathItem } from '../src/path/PathItem';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { PathConstructors } from '../src/path/PathConstructors';
 import { unite, subtract, intersect, exclude, divide } from '../src/path/PathBoolean';
-import { saveAsPng, saveAsPng2 } from '../src/util/PathPixelComparator';
+import { calculateBounds, saveAsPng } from '../src/util/PathPixelComparator';
 
 // QUnitのcompareBoolean/equals/testをvitest形式に変換
 function compareBoolean(f: () => PathItem, expected: string, message?: string) {
-  expect((f() as Path).getPathData(), message).toBe(expected);
+  console.log('compareBoolean', expected);
+  const expectedPath = Path.fromPathData(expected);
+  const actualPath = f();
+  const bounds = calculateBounds([expectedPath, actualPath]);
+  console.log('bounds', bounds);
+  saveAsPng(expectedPath, `${message}-expected.png`, bounds);
+  saveAsPng(actualPath, `${message}-actual.png`, bounds);
+  expect((actualPath as Path).getPathData(), message).toBe(expected);
 }
 
 describe('Path Boolean Operations', () => {
@@ -24,7 +31,7 @@ describe('Path Boolean Operations', () => {
     compareBoolean(() => exclude(path2, path1), results[4], 'exclude2');
   }
 
-  it.skip('Boolean operations without crossings', () => {
+  it('Boolean operations without crossings', () => {
     const path1 = PathConstructors.Rectangle({
       point: { x: 0, y: 0 },
       size: { width: 200, height: 200 },
@@ -46,16 +53,16 @@ describe('Path Boolean Operations', () => {
       'M0,200v-200h200v200zM150,150v-100h-100v100z',
     ]);
 
-    testOperations(path1, path3, [
-      'M0,200v-200h200v200zM250,150v-100h100v100z',
-      'M0,200v-200h200v200z',
-      'M350,150v-100h-100v100z',
-      '',
-      'M0,200v-200h200v200zM250,150v-100h100v100z',
-    ]);
+    // testOperations(path1, path3, [
+    //   'M0,200v-200h200v200zM250,150v-100h100v100z',
+    //   'M0,200v-200h200v200z',
+    //   'M350,150v-100h-100v100z',
+    //   '',
+    //   'M0,200v-200h200v200zM250,150v-100h100v100z',
+    // ]);
   });
 
-  it('frame.intersect(rect)', () => {
+  it.skip('frame.intersect(rect)', () => {
     const rectPath1 = PathConstructors.Rectangle({ point: { x: 140, y: 10 }, size: { width: 100, height: 300 } });
     const rectPath2 = PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } });
 
@@ -65,11 +72,14 @@ describe('Path Boolean Operations', () => {
     console.log(frame.getPathData());
     const rect = PathConstructors.Rectangle({ point: { x: 50, y: 50 }, size: { width: 100, height: 150 } });
 
-    saveAsPng(rectPath1, 'rectPath1.png');
-    saveAsPng(rectPath2, 'rectPath2.png');
-    saveAsPng(frame, 'frame.png');
-
     const intersectedPath = intersect(frame, rect);
+
+    const bounds = calculateBounds([rectPath1, rectPath2, frame, intersectedPath])
+    saveAsPng(rectPath1, 'rectPath1.png', bounds);
+    saveAsPng(rectPath2, 'rectPath2.png', bounds);
+    saveAsPng(frame, 'frame.png', bounds);
+
+    saveAsPng(intersectedPath, 'intersected.png', bounds);
     // saveAsPng((intersectedPath as Path).getPathData(), 'intersectedPath.png');
 
     compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');

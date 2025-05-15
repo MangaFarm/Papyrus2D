@@ -3,6 +3,7 @@ import fs from 'fs';
 import { Rectangle } from '../basic/Rectangle';
 import { PathItem } from '../path/PathItem';
 import { Path } from '../path/Path';
+import { PathItemBase } from '../path/PathItemBase';
 import { CompoundPath } from '../path/CompoundPath';
 import { Matrix } from '../basic/Matrix';
 
@@ -18,10 +19,10 @@ const colors = [
   '#00FFFF', // cyan
 ];
 
-function calculateBounds(paths: Path[]): Rectangle {
-  let bounds = paths[0].getBounds(null, { stroke: true });
+export function calculateBounds(paths: PathItem[]): Rectangle {
+  let bounds = (paths[0] as PathItemBase).getBounds(null, { stroke: true });
   for (let i = 1; i < paths.length; i++) {
-    const pathBounds = paths[i].getBounds(null, { stroke: true });
+    const pathBounds = (paths[i] as PathItemBase).getBounds(null, { stroke: true });
     bounds = bounds.unite(pathBounds);
   }
   return bounds;
@@ -60,8 +61,8 @@ async function renderToBuffer(svg: string): Promise<Uint8Array> {
   return rendered.pixels;
 }
 
-export async function saveAsPng(pathItem: PathItem, filename: string): Promise<void> {
-  const bounds = calculateBounds(pathItem.getPaths());
+export async function saveAsPng(pathItem: PathItem, filename: string, rect: Rectangle | null = null): Promise<void> {
+  const bounds = rect ?? calculateBounds(pathItem.getPaths());
   const svg = createSVG(pathItem.getPaths(), bounds);
   const resvg = new Resvg(svg, {
     fitTo: {

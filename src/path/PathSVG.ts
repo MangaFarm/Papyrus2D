@@ -4,16 +4,15 @@
  * paper.js の Path.js/PathItem.js のSVG変換ロジックをTypeScriptで移植
  */
 
+import { PathItemBase } from './PathItemBase';
 import { Path } from './Path';
+import { CompoundPath } from './CompoundPath';
 import { Segment } from './Segment';
 import { Point } from '../basic/Point';
 import { Size } from '../basic/Size';
 import { Numerical } from '../util/Numerical';
 import { Matrix } from '../basic/Matrix';
 
-/**
- * SVG出力用の数値フォーマッタ（paper.js互換、最小限）
- */
 class Formatter {
   private multiplier: number;
 
@@ -31,9 +30,6 @@ class Formatter {
   }
 }
 
-/**
- * SVGパスデータ文字列を生成
- */
 export function toPathData(path: Path, matrix: Matrix, precision: number): string {
   // NOTE: #setPathData() is defined in PathItem.
   var segments = path._segments,
@@ -105,15 +101,22 @@ export function toPathData(path: Path, matrix: Matrix, precision: number): strin
   return parts.join('');
 }
 
-/**
- * SVGパスデータからPathを生成（fromSVGのエイリアス）
- */
-export function fromPathData(svg: string): Path {
+export function createPathfromPathData(svg: string): Path {
+  const path = new Path();
+  fromPathData(path, svg);
+  return path;
+}
+
+export function createCompoundPathFromPathData(svg: string): CompoundPath {
+  const path = new CompoundPath();
+  fromPathData(path, svg);
+  return path;
+}
+
+export function fromPathData(path: PathItemBase, svg: string): void {
   // NOTE: #getPathData() is defined in CompoundPath / Path
   // This is a very compact SVG Path svg parser that works both for Path
   // and CompoundPath.
-
-  const path = new Path();
 
   // First split the path data into parts of command-coordinates pairs
   // Commands are any of these characters: mzlhvcsqta
@@ -125,13 +128,13 @@ export function fromPathData(svg: string): Path {
     current = new Point(),
     start = new Point();
 
-  function getCoord(index, coord) {
+  function getCoord(index: number, coord: 'x' | 'y') {
     var val = +coords[index];
     if (relative) val += current[coord];
     return val;
   }
 
-  function getPoint(index) {
+  function getPoint(index: number) {
     return new Point(getCoord(index, 'x'), getCoord(index + 1, 'y'));
   }
 
@@ -148,6 +151,7 @@ export function fromPathData(svg: string): Path {
     // Fix issues with z in the middle of SVG path data, not followed by
     // a m command, see #413:
     if (previous === 'z' && !/[mz]/.test(lower)) path.moveTo(current);
+    console.log(lower);
     switch (lower) {
       case 'm':
       case 'l':
@@ -168,10 +172,12 @@ export function fromPathData(svg: string): Path {
         break;
       case 'h':
       case 'v':
-        var coord = lower === 'h' ? 'x' : 'y';
+        var coord: 'x' | 'y' = lower === 'h' ? 'x' : 'y';
         current = current.clone(); // Clone as we're going to modify it.
         for (var j = 0; j < length; j++) {
-          current[coord] = getCoord(j, coord);
+          const p = {...current};
+          p[coord] = getCoord(j, coord);
+          current = new Point(p.x, p.y);
           path.lineTo(current);
         }
         control = current;
@@ -233,7 +239,6 @@ export function fromPathData(svg: string): Path {
     }
     previous = lower;
   }
-  return path;
 }
 
 /**

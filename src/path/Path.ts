@@ -28,6 +28,19 @@ import * as PathComponents from './PathComponents';
 import * as PathTransform from './PathTransform';
 import * as PathArc from './PathArc';
 
+function debugCurves(path: Path) {
+  const cs = path._curves;
+  if (cs) {
+    for (const c of cs) {
+      if (c === undefined) {
+        console.log("undefined curve");
+        continue;
+      }
+      console.log(`[${c._segment1}, ${c._segment2}]`);
+    }    
+  }
+}
+
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
 // 強烈に邪悪なことをしているので、それに対応
 type SegmentsWithCurves = Array<Segment> & { _curves?: Curve[] };
@@ -97,6 +110,7 @@ export class Path extends PathItemBase {
   }
 
   _adjustCurves(start: number, end: number): void {
+    console.log('🔥adjustCurves');
     var segments = this._segments,
       curves = this._curves!,
       curve;
@@ -137,7 +151,9 @@ export class Path extends PathItemBase {
   }
 
   setClosed(closed: boolean): void {
-    if (this._closed != (closed = !!closed)) {
+    console.log('#setClosed called', closed, this._closed);
+    debugCurves(this);
+    if (this._closed != closed) {
       this._closed = closed;
       // カーブの更新
       if (this._curves) {
@@ -145,10 +161,14 @@ export class Path extends PathItemBase {
         if (closed) {
           const curve = new Curve(this, this._segments[length - 1], this._segments[0]);
           this._curves[length - 1] = curve;
+          console.log('#setClosed closed');
+          debugCurves(this);
         }
       }
       this._changed(Change.SEGMENTS);
     }
+    console.log('#setClosed finished', closed, this._closed);
+    debugCurves(this);
   }
 
   get closed(): boolean {
@@ -179,11 +199,11 @@ export class Path extends PathItemBase {
       throw new Error('Path#getBounds: handle option is not supported');
     } else if (options.stroke) {
       return {
-        rect: Path.getStrokeBounds(this._segments, this._closed, this, matrix, options)
+        rect: Path.getStrokeBounds(this._segments, this._closed, this, matrix, options),
       };
     } else {
       return {
-        rect: Path.getBounds(this._segments, this._closed, this, matrix, options)
+        rect: Path.getBounds(this._segments, this._closed, this, matrix, options),
       };
     }
   }
@@ -260,10 +280,6 @@ export class Path extends PathItemBase {
     }
   ): boolean {
     return PathGeometry.contains(this._segments, this._closed, this.getCurves(), point, options);
-  }
-
-  transform(matrix: Matrix): Path {
-    return PathTransform.transform(this, matrix);
   }
 
   translate(dx: number, dy: number): Path {
@@ -352,23 +368,45 @@ export class Path extends PathItemBase {
     this.removeSegments();
   }
 
-  moveTo(point: Point): Path {
-    if (this._segments.length === 1) this.removeSegment(0);
-    // Let's not be picky about calling moveTo() when not at the
-    // beginning of a path, just bail out:
-    if (!this._segments.length) this._add([new Segment(point)]);
-    return this;
-  }
-
-  lineTo(point: Point): Path {
-    this.add(new Segment(point));
-    return this;
-  }
-
   getCurrentSegment() {
     var segments = this._segments;
     if (!segments.length) throw new Error('Use a moveTo() command first');
     return segments[segments.length - 1];
+  }
+
+  moveTo(point: Point): Path {
+    console.log('#moveTo before');
+    debugCurves(this);
+
+    if (this._segments.length === 1) this.removeSegment(0);
+    // Let's not be picky about calling moveTo() when not at the
+    // beginning of a path, just bail out:
+    if (!this._segments.length) this._add([new Segment(point)]);
+
+    console.log('#moveTo after');
+    debugCurves(this);
+
+    return this;
+  }
+
+  moveBy(point: Point): Path {
+    throw new Error('moveBy() is unsupported on Path items.');
+  }
+
+  lineTo(point: Point): Path {
+    if (point.x == 150 && point.y == 50) {
+      debugger;
+    }
+
+    console.log('#lineTo before');
+    debugCurves(this);
+
+    this._add([new Segment(point)]);
+
+    console.log('#lineTo after');
+    debugCurves(this);
+
+    return this;
   }
 
   cubicCurveTo(handle1: Point, handle2: Point, to: Point): Path {
@@ -396,6 +434,56 @@ export class Path extends PathItemBase {
     return this;
   }
 
+  curveTo(through: Point, to: Point, t: number): Path {
+    const t1 = 1 - t;
+    const current = this.getCurrentSegment()._point,
+
+    // handle = (through - (1 - t)^2 * current - t^2 * to) /
+    // (2 * (1 - t) * t)
+    handle = through
+      .subtract(current.multiply(t1 * t1))
+      .subtract(to.multiply(t * t))
+      .divide(2 * t * t1);
+    if (handle.isNaN()) throw new Error('Cannot put a curve through points with parameter = ' + t);
+    this.quadraticCurveTo(handle, to);
+    return this;
+  }
+
+  arcTo(through: Point, to: Point): Path {
+    PathArc.arcTo(this, through, to);
+    return this;
+  }
+
+  lineBy(point: Point): Path {
+    const current = this.getCurrentSegment()._point.toPoint();
+    this.lineTo(current.add(point));
+    return this;
+  }
+
+  cubicCurveBy(handle1: Point, handle2: Point, to: Point): Path {
+    const current = this.getCurrentSegment()._point.toPoint();
+    this.cubicCurveTo(current.add(handle1), current.add(handle2), current.add(to));
+    return this;
+  }
+
+  quadraticCurveBy(handle: Point, to: Point): PathItem {
+    const current = this.getCurrentSegment()._point.toPoint();
+    this.quadraticCurveTo(current.add(handle), current.add(to));
+    return this;
+  }
+
+  curveBy(through: Point, to: Point, t: number): Path {
+    const current = this.getCurrentSegment()._point.toPoint();
+    this.curveTo(current.add(through), current.add(to), t);
+    return this;
+  }
+
+  arcBy(through: Point, to: Point): Path {
+    const current = this.getCurrentSegment()._point.toPoint();
+    this.arcTo(current.add(through), current.add(to));
+    return this;
+  }
+
   smooth(options?: {
     type?: 'asymmetric' | 'continuous';
     from?: number | Segment;
@@ -411,18 +499,20 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  closePath(tolerance: number): void {
+  closePath(tolerance: number): Path {
+    console.log('#closePath', this._countCurves());
+    debugCurves(this);
     this.setClosed(true);
+    console.log('#closePath before join', this._countCurves());
+    debugCurves(this);
     this.join(this, tolerance);
+    console.log('#closePath after join', this._countCurves());
+    debugCurves(this);
+    return this;
   }
 
   join(path: Path, tolerance: number) {
     PathBoolean.join(this, path, tolerance);
-    return this;
-  }
-
-  arcTo(through: Point, to: Point): Path {
-    PathArc.arcTo(this, through, to);
     return this;
   }
 
@@ -508,8 +598,9 @@ export class Path extends PathItemBase {
     return PathUtils.flattenPath(this, flatness);
   }
 
-  simplify(tolerance: number = 2.5): boolean {
-    return PathUtils.simplifyPath(this, tolerance);
+  simplify(tolerance: number = 2.5): Path {
+    PathUtils.simplifyPath(this, tolerance);
+    return this;
   }
 
   isEmpty(): boolean {
@@ -580,13 +671,11 @@ export class Path extends PathItemBase {
   }
 
   set pathData(val: string) {
-    const path = PathSVG.fromPathData(val);
-    this.setSegments(path.getSegments());
-    this.setClosed(path.closed);
+    PathSVG.fromPathData(this, val);
   }
 
   static fromPathData(val: string): Path {
-    return PathSVG.fromPathData(val);
+    return PathSVG.createPathfromPathData(val);
   }
 
   toString(): string {
@@ -681,7 +770,16 @@ export class Path extends PathItemBase {
         addRound(segment);
       } else {
         // _addBevelJoin() handles both 'bevel' and 'miter' joins.
-        Path._addBevelJoin(segment, join, strokeRadius, miterLimit, matrix, strokeMatrix, addPoint, false);
+        Path._addBevelJoin(
+          segment,
+          join,
+          strokeRadius,
+          miterLimit,
+          matrix,
+          strokeMatrix,
+          addPoint,
+          false
+        );
       }
     }
 
@@ -711,7 +809,16 @@ export class Path extends PathItemBase {
     return bounds;
   }
 
-  static _addBevelJoin(segment: Segment, join: StrokeJoin, radius: number, miterLimit: number, matrix: Matrix | null, strokeMatrix: Matrix | null, addPoint: (point: Point) => void, isArea: boolean) {
+  static _addBevelJoin(
+    segment: Segment,
+    join: StrokeJoin,
+    radius: number,
+    miterLimit: number,
+    matrix: Matrix | null,
+    strokeMatrix: Matrix | null,
+    addPoint: (point: Point) => void,
+    isArea: boolean
+  ) {
     // Handles both 'bevel' and 'miter' joins, as they share a lot of code,
     // using different matrices to transform segment points and stroke
     // vectors to support Style#strokeScaling.
@@ -743,7 +850,15 @@ export class Path extends PathItemBase {
     addPoint(point.add(normal2));
   }
 
-  static _addSquareCap(segment: Segment, cap: StrokeCap, radius: number, matrix: Matrix | null, strokeMatrix: Matrix | null, addPoint: (point: Point) => void, isArea: boolean) {
+  static _addSquareCap(
+    segment: Segment,
+    cap: StrokeCap,
+    radius: number,
+    matrix: Matrix | null,
+    strokeMatrix: Matrix | null,
+    addPoint: (point: Point) => void,
+    isArea: boolean
+  ) {
     // Handles both 'square' and 'butt' caps, as they share a lot of code.
     // Calculate the corner points of butt and square caps, using different
     // matrices to transform segment points and stroke vectors to support

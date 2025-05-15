@@ -54,6 +54,13 @@ export function insertSegments(path: Path, segs: SegmentsWithCurves, index?: num
   // Use SEGMENTS notification instead of GEOMETRY since curves are kept
   // up-to-date by _adjustCurves() and don't need notification.
   path._changed(/*#=*/ Change.SEGMENTS);
+
+  console.log('# insertSegments');
+  for (let i = 0; i < path._segments.length; i++) {
+    const seg = path._segments[i];
+    console.log(`seg[${i}]: ${seg.toString()}`);
+  }
+
   return segs;
 }
 

@@ -6,6 +6,31 @@ import { Rectangle } from '../src/basic/Rectangle';
 import { Matrix } from '../src/basic/Matrix';
 
 describe('SVG', () => {
+
+  it('singlePath', () => {
+    const pathData = 'M0,200v-200h200v200z';
+    const path = Path.fromPathData(pathData);
+    const cs = path.getCurves();
+    if (cs) {
+      console.log('## curves');
+      for (const c of cs) {
+        console.log(`[${c._segment1}, ${c._segment2}]`);
+      }    
+    }
+  })
+
+  it('subPath', () => {
+    const pathData = 'M0,200v-200h200v200zM150,150v-100h-100v100z';
+    const path = Path.fromPathData(pathData);
+    const cs = path.getCurves();
+    if (cs) {
+      console.log('## curves');
+      for (const c of cs) {
+        console.log(`[${c._segment1}, ${c._segment2}]`);
+      }    
+    }
+  })
+
   it('Path.fromPathData', () => {
     const svg = 'M100,300l0,-50l50,-50l-50,0l150,0l-150,0l50,0l-50,0l100,0l-100,0l0,-100l200,0l0,200z';
     const path = Path.fromPathData(svg);

@@ -211,7 +211,6 @@ export abstract class PathItemBase implements PathItem {
   abstract getSegments(): Segment[];
   abstract getCurves(): Curve[];
   abstract getArea(): number;
-  abstract reverse(): PathItem;
   abstract getPaths(): any[];
   abstract clone(deep?: boolean): PathItem;
 
@@ -549,4 +548,28 @@ export abstract class PathItemBase implements PathItem {
   getStrokeScaling(): boolean {
     return this._style.getStrokeScaling();
   }
+
+  abstract moveTo(point: Point): PathItem;
+  abstract moveBy(point: Point): PathItem;
+  abstract lineTo(point: Point): PathItem;
+  abstract cubicCurveTo(handle1: Point, handle2: Point, to: Point): PathItem;
+  abstract quadraticCurveTo(handle: Point, to: Point): PathItem;
+  abstract curveTo(handle: Point, to: Point, t: number): PathItem;
+  abstract arcTo(handle: Point, to: Point): PathItem;
+  abstract lineBy(point: Point): PathItem;
+  abstract cubicCurveBy(handle1: Point, handle2: Point, to: Point): PathItem;
+  abstract quadraticCurveBy(handle: Point, to: Point): PathItem;
+  abstract curveBy(handle: Point, to: Point, t: number): PathItem;
+  abstract arcBy(handle: Point, to: Point): PathItem;
+  abstract closePath(tolerance: number): PathItem;
+
+  abstract reverse(): PathItem;
+  abstract flatten(flatness: number): PathItem;
+  abstract simplify(tolerance: number): PathItem;
+  abstract smooth(options?: {
+    type?: 'asymmetric' | 'continuous';
+    from?: number | Segment;
+    to?: number | Segment;
+  }): PathItem;
+
 }
