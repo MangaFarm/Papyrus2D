@@ -9,12 +9,13 @@ import { calculateBounds, comparePaths, saveAsPng } from '../src/util/PathPixelC
 import { Matrix } from '../src/basic/Matrix';
 
 // QUnitのcompareBoolean/equals/testをvitest形式に変換
-async function compareBoolean(f: () => PathItem, expected: string, message?: string) {
+async function compareBoolean(f: () => PathItem, expected: string, message?: string, prefix?: string) {
   const expectedPath = fromPathData(expected);
   const actualPath = f();
   const bounds = calculateBounds([expectedPath, actualPath]);
-  saveAsPng(expectedPath, `${message}-expected.png`, bounds);
-  saveAsPng(actualPath, `${message}-actual.png`, bounds);
+  prefix ??= message;
+  saveAsPng(expectedPath, `${prefix}-expected.png`, bounds);
+  saveAsPng(actualPath, `${prefix}-actual.png`, bounds);
   // expect((actualPath as Path).getPathData(Matrix.identity(), 5), message).toBe(expected);
   expect(await comparePaths(expectedPath, actualPath), message).toBe(true);
 }
@@ -62,14 +63,13 @@ describe('Path Boolean Operations', () => {
     // ]);
   });
 
-  it.skip('frame.intersect(rect)', () => {
+  it('frame.intersect(rect)', async () => {
     const rectPath1 = PathConstructors.Rectangle({ point: { x: 140, y: 10 }, size: { width: 100, height: 300 } });
     const rectPath2 = PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } });
 
     const frame = new CompoundPath();
     frame.addChild(PathConstructors.Rectangle({ point: { x: 140, y: 10 }, size: { width: 100, height: 300 } }));
     frame.addChild(PathConstructors.Rectangle({ point: { x: 150, y: 80 }, size: { width: 50, height: 80 } }));
-    console.log(frame.getPathData());
     const rect = PathConstructors.Rectangle({ point: { x: 50, y: 50 }, size: { width: 100, height: 150 } });
 
     const intersectedPath = intersect(frame, rect);
@@ -82,10 +82,10 @@ describe('Path Boolean Operations', () => {
     saveAsPng(intersectedPath, 'intersected.png', bounds);
     // saveAsPng((intersectedPath as Path).getPathData(), 'intersectedPath.png');
 
-    compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');
+    await compareBoolean(() => intersect(frame, rect), 'M140,50l10,0l0,150l-10,0z');
   });
 
-  it.skip('PathItem#resolveCrossings()', () => {
+  it('PathItem#resolveCrossings()', async () => {
     const paths = [
       'M100,300l0,-50l50,-50l-50,0l150,0l-150,0l50,0l-50,0l100,0l-100,0l0,-100l200,0l0,200z',
       'M50,300l0,-150l50,25l0,-75l200,0l0,200z M100,200l50,0l-50,-25z',
@@ -101,14 +101,14 @@ describe('Path Boolean Operations', () => {
       'M228.26666666666668,222.72h55.46666666666667c3.05499999999995,0 5.546666666666624,2.4916666666666742 5.546666666666624,5.546666666666681v55.46666666666667c0,3.05499999999995 -2.4916666666666742,5.546666666666624 -5.546666666666624,5.546666666666624h-55.46666666666667c-3.055000000000007,0 -5.546666666666681,-2.4916666666666742 -5.546666666666681,-5.546666666666624v-55.46666666666667c0,-3.055000000000007 2.4916666666666742,-5.546666666666681 5.546666666666681,-5.546666666666681z',
     ];
     for (let i = 0; i < paths.length; i++) {
-      const path = Path.fromPathData(paths[i]);
-      const result = Path.fromPathData(results[i]);
+      const path = fromPathData(paths[i]);
       path._style.fillRule = 'evenodd';
       const resolved = path.resolveCrossings();
-      compareBoolean(
+      await compareBoolean(
         () => resolved,
-        result.getPathData(),
-        'path.resolveCrossings(); // Test ' + (i + 1)
+        results[i],
+        'path.resolveCrossings(); // Test ' + (i + 1),
+        'resolveCrossings' + (i + 1),
       );
     }
   });
