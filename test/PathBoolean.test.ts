@@ -21,15 +21,15 @@ async function compareBoolean(f: () => PathItem, expected: string, message?: str
 }
 
 describe('Path Boolean Operations', () => {
-  async function testOperations(path1: any, path2: any, results: string[]) {
-    await compareBoolean(() => unite(path1, path2), results[0], 'unite1');
-    await compareBoolean(() => unite(path2, path1), results[0], 'unite2');
-    await compareBoolean(() => subtract(path1, path2), results[1], 'subtract1');
-    await compareBoolean(() => subtract(path2, path1), results[2], 'subtract2');
-    await compareBoolean(() => intersect(path1, path2), results[3], 'intersect1');
-    await compareBoolean(() => intersect(path2, path1), results[3], 'intersect2');
-    await compareBoolean(() => exclude(path1, path2), results[4], 'exclude1');
-    await compareBoolean(() => exclude(path2, path1), results[4], 'exclude2');
+  async function testOperations(path1: any, path2: any, results: string[], prefix: string) {
+    await compareBoolean(() => unite(path1, path2), results[0], 'unite1', prefix + 'unite1');
+    await compareBoolean(() => unite(path2, path1), results[0], 'unite2', prefix + 'unite2');
+    await compareBoolean(() => subtract(path1, path2), results[1], 'subtract1', prefix + 'subtract1');
+    await compareBoolean(() => subtract(path2, path1), results[2], 'subtract2', prefix + 'subtract2');
+    await compareBoolean(() => intersect(path1, path2), results[3], 'intersect1', prefix + 'intersect1');
+    await compareBoolean(() => intersect(path2, path1), results[3], 'intersect2', prefix + 'intersect2');
+    await compareBoolean(() => exclude(path1, path2), results[4], 'exclude1', prefix + 'exclude1');
+    await compareBoolean(() => exclude(path2, path1), results[4], 'exclude2', prefix + 'exclude2');
   }
 
   it('Boolean operations without crossings', async () => {
@@ -52,15 +52,15 @@ describe('Path Boolean Operations', () => {
       '',
       'M50,150v-100h100v100z',
       'M0,200v-200h200v200zM150,150v-100h-100v100z',
-    ]);
+    ], '1-2-');
 
-    // testOperations(path1, path3, [
-    //   'M0,200v-200h200v200zM250,150v-100h100v100z',
-    //   'M0,200v-200h200v200z',
-    //   'M350,150v-100h-100v100z',
-    //   '',
-    //   'M0,200v-200h200v200zM250,150v-100h100v100z',
-    // ]);
+    await testOperations(path1, path3, [
+      'M0,200v-200h200v200zM250,150v-100h100v100z',
+      'M0,200v-200h200v200z',
+      'M350,150v-100h-100v100z',
+      '',
+      'M0,200v-200h200v200zM250,150v-100h100v100z',
+    ], '1-3-');
   });
 
   it('frame.intersect(rect)', async () => {
