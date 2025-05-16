@@ -5,35 +5,33 @@ import { PathItem, fromPathData } from '../src/path/PathItem';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { PathConstructors } from '../src/path/PathConstructors';
 import { unite, subtract, intersect, exclude, divide } from '../src/path/PathBoolean';
-import { calculateBounds, saveAsPng } from '../src/util/PathPixelComparator';
+import { calculateBounds, comparePaths, saveAsPng } from '../src/util/PathPixelComparator';
 import { Matrix } from '../src/basic/Matrix';
 
 // QUnitのcompareBoolean/equals/testをvitest形式に変換
-function compareBoolean(f: () => PathItem, expected: string, message?: string) {
-  console.log('compareBoolean', expected);
+async function compareBoolean(f: () => PathItem, expected: string, message?: string) {
   const expectedPath = fromPathData(expected);
   const actualPath = f();
   const bounds = calculateBounds([expectedPath, actualPath]);
-  console.log('bounds', bounds);
-  console.log('pathData', expectedPath.getPathData(Matrix.identity(), 5));
   saveAsPng(expectedPath, `${message}-expected.png`, bounds);
   saveAsPng(actualPath, `${message}-actual.png`, bounds);
-  expect((actualPath as Path).getPathData(Matrix.identity(), 5), message).toBe(expected);
+  // expect((actualPath as Path).getPathData(Matrix.identity(), 5), message).toBe(expected);
+  expect(await comparePaths(expectedPath, actualPath), message).toBe(true);
 }
 
 describe('Path Boolean Operations', () => {
-  function testOperations(path1: any, path2: any, results: string[]) {
-    compareBoolean(() => unite(path1, path2), results[0], 'unite1');
-    compareBoolean(() => unite(path2, path1), results[0], 'unite2');
-    compareBoolean(() => subtract(path1, path2), results[1], 'subtract1');
-    compareBoolean(() => subtract(path2, path1), results[2], 'subtract2');
-    compareBoolean(() => intersect(path1, path2), results[3], 'intersect1');
-    compareBoolean(() => intersect(path2, path1), results[3], 'intersect2');
-    compareBoolean(() => exclude(path1, path2), results[4], 'exclude1');
-    compareBoolean(() => exclude(path2, path1), results[4], 'exclude2');
+  async function testOperations(path1: any, path2: any, results: string[]) {
+    await compareBoolean(() => unite(path1, path2), results[0], 'unite1');
+    await compareBoolean(() => unite(path2, path1), results[0], 'unite2');
+    await compareBoolean(() => subtract(path1, path2), results[1], 'subtract1');
+    await compareBoolean(() => subtract(path2, path1), results[2], 'subtract2');
+    await compareBoolean(() => intersect(path1, path2), results[3], 'intersect1');
+    await compareBoolean(() => intersect(path2, path1), results[3], 'intersect2');
+    await compareBoolean(() => exclude(path1, path2), results[4], 'exclude1');
+    await compareBoolean(() => exclude(path2, path1), results[4], 'exclude2');
   }
 
-  it('Boolean operations without crossings', () => {
+  it('Boolean operations without crossings', async () => {
     const path1 = PathConstructors.Rectangle({
       point: { x: 0, y: 0 },
       size: { width: 200, height: 200 },
@@ -47,7 +45,7 @@ describe('Path Boolean Operations', () => {
       size: { width: 100, height: 100 },
     });
 
-    testOperations(path1, path2, [
+    await testOperations(path1, path2, [
       'M0,200v-200h200v200z',
       'M0,200v-200h200v200zM150,150v-100h-100v100z',
       '',

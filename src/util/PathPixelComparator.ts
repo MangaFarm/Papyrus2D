@@ -4,7 +4,6 @@ import { Rectangle } from '../basic/Rectangle';
 import { PathItem } from '../path/PathItem';
 import { Path } from '../path/Path';
 import { PathItemBase } from '../path/PathItemBase';
-import { CompoundPath } from '../path/CompoundPath';
 import { Matrix } from '../basic/Matrix';
 
 const CANVAS_WIDTH = 256;
@@ -28,7 +27,7 @@ export function calculateBounds(paths: PathItem[]): Rectangle {
   return bounds;
 }
 
-function createSVG(paths: Path[], bounds: Rectangle): string {
+function createSVG(paths: PathItem[], bounds: Rectangle): string {
   // 通常bounding box, stroke bounding boxを計算
   let combinedPathData = '';
   let colorIndex = 0;
@@ -81,7 +80,7 @@ export async function saveAsPng(pathItem: PathItem, filename: string, rect: Rect
  * @param pathData2 SVG pathData文字列
  * @returns 完全一致ならtrue、そうでなければfalse
  */
-export async function comparePaths(path1: Path, path2: Path): Promise<boolean> {
+export async function comparePaths(path1: PathItem, path2: PathItem): Promise<boolean> {
   const bounds = calculateBounds([path1, path2]);
   const svg1 = createSVG([path1], bounds);
   const svg2 = createSVG([path2], bounds);
