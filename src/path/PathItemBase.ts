@@ -214,21 +214,10 @@ export abstract class PathItemBase implements PathItem {
   abstract getPaths(): any[];
   abstract clone(deep?: boolean): PathItem;
 
-  /**
-   * パスが時計回りかどうかを判定
-   * paper.jsのisClockwise()メソッドを移植
-   * @returns 時計回りならtrue
-   */
   isClockwise(): boolean {
     return this.getArea() >= 0;
   }
 
-  /**
-   * パスの方向を時計回りまたは反時計回りに設定します
-   * paper.jsのsetClockwise()メソッドを移植
-   * @param clockwise 時計回りにする場合はtrue、反時計回りにする場合はfalse
-   * @returns このパス
-   */
   setClockwise(clockwise: boolean): PathItem {
     if (this.isClockwise() !== !!clockwise) {
       this.reverse();
@@ -572,4 +561,5 @@ export abstract class PathItemBase implements PathItem {
     to?: number | Segment;
   }): PathItem;
 
+  abstract getPathData(matrix: Matrix, precision: number): string;
 }

@@ -72,6 +72,8 @@ export interface PathItem {
     from?: number | Segment;
     to?: number | Segment;
   }): PathItem;
+
+  getPathData(matrix: Matrix, precision: number): string;
 }
 
 export function fromPathData(val: string): PathItem {

@@ -1,22 +1,24 @@
 // vitest形式への変換: PathBoolean.test.ts (Papyrus2D正式API対応)
 import { describe, it, expect } from 'vitest';
 import { Path } from '../src/path/Path';
-import { PathItem } from '../src/path/PathItem';
+import { PathItem, fromPathData } from '../src/path/PathItem';
 import { CompoundPath } from '../src/path/CompoundPath';
 import { PathConstructors } from '../src/path/PathConstructors';
 import { unite, subtract, intersect, exclude, divide } from '../src/path/PathBoolean';
 import { calculateBounds, saveAsPng } from '../src/util/PathPixelComparator';
+import { Matrix } from '../src/basic/Matrix';
 
 // QUnitのcompareBoolean/equals/testをvitest形式に変換
 function compareBoolean(f: () => PathItem, expected: string, message?: string) {
   console.log('compareBoolean', expected);
-  const expectedPath = Path.fromPathData(expected);
+  const expectedPath = fromPathData(expected);
   const actualPath = f();
   const bounds = calculateBounds([expectedPath, actualPath]);
   console.log('bounds', bounds);
+  console.log('pathData', expectedPath.getPathData(Matrix.identity(), 5));
   saveAsPng(expectedPath, `${message}-expected.png`, bounds);
   saveAsPng(actualPath, `${message}-actual.png`, bounds);
-  expect((actualPath as Path).getPathData(), message).toBe(expected);
+  expect((actualPath as Path).getPathData(Matrix.identity(), 5), message).toBe(expected);
 }
 
 describe('Path Boolean Operations', () => {

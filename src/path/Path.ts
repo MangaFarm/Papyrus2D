@@ -648,7 +648,7 @@ export class Path extends PathItemBase {
     return this;
   }
 
-  getPathData(matrix: Matrix = Matrix.identity(), precision: number = 5): string {
+  getPathData(matrix: Matrix, precision: number): string {
     // PathSVG.tsに外注
     return PathSVG.toPathData(this, matrix, precision);
   }

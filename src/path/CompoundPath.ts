@@ -492,14 +492,16 @@ export class CompoundPath extends PathItemBase {
     return resolveCrossings(this);
   }
 
-  getPathData(): string {
-    return this._children
-      .map(child => (typeof child.getPathData === 'function' ? child.getPathData() : ''))
-      .filter(str => str && str.length > 0)
-      .join('');
-  }
-
-  toString(): string {
-    return this.getPathData();
+  getPathData(matrix: Matrix, precision: number): string {
+    const children = this._children;
+    const paths: string[] = [];
+    for (var i = 0, l = children.length; i < l; i++) {
+      var child = children[i],
+          mx = child._matrix;
+      paths.push(child.getPathData(
+        matrix && !mx.isIdentity() ? matrix.appended(mx) : matrix, 
+        precision));
+    }
+    return paths.join('');
   }
 }
