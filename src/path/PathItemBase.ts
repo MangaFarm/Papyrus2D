@@ -553,13 +553,13 @@ export abstract class PathItemBase implements PathItem {
   abstract closePath(tolerance: number): PathItem;
 
   abstract reverse(): PathItem;
-  abstract flatten(flatness: number): PathItem;
-  abstract simplify(tolerance: number): PathItem;
+  abstract flatten(flatness: number): void;
+  abstract simplify(tolerance: number): boolean;
   abstract smooth(options?: {
     type?: 'asymmetric' | 'continuous';
     from?: number | Segment;
     to?: number | Segment;
-  }): PathItem;
+  }): void;
 
   abstract getPathData(matrix: Matrix, precision: number): string;
 }

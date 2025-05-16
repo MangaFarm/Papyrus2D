@@ -453,9 +453,9 @@ export class Path extends PathItemBase {
     type?: 'asymmetric' | 'continuous';
     from?: number | Segment;
     to?: number | Segment;
-  }): Path {
+  }): void {
     // PathUtils.ts に切り出した smoothPath を呼び出す
-    return PathUtils.smoothPath(this, options);
+    PathUtils.smoothPath(this, options);
   }
 
   close(): Path {
@@ -553,13 +553,12 @@ export class Path extends PathItemBase {
     return clonedPath;
   }
 
-  flatten(flatness: number = 0.25): Path {
-    return PathUtils.flattenPath(this, flatness);
+  flatten(flatness: number = 0.25): void {
+    PathUtils.flattenPath(this, flatness);
   }
 
-  simplify(tolerance: number = 2.5): Path {
-    PathUtils.simplifyPath(this, tolerance);
-    return this;
+  simplify(tolerance: number = 2.5): boolean {
+    return PathUtils.simplifyPath(this, tolerance);
   }
 
   isEmpty(): boolean {
@@ -638,7 +637,7 @@ export class Path extends PathItemBase {
   }
 
   toString(): string {
-    return this.getPathData();
+    return this.getPathData(Matrix.identity(), 5);
   }
 
   getChildren(): null {

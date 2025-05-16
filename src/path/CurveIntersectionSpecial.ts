@@ -9,7 +9,6 @@ import { Numerical } from '../util/Numerical';
 import { Point } from '../basic/Point';
 import { Line } from '../basic/Line';
 import { addLocation } from './CurveIntersectionBase';
-import { counter } from './CurveIntersectionMain';
 
 export function getCurveLineIntersections(
   v: number[],

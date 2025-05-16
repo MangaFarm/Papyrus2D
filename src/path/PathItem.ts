@@ -65,13 +65,13 @@ export interface PathItem {
   arcBy(handle: Point, to: Point): PathItem;
 
   reverse(): PathItem;
-  flatten(flatness: number): PathItem;
-  simplify(tolerance: number): PathItem;
+  flatten(flatness: number): void;
+  simplify(tolerance: number): boolean;
   smooth(options?: {
     type?: 'asymmetric' | 'continuous';
     from?: number | Segment;
     to?: number | Segment;
-  }): PathItem;
+  }): void;
 
   getPathData(matrix: Matrix, precision: number): string;
 }

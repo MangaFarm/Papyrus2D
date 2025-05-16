@@ -9,7 +9,6 @@ import { CurveLocation } from './CurveLocation';
 import { Numerical } from '../util/Numerical';
 import { CurveGeometry } from './CurveGeometry';
 import { getConvexHull, clipConvexHull } from './CurveIntersectionConvexHull';
-import { counter } from './CurveIntersectionMain';
 
 /**
  * 自己交差チェック

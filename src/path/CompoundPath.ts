@@ -392,32 +392,32 @@ export class CompoundPath extends PathItemBase {
     return this;
   }
 
-  flatten(flatness: number = 0.25): CompoundPath {
+  flatten(flatness: number = 0.25): void {
     const children = this._children;
     for (let i = 0, l = children.length; i < l; i++) {
       children[i].flatten(flatness);
     }
-    return this;
   }
 
-  simplify(tolerance: number = 2.5): CompoundPath {
+  simplify(tolerance: number = 2.5): boolean {
     const children = this._children;
+    let result = false;
     for (let i = 0, l = children.length; i < l; i++) {
-      children[i].simplify(tolerance);
+      result = children[i].simplify(tolerance) || result;
     }
-    return this;
+    return result;
   }
 
   smooth(options?: {
     type?: 'asymmetric' | 'continuous';
     from?: number | Segment;
     to?: number | Segment;
-  }): CompoundPath {
+  }): void {
     const children = this._children;
+    let result = false;
     for (let i = 0, l = children.length; i < l; i++) {
       children[i].smooth(options);
     }
-    return this;
   }
 
   isClockwise(): boolean {
