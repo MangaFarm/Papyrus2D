@@ -53,10 +53,6 @@ export function addLocation(
   const tMin = Numerical.CURVETIME_EPSILON;
   const tMax = 1 - tMin;
 
-  if (counter == 13) {
-    console.log('🐴overlap', t1, t2, excludeStart, excludeEnd, tMin, tMax, overlap);
-  }
-
   // t1, t2が有効範囲かつ端点除外条件を満たす場合のみ追加
   if (
     t1 !== null &&
@@ -72,13 +68,7 @@ export function addLocation(
     loc1._intersection = loc2;
     loc2._intersection = loc1;
     // includeコールバックがなければ、または条件を満たせばloc1のみ追加
-    if (counter == 13) {
-      console.log('🐴overlapA');
-    }
     if (!include || include(loc1)) {
-      if (counter == 13) {
-        console.log('🐴overlapB');
-      }
       CurveLocation.insert(locations, loc1, true);
     }
   }

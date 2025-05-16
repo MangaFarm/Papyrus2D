@@ -63,9 +63,6 @@ export function addLineIntersection(
     v2[0], v2[1], v2[6], v2[7],
     false, false
   );
-  if (counter == 17) {
-    console.log("🏥addLineIntersection", v1, v2, pt);
-  }
   if (pt) {
     addLocation(
       locations,

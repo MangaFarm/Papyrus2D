@@ -151,7 +151,6 @@ export function fromPathData(path: PathItemBase, svg: string): void {
     // Fix issues with z in the middle of SVG path data, not followed by
     // a m command, see #413:
     if (previous === 'z' && !/[mz]/.test(lower)) path.moveTo(current);
-    console.log(lower);
     switch (lower) {
       case 'm':
       case 'l':

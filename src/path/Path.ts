@@ -28,19 +28,6 @@ import * as PathComponents from './PathComponents';
 import * as PathTransform from './PathTransform';
 import * as PathArc from './PathArc';
 
-function debugCurves(path: Path) {
-  const cs = path._curves;
-  if (cs) {
-    for (const c of cs) {
-      if (c === undefined) {
-        console.log("undefined curve");
-        continue;
-      }
-      console.log(`[${c._segment1}, ${c._segment2}]`);
-    }    
-  }
-}
-
 // removeSegmentsが戻り値の配列にこっそり_curvesというフィールドを忍ばせるという
 // 強烈に邪悪なことをしているので、それに対応
 type SegmentsWithCurves = Array<Segment> & { _curves?: Curve[] };
@@ -110,7 +97,6 @@ export class Path extends PathItemBase {
   }
 
   _adjustCurves(start: number, end: number): void {
-    console.log('🔥adjustCurves');
     var segments = this._segments,
       curves = this._curves!,
       curve;
@@ -151,8 +137,6 @@ export class Path extends PathItemBase {
   }
 
   setClosed(closed: boolean): void {
-    console.log('#setClosed called', closed, this._closed);
-    debugCurves(this);
     if (this._closed != closed) {
       this._closed = closed;
       // カーブの更新
@@ -161,14 +145,10 @@ export class Path extends PathItemBase {
         if (closed) {
           const curve = new Curve(this, this._segments[length - 1], this._segments[0]);
           this._curves[length - 1] = curve;
-          console.log('#setClosed closed');
-          debugCurves(this);
         }
       }
       this._changed(Change.SEGMENTS);
     }
-    console.log('#setClosed finished', closed, this._closed);
-    debugCurves(this);
   }
 
   get closed(): boolean {
@@ -375,17 +355,10 @@ export class Path extends PathItemBase {
   }
 
   moveTo(point: Point): Path {
-    console.log('#moveTo before');
-    debugCurves(this);
-
     if (this._segments.length === 1) this.removeSegment(0);
     // Let's not be picky about calling moveTo() when not at the
     // beginning of a path, just bail out:
     if (!this._segments.length) this._add([new Segment(point)]);
-
-    console.log('#moveTo after');
-    debugCurves(this);
-
     return this;
   }
 
@@ -397,15 +370,7 @@ export class Path extends PathItemBase {
     if (point.x == 150 && point.y == 50) {
       debugger;
     }
-
-    console.log('#lineTo before');
-    debugCurves(this);
-
     this._add([new Segment(point)]);
-
-    console.log('#lineTo after');
-    debugCurves(this);
-
     return this;
   }
 
@@ -500,14 +465,8 @@ export class Path extends PathItemBase {
   }
 
   closePath(tolerance: number): Path {
-    console.log('#closePath', this._countCurves());
-    debugCurves(this);
     this.setClosed(true);
-    console.log('#closePath before join', this._countCurves());
-    debugCurves(this);
     this.join(this, tolerance);
-    console.log('#closePath after join', this._countCurves());
-    debugCurves(this);
     return this;
   }
 

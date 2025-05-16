@@ -11,24 +11,12 @@ describe('SVG', () => {
     const pathData = 'M0,200v-200h200v200z';
     const path = Path.fromPathData(pathData);
     const cs = path.getCurves();
-    if (cs) {
-      console.log('## curves');
-      for (const c of cs) {
-        console.log(`[${c._segment1}, ${c._segment2}]`);
-      }    
-    }
   })
 
   it('subPath', () => {
     const pathData = 'M0,200v-200h200v200zM150,150v-100h-100v100z';
     const path = Path.fromPathData(pathData);
     const cs = path.getCurves();
-    if (cs) {
-      console.log('## curves');
-      for (const c of cs) {
-        console.log(`[${c._segment1}, ${c._segment2}]`);
-      }    
-    }
   })
 
   it('Path.fromPathData', () => {
